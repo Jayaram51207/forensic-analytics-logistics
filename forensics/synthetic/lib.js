@@ -43,10 +43,10 @@ export const DESKS = ['Desk 1 (Invoice)', 'Desk 2 (Documentation)', 'Desk 3 (Cus
 const ddmmyyyy = d => `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
 
 /** A complete, internally consistent sea-export job. */
-export function makeJob(r, jobNo, start) {
+export function makeJob(r, jobNo, start, { containers: fixedContainers } = {}) {
   const [goods, unit] = r.pick(GOODS);
   const [port, country] = r.pick(PORTS);
-  const nContainers = r.chance(0.7) ? 1 : r.int(2, 3);
+  const nContainers = fixedContainers || (r.chance(0.7) ? 1 : r.int(2, 3));
   const containers = Array.from({ length: nContainers }, () => {
     const pkgs = r.int(150, 900);
     const net = r.int(8000, 24000);
@@ -73,6 +73,48 @@ export function makeJob(r, jobNo, start) {
     containers,
     billing_charges: chosen.map(([description, lo, hi]) => ({ description, amount: r.int(lo / 50, hi / 50) * 50 })),
     is_flagged: false, flag_remarks: ''
+  };
+}
+
+const hex = r => Array.from({ length: 64 }, () => '0123456789abcdef'[r.int(0, 15)]).join('');
+
+/**
+ * A B.I.I.L. generation record in the schema unified_generator.py emits (checked against a
+ * real run in test/adapters.test.js). Totals use B.I.I.L.'s own tax rule: 2.5% + 2.5% on
+ * ocean freight, 9% + 9% otherwise.
+ */
+export function biilRecord(r, info, when, over = {}) {
+  const charges = (over.charges || info.billing_charges).map(c => {
+    const rate = /ocean freight/i.test(c.description) ? 2.5 : 9.0;
+    return { description: c.description, amount: Number(c.amount).toFixed(2), cgst_rate: rate, sgst_rate: rate };
+  });
+  const taxable = charges.reduce((s, c) => s + +c.amount, 0);
+  const half = charges.reduce((s, c) => s + Math.round(+c.amount * c.cgst_rate) / 100, 0);
+  const containers = over.containers || info.containers;
+  return {
+    application: 'biil_unified', action: 'document.batch_generated', entity_type: 'document_batch',
+    occurred_at: when.toISOString(), shipment_ref: 'shipment_ref' in over ? over.shipment_ref : info.job_no,
+    actor_claim: 'synthetic-os-user', actor_source: 'os_account_claimed',
+    artifacts: [...(over.source_sha256 ? [{ role: 'source_checklist', path: 'C:/synthetic/checklist.pdf', sha256: over.source_sha256, size: 1000 }] : []),
+      { role: 'bl_instruction', path: `C:/synthetic/Generated/BL_${info.job_no}.xlsx`, sha256: hex(r), size: 9000 }, { role: 'billing_invoice', path: `C:/synthetic/Generated/BILL_${info.job_no}.xlsx`, sha256: hex(r), size: 7000 }],
+    payload: {
+      fields: { shipper: info.shipper, consignee: info.consignee, invoice_no_date: info.invoice_no_date, sb_no_date: info.sb_no_date, gross_weight: info.gross_weight, net_weight: info.net_weight, total_pkgs: info.total_pkgs, cargo_desc: info.cargo_desc, ...(over.fields || {}) },
+      billing_metadata: { 'JOB NO:': info.job_no }, containers, container_nos: containers.map(c => c.container_no), charges,
+      totals: { taxable, cgst: half, sgst: half, grand_total: taxable + 2 * half, tds: +(taxable * 0.02).toFixed(2), payable: +(taxable + 2 * half - taxable * 0.02).toFixed(2) },
+      bl_template: 'Standard (CPS 001)', documents_written: ['bl_instruction', 'billing_invoice'],
+      capture_mode: 'synthetic record written in the B.I.I.L. adapter schema'
+    }
+  };
+}
+
+/** A stuffing-report export in the schema StuffingReport emits (checked against a real click in the GUI test). */
+export function stuffingRecord(info, when, over = {}) {
+  const c = info.containers[0];
+  const rows = [['SHIPPER', info.shipper.split('\n')[0]], ['SHIPPING BILL NO', info.sb_no_date.replace(' DT. ', ' / ')], ['PACKAGES', over.packages ?? String(parseInt(info.total_pkgs, 10))], ['GROSS WEIGHT', over.gross_weight ?? String(parseFloat(info.gross_weight))], ['CONTAINER NO.', `${c.container_no}/40'HC`], ['SEAL NO.', c.seal_no]];
+  return {
+    application: 'stuffing_report', action: 'stuffing_report.exported', entity_type: 'stuffing_report', occurred_at: when.toISOString(), shipment_ref: null,
+    actor_claim: 'synthetic-os-user', actor_source: 'os_account_claimed', artifacts: [],
+    payload: { format: 'clipboard_html', rows: rows.map(([k, v]) => ({ shipment_key: k, shipment_value: v, vessel_key: '', vessel_value: '', enabled: true })), container_nos: [c.container_no], remarks: '', capture_mode: 'synthetic record written in the stuffing-report adapter schema' }
   };
 }
 

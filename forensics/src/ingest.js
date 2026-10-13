@@ -8,6 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { sha256 } from './store.js';
 
 export function outboxAppend(file, rec) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -49,6 +50,28 @@ export function ingest(store, file, { simulateTime = false } = {}) {
     result.ingested++;
   });
   return result;
+}
+
+/**
+ * Do the files evidence refers to still have the recorded content?
+ * Synchroniser outputs are overwritten by design, so they are checked against the archived copy;
+ * desktop-tool files are checked where they were written. A changed or missing file is reported,
+ * not treated as an error: only the hash recorded at capture is evidence of what existed then.
+ */
+export function verifyArtifacts(records, evidenceDir) {
+  const out = [];
+  for (const r of records) {
+    for (const a of r.artifacts || []) {
+      if (!a.sha256) { out.push({ event_id: r.event_id, application: r.application, role: a.role, path: a.path, status: 'no_hash_recorded', detail: a.error || null }); continue; }
+      const archived = path.join(evidenceDir, 'artifacts', a.sha256 + path.extname(a.path || ''));
+      const local = r.application === 'workflow_sync' ? null : a.path;
+      let status = 'not_available';
+      if (fs.existsSync(archived)) status = sha256(fs.readFileSync(archived)) === a.sha256 ? 'archived_copy_verified' : 'ARCHIVED_COPY_ALTERED';
+      else if (local && fs.existsSync(local)) status = sha256(fs.readFileSync(local)) === a.sha256 ? 'file_unchanged' : 'file_changed_since_capture';
+      out.push({ event_id: r.event_id, application: r.application, role: a.role, path: a.path, sha256: a.sha256, status });
+    }
+  }
+  return out;
 }
 
 // Single definition lives with the visualizer so the live app and the tests cannot drift apart.

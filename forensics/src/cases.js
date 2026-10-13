@@ -5,6 +5,7 @@ import { EventStore } from './store.js';
 import { buildViews, reconstruct } from './model.js';
 import { runRules, DEFAULT_CONFIG } from './rules.js';
 import { normalizeJob } from './normalize.js';
+import { buildProvenance, contradictionFindings, assessFinding } from './provenance.js';
 
 export const SCORING = {
   severity_weight: { low: 10, medium: 25, high: 40 },
@@ -80,10 +81,23 @@ export function features(view) {
   };
 }
 
-/** Full analysis of an evidence stream: views, findings, cases. Pure function of the records. */
+/**
+ * Full analysis of an evidence stream: views, findings, provenance, cases. Pure function of the records.
+ * Switches (for ablation): config.provenance === false, config.contradictions === false,
+ * config.timeline_order = 'sequence' | 'event_time'. config.integrity may carry EventStore.verify() output.
+ */
 export function analyze(records, config = {}) {
   const { views, context } = buildViews(records);
   const findings = runRules(views, context, config);
+  const provenance = new Map();
+  if (config.provenance !== false) {
+    for (const view of views.values()) {
+      if (!view.state) continue;
+      const prov = buildProvenance(view, context, config.provenance_config, config.integrity ?? null);
+      provenance.set(view.correlation_id, prov);
+      if (config.contradictions !== false) findings.push(...contradictionFindings(view, prov));
+    }
+  }
   const dispositions = new Map();
   for (const r of records) if (r.action === 'case.disposition_recorded') {
     if (!dispositions.has(r.entity_id)) dispositions.set(r.entity_id, []);
@@ -112,6 +126,7 @@ export function analyze(records, config = {}) {
         external_links: view.external_links.map(l => ({ event_id: l.event.event_id, application: l.event.application, action: l.event.action, method: l.method, confidence: l.confidence, ambiguous: l.ambiguous, basis: l.basis })),
         actors: [...new Map(view.events.filter(e => e.actor?.display_name).map(e => [e.actor.display_name, { name: e.actor.display_name, source: e.actor.source, verified: e.actor.verified }])).values()]
       },
+      contradictions: config.contradictions !== false ? (provenance.get(view.correlation_id)?.contradictions.length ?? 0) : null,
       limitations: [
         ...view.gaps.map(g => g.detail),
         ...(view.events.some(e => e.actor?.source === 'client_claimed') ? ['Actor names are claims sent by the client and are not authenticated.'] : []),
@@ -121,16 +136,18 @@ export function analyze(records, config = {}) {
     });
   }
   cases.sort((a, b) => b.priority.value - a.priority.value || a.case_id.localeCompare(b.case_id));
-  return { views, context, findings, cases };
+  return { views, context, findings, cases, provenance, config };
 }
 
 export function caseDetail(analysis, id) {
   const c = analysis.cases.find(x => x.case_id === id);
   if (!c) return null;
   const view = analysis.views.get(c.correlation_id);
-  const rec = reconstruct(view, analysis.context);
+  const rec = reconstruct(view, analysis.context, { order: analysis.config?.timeline_order || 'event_time' });
   const cited = new Set(c.supporting_event_ids);
-  return { ...c, timeline: rec.timeline.map(t => ({ ...t, cited_by_finding: cited.has(t.event_id) })), gaps: rec.gaps, state_from_evidence: rec.current_state_from_evidence, generations: view.generations.map(g => ({ number: g.number, outcome: g.outcome, input_sha256: g.input_sha256, at: g.requested.server_timestamp, artifacts: g.result?.artifacts || [], error: g.result?.payload.error })) };
+  const prov = analysis.provenance?.get(c.correlation_id) || null;
+  const findings = prov ? c.findings.map(f => ({ ...f, assessment: assessFinding(f, view, prov) })) : c.findings;
+  return { ...c, findings, provenance: prov && { ...prov, contradictions: analysis.config?.contradictions === false ? [] : prov.contradictions }, timeline_ordering: rec.ordering, timeline_note: rec.note, timeline: rec.timeline.map(t => ({ ...t, cited_by_finding: cited.has(t.event_id) })), gaps: rec.gaps, state_from_evidence: rec.current_state_from_evidence, generations: view.generations.map(g => ({ number: g.number, outcome: g.outcome, input_sha256: g.input_sha256, at: g.requested.server_timestamp, artifacts: g.result?.artifacts || [], error: g.result?.payload.error })) };
 }
 
 /** Reviewer decisions are themselves evidence: appended to the same chain, never edited. */

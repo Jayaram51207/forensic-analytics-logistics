@@ -7,6 +7,7 @@
 //   node cli.js case <CASE-ID>                 one case with findings and timeline
 //   node cli.js timeline <job_no>              chronological reconstruction
 //   node cli.js ingest [file-or-folder]        import evidence written by the desktop tools
+//   node cli.js artifacts                      do recorded files still match their recorded hashes?
 //   node cli.js features --out <file.csv>      behavioural features per shipment
 //   node cli.js analyze                        everything as JSON
 // Common option: --dir <evidence dir> (default forensics/data, or FORENSIC_DIR)
@@ -17,7 +18,7 @@ import { fileURLToPath } from 'url';
 import { EventStore } from './src/store.js';
 import { reconcile, reconstruct } from './src/model.js';
 import { analyze, caseDetail, features } from './src/cases.js';
-import { ingest } from './src/ingest.js';
+import { ingest, verifyArtifacts } from './src/ingest.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -86,6 +87,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       const target = path.resolve(arg || process.env.FORENSIC_OUTBOX_DIR || path.join(process.env.LOCALAPPDATA || os.homedir(), 'LeadkingForensics', 'outbox'));
       const files = fs.existsSync(target) && fs.statSync(target).isDirectory() ? fs.readdirSync(target).filter(f => f.endsWith('.jsonl')).map(f => path.join(target, f)) : [target];
       print(Object.fromEntries(files.map(f => [f, ingest(store, f)])));
+      break;
+    }
+    case 'artifacts': {
+      const rows = verifyArtifacts(records(), dir);
+      const tally = {};
+      for (const r of rows) tally[r.status] = (tally[r.status] || 0) + 1;
+      for (const r of rows.filter(x => !['archived_copy_verified', 'file_unchanged'].includes(x.status))) console.log(`  [${r.status}] ${r.application} ${r.role} ${r.path}`);
+      console.log(JSON.stringify(tally));
+      process.exitCode = rows.some(r => r.status === 'ARCHIVED_COPY_ALTERED') ? 2 : 0;
       break;
     }
     case 'features': {

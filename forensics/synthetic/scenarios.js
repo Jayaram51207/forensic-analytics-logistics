@@ -1,7 +1,8 @@
 // Scenario catalogue. Each scenario drives the real synchroniser API through a
 // realistic job lifecycle and returns a ground-truth label. Labels are written
 // to a separate file and are never sent to the application or the detector.
-import { makeJob, closingFor, workTime, checklistPdf, DESKS } from './lib.js';
+import { makeJob, closingFor, workTime, checklistPdf, biilRecord, stuffingRecord, DESKS } from './lib.js';
+import { sha256 } from '../src/store.js';
 import { packCargo } from '../../3D_stuffing_visualizer/src/packing.js';
 import { packingPayload } from '../src/ingest.js';
 
@@ -21,10 +22,11 @@ const clone = v => structuredClone(v);
  *   o.stopBefore          stop before the named step (job left in progress)
  *   o.actor(step)         actor name for a step
  *   o.gap()               minutes between steps
+ *   o.containers          force the number of containers
  */
 export async function lifecycle(c, o = {}) {
   const r = c.r;
-  const s = { c, r, api: c.api, t: o.gap ? c.start : workTime(c.start, 0), info: makeJob(r, c.jobNo, c.start) };
+  const s = { c, r, api: c.api, t: o.gap ? c.start : workTime(c.start, 0), info: makeJob(r, c.jobNo, c.start, { containers: o.containers }) };
   if (o.info) await o.info(s.info, s);
   const res = await s.api.create(s.info, o.actor?.('create') ?? DESKS[0], s.t);
   if (res.status !== 201) throw new Error(`create failed for ${c.jobNo}: ${res.status} ${JSON.stringify(res.json)}`);
@@ -78,15 +80,25 @@ async function withUpload(c, pdf, o = {}) {
   return lifecycle(c, { ...o, info: (info, s) => { if (up.status === 200) info.checklist_pdf_url = up.json.checklist_pdf_url; return o.info?.(info, s); } });
 }
 
-function packing(c, s, manifest, minutesAfter = 60) {
+// A packing manifest that describes the job's own cargo: same package count, same total weight.
+const manifestFor = (info, [length, width, height], extra = {}) => {
+  const quantity = parseInt(info.total_pkgs, 10);
+  return [{ name: info.cargo_desc, length, width, height, weight: parseFloat(info.gross_weight) / quantity, quantity, orientation: 'any', type: 'carton', ...extra }];
+};
+
+function packing(c, s, manifest) {
   const result = packCargo(CONTAINER_40HC, manifest);
-  c.outbox({
+  return c.outbox({
     application: 'visualizer_3d', action: 'packing.run_completed', entity_type: 'packing_run',
-    occurred_at: new Date(s.t.getTime() + minutesAfter * 60000).toISOString(), shipment_ref: s.info.job_no,
+    occurred_at: new Date(s.t.getTime() + 20 * 60000).toISOString(), shipment_ref: s.info.job_no,
     payload: { ...packingPayload(CONTAINER_40HC, manifest, result), capture_mode: 'headless run of packing.js by the synthetic generator' }
   });
-  return result;
 }
+
+// Records from the other tools are written mid-workflow, when that work would really be done.
+const MID = 'Bill Assessment First Copy';
+const later = (s, minutes = 30) => new Date(s.t.getTime() + minutes * 60000);
+const ext = (rec, should_link) => ({ source_event_id: rec.source_event_id, application: rec.application, should_link });
 
 const lbl = (cls, expected_rules, explanation, params = {}) => ({ class: cls, anomalous: cls === 'anomaly', expected_rules, explanation, params });
 
@@ -131,9 +143,9 @@ export const SCENARIOS = {
     return lbl('hard_negative', [], 'Checklist uploaded; stored values equal the extracted values.');
   },
   packing_fits: async c => {
-    const s = await lifecycle(c);
-    packing(c, s, [{ name: 'Cartons', length: 60, width: 40, height: 40, weight: 18, quantity: c.r.int(40, 200), orientation: 'any', type: 'carton' }]);
-    return lbl('hard_negative', [], 'Linked packing run placed every item.');
+    let rec;
+    await lifecycle(c, { containers: 1, at: { [MID]: async s => { rec = packing(c, s, manifestFor(s.info, [40, 30, 25])); } } });
+    return lbl('hard_negative', [], 'Linked packing run for the declared cargo placed every item.', { external: [ext(rec, true)] });
   },
 
   // ---------------- anomalies detectable by rules ----------------
@@ -218,15 +230,114 @@ export const SCENARIOS = {
     return lbl('anomaly', ['SRC-001'], 'Stored weights are 15% below the uploaded checklist, consistently across header and containers.');
   },
   unplaced_cargo: async c => {
-    const s = await lifecycle(c);
     const heavy = c.r.chance(0.5);
-    packing(c, s, heavy
-      ? [{ name: 'Steel coils', length: 120, width: 100, height: 100, weight: 4000, quantity: 9, orientation: 'upright', type: 'pallet' }]
-      : [{ name: 'Oversize crates', length: 240, width: 220, height: 250, weight: 500, quantity: 8, orientation: 'none', type: 'carton' }]);
-    return lbl('anomaly', ['PCK-001'], heavy ? 'Declared cargo exceeds container payload in the linked packing run.' : 'Declared cargo does not fit the container in the linked packing run.', { cause: heavy ? 'payload' : 'space' });
+    let rec;
+    await lifecycle(c, {
+      containers: 1,
+      // heavy: the declared weight itself exceeds a 40' HC payload; otherwise the declared packages are too bulky
+      info: i => { if (heavy) { i.containers[0].net_wt = 29500; i.containers[0].gross_wt = 30000; i.net_weight = '29500 KGS'; i.gross_weight = '30000 KGS'; } },
+      at: { [MID]: async s => { rec = packing(c, s, manifestFor(s.info, heavy ? [60, 40, 30] : [120, 100, 100], { orientation: 'upright' })); } }
+    });
+    return lbl('anomaly', ['PCK-001'], heavy ? 'Declared cargo weight exceeds container payload in the linked packing run.' : 'Declared packages do not fit the container in the linked packing run.', { cause: heavy ? 'payload' : 'space', external: [ext(rec, true)] });
   },
 
-  // ---------------- anomalies the rules cannot see ----------------
+  // ---------------- cross-application scenarios ----------------
+  xapp_consistent: async c => {
+    const recs = [];
+    await lifecycle(c, { containers: 1, at: { [MID]: async s => {
+      recs.push(c.outbox(biilRecord(c.r, s.info, later(s))), packing(c, s, manifestFor(s.info, [40, 30, 25])), c.outbox(stuffingRecord(s.info, later(s, 60))));
+    } } });
+    return lbl('hard_negative', [], 'B.I.I.L. documents, a packing run and a stuffing report all agree with the job. (The two programs still tax ocean freight differently: an unresolved rule, not an anomaly.)', { external: recs.map(r => ext(r, true)) });
+  },
+  xapp_duplicate_evidence: async c => {
+    const recs = [];
+    await lifecycle(c, { at: { [MID]: async s => {
+      const first = c.outbox(biilRecord(c.r, s.info, later(s)));
+      c.outbox({ ...first });                                   // the same outbox line delivered twice
+      recs.push(first, c.outbox(biilRecord(c.r, s.info, later(s, 45))));   // the documents generated again, unchanged
+    } } });
+    return lbl('hard_negative', [], 'The same B.I.I.L. evidence arrives twice and the documents are re-exported unchanged. Repetition is not extra corroboration.', { external: recs.map(r => ext(r, true)), expect_roots: { gross_weight: 2 } });
+  },
+  xapp_unlinked_record: async c => {
+    let rec;
+    await lifecycle(c, { at: { [MID]: async s => { rec = c.outbox(biilRecord(c.r, { ...s.info, gross_weight: '999 KGS', containers: [] }, later(s), { shipment_ref: '' })); } } });
+    return lbl('hard_negative', [], 'A B.I.I.L. record with different values but no job reference and no container: it cannot be attributed to any job and must not be.', { external: [ext(rec, false)] });
+  },
+  xapp_ambiguous_link: async c => {
+    let rec;
+    // a draft is created and deleted, then the job is entered again under the same number
+    await lifecycle(c, { at: { 'Invoice and Packing List Received': async s => { await s.api.remove(s.id, 'System Admin', s.tick(5, 30)); s.gone = true; } } });
+    c.start = new Date(c.start.getTime() + 2 * 86400000);
+    await lifecycle(c, { at: { [MID]: async s => { rec = c.outbox(biilRecord(c.r, { ...s.info, gross_weight: `${Math.round(parseFloat(s.info.gross_weight) * 0.8)} KGS`, containers: [] }, later(s))); } } });
+    return lbl('hard_negative', [], 'A conflicting B.I.I.L. record carries a job number used by two job lifecycles (a deleted draft and its replacement). The conflict cannot be attributed, so no anomaly may be raised.', { external: [ext(rec, 'ambiguous')], expect_classification: 'insufficient_evidence' });
+  },
+  xapp_weight_conflict: async c => {
+    const k = 1 + c.r.pick([-1, 1]) * c.r.int(10, 25) / 100;
+    let rec;
+    await lifecycle(c, { at: { [MID]: async s => { rec = c.outbox(biilRecord(c.r, s.info, later(s), { fields: { gross_weight: `${Math.round(parseFloat(s.info.gross_weight) * k)} KGS` } })); } } });
+    return lbl('anomaly', ['XAP-GROSS_WEIGHT'], 'B.I.I.L. documents state a different gross weight from the job record.', { factor: k, external: [ext(rec, true)], conflict_fields: ['gross_weight'] });
+  },
+  xapp_package_conflict: async c => {
+    let rec;
+    await lifecycle(c, { containers: 1, at: { [MID]: async s => { rec = c.outbox(stuffingRecord(s.info, later(s), { packages: String(parseInt(s.info.total_pkgs, 10) - c.r.int(10, 60)) })); } } });
+    return lbl('anomaly', ['XAP-PACKAGES'], 'The stuffing report counts fewer packages than the job record. It carries no job number and is linked through the container number.', { external: [ext(rec, true)], conflict_fields: ['packages'] });
+  },
+  xapp_container_conflict: async c => {
+    let rec;
+    await lifecycle(c, { at: { [MID]: async s => {
+      const other = s.info.containers.map((x, i) => (i === 0 ? { ...x, container_no: 'SYZU' + x.container_no.slice(4, 10).split('').reverse().join('') + x.container_no[10] } : x));
+      rec = c.outbox(biilRecord(c.r, s.info, later(s), { containers: other }));
+    } } });
+    return lbl('anomaly', ['XAP-CONTAINER_NOS'], 'B.I.I.L. documents name a different container from the job record.', { external: [ext(rec, true)], conflict_fields: ['container_nos'] });
+  },
+  xapp_charge_conflict: async c => {
+    let rec;
+    await lifecycle(c, { at: { [MID]: async s => { rec = c.outbox(biilRecord(c.r, s.info, later(s), { charges: s.info.billing_charges.map((x, i) => (i === 0 ? { ...x, amount: Math.round(x.amount * (1 + c.r.int(15, 40) / 100)) } : x)) })); } } });
+    return lbl('anomaly', ['XAP-TAXABLE_TOTAL'], 'The invoice generated in B.I.I.L. bills a higher freight charge than the job record holds.', { external: [ext(rec, true)], conflict_fields: ['taxable_total'] });
+  },
+  xapp_identifier_mismatch: async c => {
+    let rec;
+    await lifecycle(c, { at: { [MID]: async s => { rec = c.outbox(biilRecord(c.r, s.info, later(s), { shipment_ref: s.info.job_no.replace('SYN-', 'SYM-') })); } } });
+    return lbl('anomaly', ['XAP-JOB_NO'], 'B.I.I.L. documents carry a different job number; they are tied to this job only through the container number.', { external: [ext(rec, true)], conflict_fields: ['job_no'] });
+  },
+  xapp_post_issue_divergence: async c => {
+    let rec;
+    await lifecycle(c, { at: {
+      'Checklist Preparing': async s => { rec = c.outbox(biilRecord(c.r, s.info, later(s, 5))); s.tick(30, 90); },
+      [MID]: async s => { scaleWeights(s.info, 0.85); await s.save(); }
+    } });
+    return lbl('anomaly', ['XAP-GROSS_WEIGHT', 'XAP-NET_WEIGHT'], 'Documents were issued from B.I.I.L., then the job weights were cut by 15% before any milestone and regenerated. Inside the synchroniser this looks like an early correction; only the other application still shows the original figures.', { external: [ext(rec, true)], conflict_fields: ['gross_weight', 'net_weight'], rules_alone_expected: [] });
+  },
+  xapp_document_backed_conflict: async c => {
+    const info = makeJob(c.r, c.jobNo, c.start);
+    const pdf = pdfFor(info);
+    let rec;
+    await withUpload(c, pdf, {
+      info: i => { Object.assign(i, info, { checklist_pdf_url: i.checklist_pdf_url }); scaleWeights(i, 0.85); },
+      at: { [MID]: async s => { rec = c.outbox(biilRecord(c.r, info, later(s), { source_sha256: sha256(pdf) })); } }
+    });
+    return lbl('anomaly', ['SRC-001', 'XAP-GROSS_WEIGHT', 'XAP-NET_WEIGHT'], 'The job understates weights by 15%. Both the uploaded checklist and the B.I.I.L. documents made from it show the original figures.', { external: [ext(rec, true)], conflict_fields: ['gross_weight', 'net_weight'], expect_classification: 'potential_fraud_indicator_requiring_investigation' });
+  },
+  xapp_late_activity: async c => {
+    let rec;
+    await lifecycle(c, { afterClose: async s => { rec = c.outbox(biilRecord(c.r, s.info, new Date(s.t.getTime() + 2 * 86400000))); } });
+    return lbl('anomaly', ['XAP-TIMING'], 'Documents were generated in B.I.I.L. two days after the job was closed.', { external: [ext(rec, true)], conflict_fields: ['timing'] });
+  },
+
+  // ---------------- anomalies no internal analysis can see ----------------
+  common_source_falsification: async c => {
+    const info = makeJob(c.r, c.jobNo, c.start);
+    scaleWeights(info, 0.7);                   // the checklist itself already carries the false weights
+    const pdf = pdfFor(info);
+    let rec;
+    await withUpload(c, pdf, {
+      info: i => { Object.assign(i, info, { checklist_pdf_url: i.checklist_pdf_url }); },
+      at: { [MID]: async s => { rec = c.outbox(biilRecord(c.r, s.info, later(s), { source_sha256: sha256(pdf) })); } }
+    });
+    return lbl('anomaly', [], 'Weights are false in the source document itself. The job, its generated documents and the B.I.I.L. documents all repeat the same figure. Every record agrees, and every record descends from one file.', { external: [ext(rec, true)], expect_roots: { gross_weight: 1 }, expect_needs_authority: true });
+  },
+
+  // ---------------- anomalies the rules cannot see (timing; consistent falsification without a document) ----------------
   unusual_timing: async c => {
     c.start = new Date(Date.UTC(c.start.getUTCFullYear(), c.start.getUTCMonth(), c.start.getUTCDate(), 20, 40));
     await lifecycle(c, { gap: () => c.r.int(0, 2), na: [] });
@@ -260,5 +371,8 @@ export const MIX = {
   stale_documents: 2, late_material_edit: 2, weight_mismatch: 2, package_mismatch: 1.5, billing_inconsistency: 2, closing_changed_on_reclose: 1.5,
   premature_closure: 2, excess_reversals: 1.5, bulk_na: 1.5, regen_changed_excess: 1.5, regen_identical_excess: 1, placeholder_charges: 1.5,
   job_renamed: 1, deleted_after_close: 1.5, spoofed_actor: 1.5, source_mismatch: 2, unplaced_cargo: 2, unusual_timing: 2, consistent_falsification: 2,
-  bad_container_check_digit: 1.5, missing_identifiers: 1.5, malformed_source: 1
+  bad_container_check_digit: 1.5, missing_identifiers: 1.5, malformed_source: 1,
+  xapp_consistent: 6, xapp_duplicate_evidence: 2, xapp_unlinked_record: 2, xapp_ambiguous_link: 2,
+  xapp_weight_conflict: 2, xapp_package_conflict: 2, xapp_container_conflict: 1.5, xapp_charge_conflict: 2, xapp_identifier_mismatch: 1.5,
+  xapp_post_issue_divergence: 2, xapp_document_backed_conflict: 2, xapp_late_activity: 1.5, common_source_falsification: 2
 };

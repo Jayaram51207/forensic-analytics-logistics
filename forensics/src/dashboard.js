@@ -14,7 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 export function createDashboard({ dir, reviewToken = process.env.FORENSIC_REVIEW_TOKEN || null, config = {} }) {
   const store = new EventStore(dir);
-  const load = () => analyze(store.readAll().records.map(x => x.record), config);
+  const load = () => analyze(store.readAll().records.map(x => x.record), { ...config, integrity: store.verify() });
   const summary = c => ({ case_id: c.case_id, job_no: c.job_no, status: c.status, priority: c.priority.value, band: c.priority.band, n_anomaly_findings: c.n_anomaly_findings, n_data_quality_findings: c.n_data_quality_findings, reasons: c.reasons.slice(0, 3) });
   const json = (res, code, body) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(body)); };
   const tokenOk = given => reviewToken && given && given.length === reviewToken.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(reviewToken));

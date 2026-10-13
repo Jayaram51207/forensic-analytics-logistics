@@ -179,17 +179,27 @@ function summarize(e) {
 }
 
 export function timelineEntry(e) {
+  // Event time and ingestion time differ for records that arrived through an outbox.
+  const sourceTime = e.payload?.source?.occurred_at || null;
   return {
     sequence: e.sequence, event_id: e.event_id, operation_id: e.operation_id,
-    time: e.server_timestamp, clock_source: e.clock_source, application: e.application, action: e.action,
+    time: e.server_timestamp, event_time: sourceTime || e.server_timestamp,
+    time_basis: sourceTime ? 'source application clock' : e.clock_source === 'simulated' ? 'simulated clock' : 'evidence store clock',
+    ingested_at: sourceTime ? e.server_timestamp : null,
+    clock_source: e.clock_source, application: e.application, action: e.action,
     actor: e.actor?.display_name ?? null, actor_source: e.actor?.source ?? 'not_supplied', actor_verified: !!e.actor?.verified,
     summary: summarize(e), changes: e.changes || [], artifacts: e.artifacts || [],
     generation_number: e.generation_number, integrity_hash: e.integrity_hash
   };
 }
 
-/** Chronological reconstruction for one shipment, with what is NOT known stated explicitly. */
-export function reconstruct(view, context) {
+/**
+ * Chronological reconstruction for one shipment, with what is NOT known stated explicitly.
+ * order 'event_time' (default): by when things happened, using each record's own clock;
+ *       neighbours timed by different clocks within `clockSkewMinutes` are marked order_uncertain.
+ * order 'sequence': by arrival in the evidence store (outbox records then appear when ingested).
+ */
+export function reconstruct(view, context, { order = 'event_time', clockSkewMinutes = 10 } = {}) {
   const own = view.events.map(timelineEntry);
   const uploadsFor = id => [...(context?.uploads.values() || [])].find(u => u.events.some(e => e.event_id === id))?.events || [];
   const sources = view.source_links.flatMap(l => uploadsFor(l.upload_event_id))
@@ -199,10 +209,23 @@ export function reconstruct(view, context) {
     correlation_id: view.correlation_id, job_no: view.job_no, job_nos_seen: [...view.job_nos], entity_id: view.entity_id,
     origin: view.origin, deleted: !!view.deleted,
     current_state_from_evidence: view.state,
-    timeline: [...own, ...sources, ...external].sort((a, b) => a.sequence - b.sequence),
+    timeline: orderTimeline([...own, ...sources, ...external], order, clockSkewMinutes),
     gaps: view.gaps,
-    note: 'Order follows evidence sequence numbers. Absence of an event here means it was not captured, not that it did not happen.'
+    ordering: order,
+    note: order === 'event_time'
+      ? 'Ordered by event time. Records from desktop tools carry their own clock; where that makes the order unsafe the entry is marked order_uncertain. Absence of an event here means it was not captured, not that it did not happen.'
+      : 'Ordered by arrival in the evidence store. Absence of an event here means it was not captured, not that it did not happen.'
   };
+}
+
+function orderTimeline(entries, order, skewMin) {
+  if (order === 'sequence') return entries.sort((a, b) => a.sequence - b.sequence);
+  entries.sort((a, b) => Date.parse(a.event_time) - Date.parse(b.event_time) || a.sequence - b.sequence);
+  entries.forEach((e, i) => {
+    const near = [entries[i - 1], entries[i + 1]].filter(n => n && n.time_basis !== e.time_basis && Math.abs(Date.parse(n.event_time) - Date.parse(e.event_time)) < skewMin * 60000);
+    e.order_uncertain = near.length > 0;
+  });
+  return entries;
 }
 
 /** Assemble jobs from a raw db.json object the way getJobById() does. */

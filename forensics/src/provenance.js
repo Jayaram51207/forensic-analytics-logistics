@@ -193,14 +193,17 @@ export function buildProvenance(view, context, config = {}, integrity = null) {
   for (const [field, cur] of Object.entries(current)) {
     if (cur.normalized === null) { corroboration[field] = { field, status: 'not_comparable', reason: cur.not_comparable }; continue; }
     const others = [extracted[field], ...external.filter(x => !x.link.ambiguous && x.link.confidence >= cfg.min_link_confidence).map(x => x.values[field])].filter(o => o && o.normalized !== null);
-    const agree = others.filter(o => same(field, cur.normalized, o.normalized, cfg, o.assumption_based));
+    const agreeAll = others.filter(o => same(field, cur.normalized, o.normalized, cfg, o.assumption_based));
+    const agree = agreeAll.filter(o => !o.assumption_based);       // an assumption-based match is not a witness
+    const weak = agreeAll.filter(o => o.assumption_based);
     const roots = new Set([cur.root, ...agree.map(o => o.root)]);
     const docRoot = [...roots].some(r => r.startsWith('doc:'));
     corroboration[field] = {
       field, value: cur.original, agreeing_records: 1 + agree.length, independent_roots: roots.size, roots: [...roots],
       copies_of_same_source: 1 + agree.length - roots.size,
       supported_by_source_document: docRoot,
-      needs_independent_source: roots.size === 1 && !docRoot,
+      weak_agreement: weak.map(o => ({ application: o.application, assumption: o.assumption })),
+      needs_independent_source: roots.size === 1,
       statement: roots.size === 1
         ? (docRoot ? `All ${1 + agree.length} record(s) of this value trace to one uploaded document. They are copies, not corroboration; the document's own accuracy is unverified.` : `All ${1 + agree.length} record(s) of this value trace to a single entry in the synchroniser. Agreement between them proves nothing about accuracy: an independent authoritative source is required.`)
         : `${roots.size} separately sourced records agree${docRoot ? ', including an uploaded source document' : ''}. Separate sourcing inside one organisation is weaker than an external authority.`
@@ -230,7 +233,17 @@ export function buildProvenance(view, context, config = {}, integrity = null) {
       return c;
     };
 
+    if (weakLink) {
+      const differing = Object.entries(x.values).filter(([f, e]) => e.normalized !== null && current[f]?.normalized != null && !same(f, current[f].normalized, e.normalized, cfg, e.assumption_based)).map(([f]) => f);
+      if (differing.length) {
+        const c = mk('XAP-UNATTRIBUTED', 'record_attribution', current.job_no, x.record, { difference: { differing_fields: differing } });
+        c.explanation = `A ${appName(x.event.application)} record differs from this job in ${differing.map(f => FIELD_LABEL[f] || f).join(', ')}, but it ${x.link.ambiguous ? 'matches more than one job lifecycle' : `is linked with confidence ${x.link.confidence} only`} (${x.link.basis}). It may belong to another shipment, so the difference is not treated as a contradiction.`;
+      }
+      continue;
+    }
+
     for (const [field, ext] of Object.entries(x.values)) {
+      if (field === 'job_no') continue; // handled below: a different job number is an attribution question
       if (!cfg.enabled_comparisons.includes(field) || ext.normalized === null) continue;
       if (ext.assumption_based && !cfg.compare_packing_manifest) continue;
       const cur = current[field];
@@ -239,7 +252,7 @@ export function buildProvenance(view, context, config = {}, integrity = null) {
       const numeric = typeof cur.normalized === 'number';
       // Did the job hold the external value at some earlier point? Then the records agreed and the job moved.
       const earlier = (history[field] || []).slice(0, -1).find(h => h.value.ok && same(field, h.value.normalized, ext.normalized, cfg, ext.assumption_based));
-      const docAgreesWithExternal = extracted[field] && extracted[field].normalized !== null && extracted[field].root !== ext.root && same(field, extracted[field].normalized, ext.normalized, cfg, ext.assumption_based);
+      const docAgreesWithExternal = !!(extracted[field] && extracted[field].normalized !== null && same(field, extracted[field].normalized, ext.normalized, cfg, ext.assumption_based));
       const c = mk(`XAP-${field.toUpperCase()}`, field, cur, ext, {
         difference: numeric ? { absolute: +(cur.normalized - ext.normalized).toFixed(3), relative: +(Math.abs(cur.normalized - ext.normalized) / Math.max(Math.abs(cur.normalized), Math.abs(ext.normalized))).toFixed(4) } : field === 'container_nos' ? { only_in_job: cur.normalized.filter(v => !ext.normalized.includes(v)), only_in_other: ext.normalized.filter(v => !cur.normalized.includes(v)) } : { nature: 'different identifiers' }
       });
@@ -248,7 +261,7 @@ export function buildProvenance(view, context, config = {}, integrity = null) {
           : numeric && (docAgreesWithExternal || earlier) ? 'potential_fraud_indicator_requiring_investigation'
           : 'confirmed_data_inconsistency';
       }
-      if (docAgreesWithExternal) c.supported_by.push(`The uploaded source document also states ${JSON.stringify(extracted[field].original)}, agreeing with ${appName(ext.application)} and not with the job record.`);
+      if (docAgreesWithExternal) c.supported_by.push(`The uploaded source document states ${JSON.stringify(extracted[field].original)}, agreeing with ${appName(ext.application)} and not with the job record.${extracted[field].root === ext.root ? ' (The other record descends from that same document, so this is one source, not two.)' : ''}`);
       if (earlier) c.supported_by.push(`The job itself held ${JSON.stringify(earlier.value.original)} until it was edited (event ${(history[field][history[field].indexOf(earlier) + 1]).event.event_id}); the other record matches the earlier value.`);
       if (extracted[field] && extracted[field].normalized !== null && same(field, extracted[field].normalized, cur.normalized, cfg)) c.weakened_by.push('The uploaded source document agrees with the job record, not with the other application.');
       c.ordering = orderOf(cur, ext, cfg);

@@ -94,9 +94,11 @@ async function openCase(id) {
       d.findings.map(f => $('div', { class: 'finding ' + f.severity },
         $('div', {}, $('span', { class: 'tag ' + f.severity }, f.severity), ' ', $('strong', {}, f.title), ' ', $('span', { class: 'mute' }, `${f.rule_id} v${f.rule_version} · ${f.kind.replace('_', ' ')}`)),
         $('p', {}, f.explanation),
-        f.assumptions.length ? $('p', { class: 'mute' }, 'Assumptions: ' + f.assumptions.join(' ')) : null,
+        f.assessment && f.assessment.supports.length ? $('p', { class: 'ok' }, 'Supports: ' + f.assessment.supports.join(' ')) : null,
+        f.assessment && f.assessment.weakens.length ? $('p', { class: 'mute' }, 'Weakens: ' + f.assessment.weakens.join(' ')) : (f.assumptions.length ? $('p', { class: 'mute' }, 'Assumptions: ' + f.assumptions.join(' ')) : null),
         $('div', { class: 'mute mono' }, 'evidence: ' + f.evidence_event_ids.join(', '))))),
     d.limitations.length ? $('div', { class: 'panel' }, $('h2', {}, 'Uncertainty and limitations'), $('ul', {}, d.limitations.map(l => $('li', {}, l)))) : null,
+    d.provenance ? provenancePanels(d.provenance) : null,
     $('div', { class: 'panel' }, $('h2', {}, 'Document generations'),
       $('table', {}, $('tr', {}, ['#', 'time', 'outcome', 'input hash', 'outputs (path · sha256 · content fingerprint)'].map(h => $('th', {}, h))),
         d.generations.map((g, i) => $('tr', {},
@@ -107,12 +109,12 @@ async function openCase(id) {
     $('div', { class: 'panel' }, $('h2', {}, 'Timeline (highlighted rows are cited by a finding)'),
       $('table', {}, $('tr', {}, ['seq', 'time (UTC)', 'actor', 'event', 'details'].map(h => $('th', {}, h))),
         d.timeline.map(t => $('tr', { class: t.cited_by_finding ? 'cited' : '' },
-          $('td', {}, t.sequence), $('td', {}, t.time.replace('T', ' ').replace('.000Z', ''), t.clock_source === 'simulated' ? $('div', { class: 'mute' }, 'simulated clock') : null),
+          $('td', {}, t.sequence), $('td', {}, t.event_time.replace('T', ' ').replace('.000Z', ''), $('div', { class: 'mute' }, t.time_basis), t.ingested_at ? $('div', { class: 'mute' }, 'ingested ' + t.ingested_at.replace('T', ' ').replace('.000Z', '')) : null, t.order_uncertain ? $('div', { class: 'warn' }, 'order vs neighbours uncertain') : null),
           $('td', {}, t.actor || '—', $('div', { class: 'mute' }, t.actor_verified ? 'verified' : t.actor_source.replaceAll('_', ' ') + ', unverified')),
           $('td', {}, t.summary, $('div', { class: 'mute mono' }, t.event_id), t.link ? $('div', { class: 'mute' }, 'link: ' + t.link) : null),
           $('td', {}, t.changes.length ? changes(t.changes) : null, t.artifacts.map(a => $('div', { class: 'mono' }, `${a.role}: ${short(a.sha256)}`)))))),
       d.gaps.length ? $('p', { class: 'warn' }, 'Evidence gaps: ' + d.gaps.map(g => g.detail).join(' | ')) : null,
-      $('p', { class: 'mute' }, 'An event missing from this list was not captured; that is not proof it did not happen.')),
+      $('p', { class: 'mute' }, d.timeline_note || 'An event missing from this list was not captured; that is not proof it did not happen.')),
     $('div', { class: 'panel' }, $('h2', {}, 'Review outcome'),
       d.dispositions.map(x => $('div', {}, `${x.at} — ${x.disposition.replaceAll('_', ' ')} by ${x.reviewer || 'unnamed'}: ${x.note}`)),
       overview.review_enabled ? $('div', { style: 'display:grid; gap:6px; max-width:520px; margin-top:8px' },
@@ -121,6 +123,43 @@ async function openCase(id) {
         $('textarea', { id: 'note', rows: 3, placeholder: 'basis for this assessment' }),
         $('button', { onclick: () => saveDisposition(d.case_id) }, 'Record assessment'), $('span', { id: 'saved', class: 'mute' }))
         : $('div', { class: 'mute' }, 'Read-only: recording assessments needs the dashboard to be started with FORENSIC_REVIEW_TOKEN.')));
+}
+
+const CLASS_STYLE = { potential_fraud_indicator_requiring_investigation: 'high', confirmed_data_inconsistency: 'medium', suspected_operational_anomaly: 'low', insufficient_evidence: 'informational', unresolved_business_rule_conflict: 'informational' };
+
+function provenancePanels(p) {
+  const item = i => $('div', { class: 'mono' }, `${i.application}: ${show(i.original)}${i.normalized !== null && typeof i.normalized !== 'object' ? ' = ' + i.normalized + (i.unit ? ' ' + i.unit : '') : ''}`, $('div', { class: 'mute' }, `${i.event_time.replace('T', ' ').replace('.000Z', '')} (${i.time_basis}) · ${i.actor.display_name || 'no actor'}${i.actor.verified ? ', verified' : ', unverified'} · ${i.evidence_id} · event ${i.event_id}`));
+  return [
+    $('div', { class: 'panel' }, $('h2', {}, 'Contradictions between applications'),
+      p.contradictions.length ? p.contradictions.map(c => $('div', { class: 'finding ' + (CLASS_STYLE[c.classification] || 'low') },
+        $('div', {}, $('span', { class: 'tag ' + (CLASS_STYLE[c.classification] || 'low') }, c.classification.replaceAll('_', ' ')), ' ', $('strong', {}, c.field.replaceAll('_', ' ')), ' ', $('span', { class: 'mute' }, `${c.rule_id} v${c.rule_version} · ${c.contradiction_id}`)),
+        $('p', {}, c.explanation),
+        c.items.map(item),
+        $('div', { class: 'mute' }, `sources: ${(c.independence || 'n/a').replaceAll('_', ' ')} · link: ${c.entity_match.method.replaceAll('_', ' ')}, confidence ${c.entity_match.confidence}${c.entity_match.ambiguous ? ' (AMBIGUOUS)' : ''}${c.ordering ? ` · order: ${c.ordering.relation}${c.ordering.uncertain ? ' (uncertain)' : ''}` : ''}${c.difference && c.difference.relative !== undefined ? ` · difference ${c.difference.absolute} (${(c.difference.relative * 100).toFixed(1)}%)` : ''}`),
+        c.supported_by.length ? $('p', { class: 'ok' }, 'Supports: ' + c.supported_by.join(' ')) : null,
+        c.weakened_by.length ? $('p', { class: 'mute' }, 'Weakens: ' + c.weakened_by.join(' ')) : null,
+        c.missing_business_rule ? $('p', { class: 'warn' }, 'Missing business rule: ' + c.missing_business_rule) : null,
+        $('p', { class: 'mute' }, 'Next step: ' + c.recommendation)))
+        : $('div', { class: 'mute' }, 'None found between the records linked to this shipment.')),
+    $('div', { class: 'panel' }, $('h2', {}, 'Where key values come from'),
+      $('table', {}, $('tr', {}, ['field', 'value in job', 'records agreeing', 'separate sources', 'reading'].map(h => $('th', {}, h))),
+        Object.values(p.corroboration).map(c => c.status === 'not_comparable'
+          ? $('tr', {}, $('td', {}, c.field.replaceAll('_', ' ')), $('td', { colspan: '4', class: 'mute' }, 'not comparable: ' + c.reason))
+          : $('tr', {}, $('td', {}, c.field.replaceAll('_', ' ')), $('td', { class: 'mono' }, show(c.value)), $('td', {}, c.agreeing_records), $('td', { class: c.needs_independent_source ? 'warn' : '' }, c.independent_roots), $('td', {}, c.statement, c.weak_agreement && c.weak_agreement.length ? $('div', { class: 'mute' }, `Also matched, on an assumption only: ${c.weak_agreement.map(w => w.application).join(', ')}.`) : null)))),
+      $('p', { class: 'mute' }, 'Records with one source are copies of one statement. Counting them twice would overstate the evidence.')),
+    $('div', { class: 'panel' }, $('h2', {}, 'Evidence trust: four separate questions'),
+      $('table', {},
+        $('tr', {}, $('th', {}, 'Integrity of captured records'), $('td', {}, p.trust.integrity, $('div', { class: 'mute' }, p.trust.integrity_scope))),
+        $('tr', {}, $('th', {}, 'Authenticity of sources'), $('td', {}, p.trust.authenticity)),
+        $('tr', {}, $('th', {}, 'Accuracy of values'), $('td', {}, p.trust.accuracy)),
+        $('tr', {}, $('th', {}, 'Independence'), $('td', {}, p.trust.independence))),
+      $('h2', { style: 'margin-top:10px' }, 'Related records from other applications'),
+      p.external_records.length ? $('table', {}, $('tr', {}, ['application', 'record', 'event time', 'link', 'confidence', 'comparable fields'].map(h => $('th', {}, h))),
+        p.external_records.map(r => $('tr', {}, $('td', {}, r.application), $('td', {}, r.action, $('div', { class: 'mute mono' }, r.event_id)), $('td', {}, r.event_time.replace('T', ' ').replace('.000Z', '')), $('td', { class: r.entity_match.ambiguous ? 'warn' : '' }, r.entity_match.method.replaceAll('_', ' ') + (r.entity_match.ambiguous ? ' (ambiguous)' : '')), $('td', {}, r.entity_match.confidence), $('td', {}, r.comparable_fields.join(', ') || 'none'))))
+        : $('div', { class: 'mute' }, 'None linked.'),
+      $('h2', { style: 'margin-top:10px' }, 'Missing independent evidence'),
+      $('ul', {}, p.missing_independent_evidence.map(m => $('li', {}, m))))
+  ];
 }
 
 async function saveDisposition(id) {
