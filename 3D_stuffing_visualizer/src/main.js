@@ -355,6 +355,13 @@ function sendForensicEvent(action, payload) {
   }
 }
 
+// The first packing run happens before the desktop bridge exists; record it once the bridge is ready.
+window.addEventListener('pywebviewready', () => {
+  if (packingResults) {
+    sendForensicEvent('packing.run_completed', packingPayload(selectedContainer, manifestList, packingResults));
+  }
+});
+
 // --- LOGIC ACTIONS ---
 
 function calculateStuffing() {
