@@ -781,6 +781,7 @@ namespace EasyQuote
                     dataObject.SetData("HTML Format", ms);
                     dataObject.SetText(html, TextDataFormat.UnicodeText);
                     Clipboard.SetDataObject(dataObject, true);
+                    RecordExport("clipboard_html");
                 }
 
                 StatusTxt.Text = "HTML Table copied to Clipboard! You can now paste (Ctrl+V) directly into Outlook, Gmail, or Word.";
@@ -800,6 +801,7 @@ namespace EasyQuote
                 SaveCurrentValuesFromUI();
                 string txt = GeneratePlainText();
                 Clipboard.SetText(txt, TextDataFormat.UnicodeText);
+                RecordExport("clipboard_text");
                 StatusTxt.Text = "Plain Text Table copied to Clipboard!";
                 MessageBox.Show("Plain Text Table copied to Clipboard!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -854,6 +856,7 @@ namespace EasyQuote
 </body>
 </html>";
                     File.WriteAllText(sfd.FileName, fullHtml, Encoding.UTF8);
+                    RecordExport("html", sfd.FileName);
                     StatusTxt.Text = $"Exported to {Path.GetFileName(sfd.FileName)} successfully.";
                     MessageBox.Show("Quotation HTML file exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -905,6 +908,7 @@ namespace EasyQuote
                 if (sfd.ShowDialog() == true)
                 {
                     GenerateExcelWorkbook(sfd.FileName);
+                    RecordExport("xlsx", sfd.FileName);
                     StatusTxt.Text = $"Exported to {Path.GetFileName(sfd.FileName)} successfully.";
                     MessageBox.Show("Quotation Excel file exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -1123,6 +1127,41 @@ namespace EasyQuote
             isInitializing = false;
             UpdatePreview();
             StatusTxt.Text = "All rows deselected.";
+        }
+
+        // Evidence record of what was exported (see EasyQuote/ForensicOutbox.cs).
+        private const string ForensicApp = "easyquote_export";
+
+        private void RecordExport(string format, string? filePath = null)
+        {
+            var rows = new List<object>();
+            foreach (var row in rowDefs)
+            {
+                rows.Add(new
+                {
+                    header = row.Header,
+                    enabled = row.IsEnabled,
+                    values = row.CurrentValues,
+                    defaults = row.DefaultValues,
+                    differs_from_default = !row.CurrentValues.SequenceEqual(row.DefaultValues)
+                });
+            }
+            var columns = new List<object>();
+            foreach (var col in columnDefs)
+            {
+                columns.Add(new { header = col.Header, enabled = col.IsEnabled });
+            }
+            Leadking.Forensics.ForensicOutbox.Emit(ForensicApp, "quotation.exported", new Dictionary<string, object?>
+            {
+                ["format"] = format,
+                ["quote_ref"] = QuoteRefTxt.Text,
+                ["client_name"] = ClientNameTxt.Text,
+                ["date_text"] = QuoteDateTxt.Text,
+                ["validity"] = ValidityTxt.Text,
+                ["subject"] = SubjectTxt.Text,
+                ["columns"] = columns,
+                ["rows"] = rows
+            }, filePath, "quotation");
         }
 
         private static string HtmlEncode(string text)

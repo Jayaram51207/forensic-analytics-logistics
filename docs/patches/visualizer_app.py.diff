@@ -1,0 +1,52 @@
+--- a/3D_stuffing_visualizer/app.py (original)
++++ b/3D_stuffing_visualizer/app.py
+@@ -7,6 +7,16 @@
+ 
+ PORT = 24689
+ 
++# Optional forensic evidence outbox (forensics/adapters/forensic_outbox.py).
++# The app runs unchanged when the module is not present, e.g. in a frozen build.
++try:
++    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'forensics', 'adapters'))
++    import forensic_outbox
++except Exception:
++    forensic_outbox = None
++
++FORENSIC_APP = 'visualizer_3d'
++
+ def start_local_server(directory, port):
+     """Spins up a lightweight local HTTP server to host the web app assets"""
+     os.chdir(directory)
+@@ -42,7 +52,20 @@
+         print(f"JS EXCEPTION CAPTURED: {error_json}", file=sys.stderr)
+         sys.stderr.flush()
+ 
+-    def save_pdf(self, filename, base64_data):
++    def forensic_event(self, event_json):
++        """Called from main.js with {action, shipment_ref, payload}."""
++        if forensic_outbox is None:
++            return False
++        try:
++            import json
++            evt = json.loads(event_json)
++            return forensic_outbox.emit(FORENSIC_APP, str(evt['action']), evt.get('payload') or {},
++                                        shipment_ref=evt.get('shipment_ref'), entity_type='packing_run')
++        except Exception as e:
++            print(f"Forensic event rejected: {e}", file=sys.stderr)
++            return False
++
++    def save_pdf(self, filename, base64_data, shipment_ref=None):
+         try:
+             import base64
+             if ',' in base64_data:
+@@ -64,6 +87,10 @@
+                 with open(file_path, 'wb') as f:
+                     f.write(pdf_bytes)
+                 print(f"PDF saved successfully to: {file_path}")
++                if forensic_outbox is not None:
++                    forensic_outbox.emit(FORENSIC_APP, 'packing.report_saved', {'suggested_filename': filename},
++                                         shipment_ref=shipment_ref, entity_type='packing_report',
++                                         artifacts=[forensic_outbox.file_artifact('packing_report_pdf', file_path)])
+                 sys.stdout.flush()
+                 return True
+             else:

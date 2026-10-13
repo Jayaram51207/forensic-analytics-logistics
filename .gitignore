@@ -43,3 +43,7 @@
 **/Billing/
 **/downloads/
 **/db.json
+
+# Forensic layer: live evidence and regenerable datasets
+forensics/data/
+forensics/datasets/

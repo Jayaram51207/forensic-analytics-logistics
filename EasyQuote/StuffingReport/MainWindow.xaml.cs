@@ -623,6 +623,7 @@ namespace StuffingReport
                     dataObject.SetData("HTML Format", ms);
                     dataObject.SetText(html, TextDataFormat.UnicodeText);
                     Clipboard.SetDataObject(dataObject, true);
+                    RecordExport("clipboard_html");
                 }
 
                 StatusTxt.Text = "HTML Table copied to Clipboard!";
@@ -642,6 +643,7 @@ namespace StuffingReport
                 SaveCurrentValuesFromUI();
                 string txt = GeneratePlainText();
                 Clipboard.SetText(txt, TextDataFormat.UnicodeText);
+                RecordExport("clipboard_text");
                 StatusTxt.Text = "Plain Text copied to Clipboard!";
                 MessageBox.Show("Plain Text copied to Clipboard!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -696,6 +698,7 @@ namespace StuffingReport
 </body>
 </html>";
                     File.WriteAllText(sfd.FileName, fullHtml, Encoding.UTF8);
+                    RecordExport("html", sfd.FileName);
                     StatusTxt.Text = $"Exported HTML to {Path.GetFileName(sfd.FileName)}.";
                     MessageBox.Show("Stuffing Report HTML file exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -722,6 +725,7 @@ namespace StuffingReport
                 if (sfd.ShowDialog() == true)
                 {
                     GenerateExcelWorkbook(sfd.FileName);
+                    RecordExport("xlsx", sfd.FileName);
                     StatusTxt.Text = $"Exported Excel to {Path.GetFileName(sfd.FileName)}.";
                     MessageBox.Show("Excel file exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -945,6 +949,30 @@ namespace StuffingReport
             BuildGridWorkspace();
             UpdatePreview();
             StatusTxt.Text = "All rows deselected.";
+        }
+
+        // Evidence record of what was exported (see EasyQuote/ForensicOutbox.cs).
+        private const string ForensicApp = "stuffing_report";
+
+        private void RecordExport(string format, string? filePath = null)
+        {
+            var rows = new List<object>();
+            var containerNos = new List<string>();
+            foreach (var row in rowDefs)
+            {
+                rows.Add(new { shipment_key = row.ShipmentKey, shipment_value = row.ShipmentValue, vessel_key = row.VesselKey, vessel_value = row.VesselValue, enabled = row.IsEnabled });
+                foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(row.ShipmentValue ?? "", @"\b[A-Z]{4}\d{7}\b"))
+                {
+                    containerNos.Add(m.Value);
+                }
+            }
+            Leadking.Forensics.ForensicOutbox.Emit(ForensicApp, "stuffing_report.exported", new Dictionary<string, object?>
+            {
+                ["format"] = format,
+                ["rows"] = rows,
+                ["container_nos"] = containerNos,
+                ["remarks"] = RemarksTxt.Text
+            }, filePath, "stuffing_report");
         }
 
         private static string HtmlEncode(string text)

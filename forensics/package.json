@@ -1,0 +1,12 @@
+{
+  "name": "leadking-forensics",
+  "version": "0.1.0",
+  "description": "Forensic evidence capture, correlation and incident reconstruction layer for the Leadking Logistics Suite (academic prototype)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "verify": "node cli.js verify",
+    "dashboard": "node src/dashboard.js"
+  }
+}

@@ -1,0 +1,30 @@
+--- a/Workflow syncroniser/db.js (original)
++++ b/Workflow syncroniser/db.js
+@@ -5,7 +5,10 @@
+ import crypto from 'crypto';
+ 
+ const __dirname = path.dirname(fileURLToPath(import.meta.url));
+-const dbPath = path.join(__dirname, 'db.json');
++const dbPath = process.env.SYNC_DB_PATH || path.join(__dirname, 'db.json');
++
++// Read by the forensic layer: start-up migrations rewrite data outside any API call.
++export const startupInfo = { db_path: dbPath, db_existed: false, migrated: false };
+ 
+ // Initialize local DB state
+ let data = {
+@@ -186,6 +189,7 @@
+ 
+ // Check if db.json exists, if not initialize it
+ if (fs.existsSync(dbPath)) {
++  startupInfo.db_existed = true;
+   try {
+     const raw = fs.readFileSync(dbPath, 'utf8');
+     data = JSON.parse(raw);
+@@ -323,6 +327,7 @@
+       }
+     });
+ 
++    startupInfo.migrated = migrated;
+     if (migrated) {
+       saveToDisk();
+     }

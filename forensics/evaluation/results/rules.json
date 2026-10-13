@@ -1,0 +1,784 @@
+[
+ {
+  "dataset": "train-101",
+  "jobs": 300,
+  "integrity_ok": true,
+  "events": 11501,
+  "class_counts": {
+   "normal": 184,
+   "hard_negative": 116,
+   "data_quality": 0,
+   "anomaly": 0
+  },
+  "rules_any_anomaly_finding": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 0,
+   "tn": 300,
+   "precision": null,
+   "recall": null,
+   "f1": null,
+   "false_positive_rate": 0
+  },
+  "rules_priority_medium_or_higher": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 0,
+   "tn": 300,
+   "precision": null,
+   "recall": null,
+   "f1": null,
+   "false_positive_rate": 0
+  },
+  "rules_on_rule_detectable_anomalies_only": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 0,
+   "tn": 300,
+   "precision": null,
+   "recall": null,
+   "f1": null,
+   "false_positive_rate": 0
+  },
+  "hard_negative_false_positive_rate": 0,
+  "data_quality_cases_flagged_as_anomaly": 0,
+  "by_type": {
+   "clean_complete": {
+    "class": "normal",
+    "n": 151,
+    "flagged": 0,
+    "expected_rules_hit": 151
+   },
+   "legit_reopen": {
+    "class": "hard_negative",
+    "n": 17,
+    "flagged": 0,
+    "expected_rules_hit": 17
+   },
+   "clean_in_progress": {
+    "class": "normal",
+    "n": 33,
+    "flagged": 0,
+    "expected_rules_hit": 33
+   },
+   "early_correction_regenerated": {
+    "class": "hard_negative",
+    "n": 39,
+    "flagged": 0,
+    "expected_rules_hit": 39
+   },
+   "nonmaterial_late_edit": {
+    "class": "hard_negative",
+    "n": 16,
+    "flagged": 0,
+    "expected_rules_hit": 16
+   },
+   "packing_fits": {
+    "class": "hard_negative",
+    "n": 15,
+    "flagged": 0,
+    "expected_rules_hit": 15
+   },
+   "regen_identical_few": {
+    "class": "hard_negative",
+    "n": 16,
+    "flagged": 0,
+    "expected_rules_hit": 16
+   },
+   "source_matches": {
+    "class": "hard_negative",
+    "n": 13,
+    "flagged": 0,
+    "expected_rules_hit": 13
+   }
+  },
+  "unexpected": []
+ },
+ {
+  "dataset": "seed-1",
+  "jobs": 300,
+  "integrity_ok": true,
+  "events": 11587,
+  "class_counts": {
+   "normal": 124,
+   "hard_negative": 83,
+   "data_quality": 14,
+   "anomaly": 79
+  },
+  "rules_any_anomaly_finding": {
+   "tp": 69,
+   "fp": 0,
+   "fn": 10,
+   "tn": 221,
+   "precision": 1,
+   "recall": 0.8734177215189873,
+   "f1": 0.9324324324324325,
+   "false_positive_rate": 0
+  },
+  "rules_priority_medium_or_higher": {
+   "tp": 18,
+   "fp": 0,
+   "fn": 61,
+   "tn": 221,
+   "precision": 1,
+   "recall": 0.22784810126582278,
+   "f1": 0.3711340206185567,
+   "false_positive_rate": 0
+  },
+  "rules_on_rule_detectable_anomalies_only": {
+   "tp": 69,
+   "fp": 0,
+   "fn": 0,
+   "tn": 221,
+   "precision": 1,
+   "recall": 1,
+   "f1": 1,
+   "false_positive_rate": 0
+  },
+  "hard_negative_false_positive_rate": 0,
+  "data_quality_cases_flagged_as_anomaly": 0,
+  "by_type": {
+   "source_matches": {
+    "class": "hard_negative",
+    "n": 15,
+    "flagged": 0,
+    "expected_rules_hit": 15
+   },
+   "clean_complete": {
+    "class": "normal",
+    "n": 107,
+    "flagged": 0,
+    "expected_rules_hit": 107
+   },
+   "legit_reopen": {
+    "class": "hard_negative",
+    "n": 14,
+    "flagged": 0,
+    "expected_rules_hit": 14
+   },
+   "missing_identifiers": {
+    "class": "data_quality",
+    "n": 5,
+    "flagged": 0,
+    "expected_rules_hit": 5
+   },
+   "bad_container_check_digit": {
+    "class": "data_quality",
+    "n": 5,
+    "flagged": 0,
+    "expected_rules_hit": 5
+   },
+   "weight_mismatch": {
+    "class": "anomaly",
+    "n": 6,
+    "flagged": 6,
+    "expected_rules_hit": 6
+   },
+   "early_correction_regenerated": {
+    "class": "hard_negative",
+    "n": 18,
+    "flagged": 0,
+    "expected_rules_hit": 18
+   },
+   "malformed_source": {
+    "class": "data_quality",
+    "n": 4,
+    "flagged": 0,
+    "expected_rules_hit": 4
+   },
+   "nonmaterial_late_edit": {
+    "class": "hard_negative",
+    "n": 4,
+    "flagged": 0,
+    "expected_rules_hit": 4
+   },
+   "closing_changed_on_reclose": {
+    "class": "anomaly",
+    "n": 6,
+    "flagged": 6,
+    "expected_rules_hit": 6
+   },
+   "deleted_draft": {
+    "class": "hard_negative",
+    "n": 5,
+    "flagged": 0,
+    "expected_rules_hit": 5
+   },
+   "excess_reversals": {
+    "class": "anomaly",
+    "n": 7,
+    "flagged": 7,
+    "expected_rules_hit": 7
+   },
+   "packing_fits": {
+    "class": "hard_negative",
+    "n": 15,
+    "flagged": 0,
+    "expected_rules_hit": 15
+   },
+   "regen_identical_few": {
+    "class": "hard_negative",
+    "n": 12,
+    "flagged": 0,
+    "expected_rules_hit": 12
+   },
+   "clean_in_progress": {
+    "class": "normal",
+    "n": 17,
+    "flagged": 0,
+    "expected_rules_hit": 17
+   },
+   "package_mismatch": {
+    "class": "anomaly",
+    "n": 2,
+    "flagged": 2,
+    "expected_rules_hit": 2
+   },
+   "deleted_after_close": {
+    "class": "anomaly",
+    "n": 9,
+    "flagged": 9,
+    "expected_rules_hit": 9
+   },
+   "stale_documents": {
+    "class": "anomaly",
+    "n": 9,
+    "flagged": 9,
+    "expected_rules_hit": 9
+   },
+   "consistent_falsification": {
+    "class": "anomaly",
+    "n": 6,
+    "flagged": 0,
+    "expected_rules_hit": 6
+   },
+   "unplaced_cargo": {
+    "class": "anomaly",
+    "n": 7,
+    "flagged": 7,
+    "expected_rules_hit": 7
+   },
+   "late_material_edit": {
+    "class": "anomaly",
+    "n": 3,
+    "flagged": 3,
+    "expected_rules_hit": 3
+   },
+   "regen_identical_excess": {
+    "class": "anomaly",
+    "n": 1,
+    "flagged": 1,
+    "expected_rules_hit": 1
+   },
+   "unusual_timing": {
+    "class": "anomaly",
+    "n": 4,
+    "flagged": 0,
+    "expected_rules_hit": 4
+   },
+   "spoofed_actor": {
+    "class": "anomaly",
+    "n": 3,
+    "flagged": 3,
+    "expected_rules_hit": 3
+   },
+   "bulk_na": {
+    "class": "anomaly",
+    "n": 2,
+    "flagged": 2,
+    "expected_rules_hit": 2
+   },
+   "job_renamed": {
+    "class": "anomaly",
+    "n": 4,
+    "flagged": 4,
+    "expected_rules_hit": 4
+   },
+   "source_mismatch": {
+    "class": "anomaly",
+    "n": 2,
+    "flagged": 2,
+    "expected_rules_hit": 2
+   },
+   "premature_closure": {
+    "class": "anomaly",
+    "n": 5,
+    "flagged": 5,
+    "expected_rules_hit": 5
+   },
+   "regen_changed_excess": {
+    "class": "anomaly",
+    "n": 2,
+    "flagged": 2,
+    "expected_rules_hit": 2
+   },
+   "placeholder_charges": {
+    "class": "anomaly",
+    "n": 1,
+    "flagged": 1,
+    "expected_rules_hit": 1
+   }
+  },
+  "unexpected": []
+ },
+ {
+  "dataset": "seed-2",
+  "jobs": 300,
+  "integrity_ok": true,
+  "events": 11289,
+  "class_counts": {
+   "normal": 121,
+   "hard_negative": 81,
+   "data_quality": 10,
+   "anomaly": 88
+  },
+  "rules_any_anomaly_finding": {
+   "tp": 78,
+   "fp": 0,
+   "fn": 10,
+   "tn": 212,
+   "precision": 1,
+   "recall": 0.8863636363636364,
+   "f1": 0.9397590361445783,
+   "false_positive_rate": 0
+  },
+  "rules_priority_medium_or_higher": {
+   "tp": 16,
+   "fp": 0,
+   "fn": 72,
+   "tn": 212,
+   "precision": 1,
+   "recall": 0.18181818181818182,
+   "f1": 0.3076923076923077,
+   "false_positive_rate": 0
+  },
+  "rules_on_rule_detectable_anomalies_only": {
+   "tp": 78,
+   "fp": 0,
+   "fn": 0,
+   "tn": 212,
+   "precision": 1,
+   "recall": 1,
+   "f1": 1,
+   "false_positive_rate": 0
+  },
+  "hard_negative_false_positive_rate": 0,
+  "data_quality_cases_flagged_as_anomaly": 0,
+  "by_type": {
+   "package_mismatch": {
+    "class": "anomaly",
+    "n": 5,
+    "flagged": 5,
+    "expected_rules_hit": 5
+   },
+   "clean_in_progress": {
+    "class": "normal",
+    "n": 26,
+    "flagged": 0,
+    "expected_rules_hit": 26
+   },
+   "clean_complete": {
+    "class": "normal",
+    "n": 95,
+    "flagged": 0,
+    "expected_rules_hit": 95
+   },
+   "regen_identical_few": {
+    "class": "hard_negative",
+    "n": 10,
+    "flagged": 0,
+    "expected_rules_hit": 10
+   },
+   "deleted_after_close": {
+    "class": "anomaly",
+    "n": 3,
+    "flagged": 3,
+    "expected_rules_hit": 3
+   },
+   "source_matches": {
+    "class": "hard_negative",
+    "n": 7,
+    "flagged": 0,
+    "expected_rules_hit": 7
+   },
+   "legit_reopen": {
+    "class": "hard_negative",
+    "n": 15,
+    "flagged": 0,
+    "expected_rules_hit": 15
+   },
+   "premature_closure": {
+    "class": "anomaly",
+    "n": 8,
+    "flagged": 8,
+    "expected_rules_hit": 8
+   },
+   "early_correction_regenerated": {
+    "class": "hard_negative",
+    "n": 14,
+    "flagged": 0,
+    "expected_rules_hit": 14
+   },
+   "regen_identical_excess": {
+    "class": "anomaly",
+    "n": 5,
+    "flagged": 5,
+    "expected_rules_hit": 5
+   },
+   "deleted_draft": {
+    "class": "hard_negative",
+    "n": 8,
+    "flagged": 0,
+    "expected_rules_hit": 8
+   },
+   "stale_documents": {
+    "class": "anomaly",
+    "n": 10,
+    "flagged": 10,
+    "expected_rules_hit": 10
+   },
+   "bad_container_check_digit": {
+    "class": "data_quality",
+    "n": 5,
+    "flagged": 0,
+    "expected_rules_hit": 5
+   },
+   "unplaced_cargo": {
+    "class": "anomaly",
+    "n": 7,
+    "flagged": 7,
+    "expected_rules_hit": 7
+   },
+   "unusual_timing": {
+    "class": "anomaly",
+    "n": 5,
+    "flagged": 0,
+    "expected_rules_hit": 5
+   },
+   "nonmaterial_late_edit": {
+    "class": "hard_negative",
+    "n": 14,
+    "flagged": 0,
+    "expected_rules_hit": 14
+   },
+   "packing_fits": {
+    "class": "hard_negative",
+    "n": 13,
+    "flagged": 0,
+    "expected_rules_hit": 13
+   },
+   "missing_identifiers": {
+    "class": "data_quality",
+    "n": 5,
+    "flagged": 0,
+    "expected_rules_hit": 5
+   },
+   "consistent_falsification": {
+    "class": "anomaly",
+    "n": 5,
+    "flagged": 0,
+    "expected_rules_hit": 5
+   },
+   "bulk_na": {
+    "class": "anomaly",
+    "n": 3,
+    "flagged": 3,
+    "expected_rules_hit": 3
+   },
+   "regen_changed_excess": {
+    "class": "anomaly",
+    "n": 5,
+    "flagged": 5,
+    "expected_rules_hit": 5
+   },
+   "weight_mismatch": {
+    "class": "anomaly",
+    "n": 4,
+    "flagged": 4,
+    "expected_rules_hit": 4
+   },
+   "placeholder_charges": {
+    "class": "anomaly",
+    "n": 5,
+    "flagged": 5,
+    "expected_rules_hit": 5
+   },
+   "source_mismatch": {
+    "class": "anomaly",
+    "n": 8,
+    "flagged": 8,
+    "expected_rules_hit": 8
+   },
+   "excess_reversals": {
+    "class": "anomaly",
+    "n": 3,
+    "flagged": 3,
+    "expected_rules_hit": 3
+   },
+   "billing_inconsistency": {
+    "class": "anomaly",
+    "n": 3,
+    "flagged": 3,
+    "expected_rules_hit": 3
+   },
+   "spoofed_actor": {
+    "class": "anomaly",
+    "n": 3,
+    "flagged": 3,
+    "expected_rules_hit": 3
+   },
+   "job_renamed": {
+    "class": "anomaly",
+    "n": 3,
+    "flagged": 3,
+    "expected_rules_hit": 3
+   },
+   "late_material_edit": {
+    "class": "anomaly",
+    "n": 1,
+    "flagged": 1,
+    "expected_rules_hit": 1
+   },
+   "closing_changed_on_reclose": {
+    "class": "anomaly",
+    "n": 2,
+    "flagged": 2,
+    "expected_rules_hit": 2
+   }
+  },
+  "unexpected": []
+ },
+ {
+  "dataset": "seed-3",
+  "jobs": 300,
+  "integrity_ok": true,
+  "events": 11160,
+  "class_counts": {
+   "normal": 106,
+   "hard_negative": 86,
+   "data_quality": 11,
+   "anomaly": 97
+  },
+  "rules_any_anomaly_finding": {
+   "tp": 86,
+   "fp": 0,
+   "fn": 11,
+   "tn": 203,
+   "precision": 1,
+   "recall": 0.8865979381443299,
+   "f1": 0.9398907103825136,
+   "false_positive_rate": 0
+  },
+  "rules_priority_medium_or_higher": {
+   "tp": 26,
+   "fp": 0,
+   "fn": 71,
+   "tn": 203,
+   "precision": 1,
+   "recall": 0.26804123711340205,
+   "f1": 0.42276422764227645,
+   "false_positive_rate": 0
+  },
+  "rules_on_rule_detectable_anomalies_only": {
+   "tp": 86,
+   "fp": 0,
+   "fn": 0,
+   "tn": 203,
+   "precision": 1,
+   "recall": 1,
+   "f1": 1,
+   "false_positive_rate": 0
+  },
+  "hard_negative_false_positive_rate": 0,
+  "data_quality_cases_flagged_as_anomaly": 0,
+  "by_type": {
+   "weight_mismatch": {
+    "class": "anomaly",
+    "n": 7,
+    "flagged": 7,
+    "expected_rules_hit": 7
+   },
+   "clean_complete": {
+    "class": "normal",
+    "n": 83,
+    "flagged": 0,
+    "expected_rules_hit": 83
+   },
+   "nonmaterial_late_edit": {
+    "class": "hard_negative",
+    "n": 15,
+    "flagged": 0,
+    "expected_rules_hit": 15
+   },
+   "closing_changed_on_reclose": {
+    "class": "anomaly",
+    "n": 6,
+    "flagged": 6,
+    "expected_rules_hit": 6
+   },
+   "legit_reopen": {
+    "class": "hard_negative",
+    "n": 10,
+    "flagged": 0,
+    "expected_rules_hit": 10
+   },
+   "regen_identical_few": {
+    "class": "hard_negative",
+    "n": 14,
+    "flagged": 0,
+    "expected_rules_hit": 14
+   },
+   "excess_reversals": {
+    "class": "anomaly",
+    "n": 1,
+    "flagged": 1,
+    "expected_rules_hit": 1
+   },
+   "spoofed_actor": {
+    "class": "anomaly",
+    "n": 8,
+    "flagged": 8,
+    "expected_rules_hit": 8
+   },
+   "clean_in_progress": {
+    "class": "normal",
+    "n": 23,
+    "flagged": 0,
+    "expected_rules_hit": 23
+   },
+   "late_material_edit": {
+    "class": "anomaly",
+    "n": 6,
+    "flagged": 6,
+    "expected_rules_hit": 6
+   },
+   "stale_documents": {
+    "class": "anomaly",
+    "n": 10,
+    "flagged": 10,
+    "expected_rules_hit": 10
+   },
+   "regen_identical_excess": {
+    "class": "anomaly",
+    "n": 3,
+    "flagged": 3,
+    "expected_rules_hit": 3
+   },
+   "unusual_timing": {
+    "class": "anomaly",
+    "n": 4,
+    "flagged": 0,
+    "expected_rules_hit": 4
+   },
+   "early_correction_regenerated": {
+    "class": "hard_negative",
+    "n": 16,
+    "flagged": 0,
+    "expected_rules_hit": 16
+   },
+   "deleted_after_close": {
+    "class": "anomaly",
+    "n": 6,
+    "flagged": 6,
+    "expected_rules_hit": 6
+   },
+   "source_matches": {
+    "class": "hard_negative",
+    "n": 12,
+    "flagged": 0,
+    "expected_rules_hit": 12
+   },
+   "premature_closure": {
+    "class": "anomaly",
+    "n": 8,
+    "flagged": 8,
+    "expected_rules_hit": 8
+   },
+   "deleted_draft": {
+    "class": "hard_negative",
+    "n": 13,
+    "flagged": 0,
+    "expected_rules_hit": 13
+   },
+   "job_renamed": {
+    "class": "anomaly",
+    "n": 5,
+    "flagged": 5,
+    "expected_rules_hit": 5
+   },
+   "packing_fits": {
+    "class": "hard_negative",
+    "n": 6,
+    "flagged": 0,
+    "expected_rules_hit": 6
+   },
+   "missing_identifiers": {
+    "class": "data_quality",
+    "n": 8,
+    "flagged": 0,
+    "expected_rules_hit": 8
+   },
+   "consistent_falsification": {
+    "class": "anomaly",
+    "n": 7,
+    "flagged": 0,
+    "expected_rules_hit": 7
+   },
+   "billing_inconsistency": {
+    "class": "anomaly",
+    "n": 4,
+    "flagged": 4,
+    "expected_rules_hit": 4
+   },
+   "bulk_na": {
+    "class": "anomaly",
+    "n": 4,
+    "flagged": 4,
+    "expected_rules_hit": 4
+   },
+   "placeholder_charges": {
+    "class": "anomaly",
+    "n": 7,
+    "flagged": 7,
+    "expected_rules_hit": 7
+   },
+   "malformed_source": {
+    "class": "data_quality",
+    "n": 1,
+    "flagged": 0,
+    "expected_rules_hit": 1
+   },
+   "regen_changed_excess": {
+    "class": "anomaly",
+    "n": 2,
+    "flagged": 2,
+    "expected_rules_hit": 2
+   },
+   "package_mismatch": {
+    "class": "anomaly",
+    "n": 4,
+    "flagged": 4,
+    "expected_rules_hit": 4
+   },
+   "bad_container_check_digit": {
+    "class": "data_quality",
+    "n": 2,
+    "flagged": 0,
+    "expected_rules_hit": 2
+   },
+   "source_mismatch": {
+    "class": "anomaly",
+    "n": 4,
+    "flagged": 4,
+    "expected_rules_hit": 4
+   },
+   "unplaced_cargo": {
+    "class": "anomaly",
+    "n": 1,
+    "flagged": 1,
+    "expected_rules_hit": 1
+   }
+  },
+  "unexpected": []
+ }
+]

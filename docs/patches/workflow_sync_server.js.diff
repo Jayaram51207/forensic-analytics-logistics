@@ -1,0 +1,293 @@
+--- a/Workflow syncroniser/server.js (original)
++++ b/Workflow syncroniser/server.js
+@@ -1,3 +1,4 @@
++import fs from 'fs';
+ import express from 'express';
+ import cors from 'cors';
+ import os from 'os';
+@@ -18,8 +19,10 @@
+   verifyUser,
+   getAllUsers,
+   createUser,
+-  deleteUser
++  deleteUser,
++  startupInfo
+ } from './db.js';
++import { createCapture, sha256File } from '../forensics/src/capture.js';
+ 
+ const __dirname = path.dirname(fileURLToPath(import.meta.url));
+ const app = express();
+@@ -29,10 +32,30 @@
+ app.use(express.json());
+ app.use(express.static(path.join(__dirname, 'public')));
+ 
++// Runtime folders are configurable so tests and synthetic runs never touch live data.
++const PYTHON = process.env.SYNC_PYTHON || 'python';
++const UPLOADS_DIR = process.env.SYNC_UPLOADS_DIR || path.join(__dirname, 'uploads');
++const DOWNLOADS_DIR = process.env.SYNC_DOWNLOADS_DIR || path.join(__dirname, 'public', 'downloads');
++fs.mkdirSync(UPLOADS_DIR, { recursive: true }); // multer does not create it
++if (process.env.SYNC_DOWNLOADS_DIR) app.use('/downloads', express.static(DOWNLOADS_DIR));
++
++// Forensic evidence capture (see docs/INTEGRATION_POINTS.md). FORENSIC_DISABLED=1 restores the original behaviour.
++const forensic = process.env.FORENSIC_DISABLED === '1' ? null : createCapture({
++  dir: process.env.FORENSIC_DIR || path.join(__dirname, '..', 'forensics', 'data'),
++  db: { getJobById, getAllJobs, getAllUsers },
++  downloadsDir: DOWNLOADS_DIR,
++  generator: {
++    script: 'compiler.py',
++    script_sha256: sha256File(path.join(__dirname, 'compiler.py')),
++    parser_sha256: sha256File(path.join(__dirname, 'pdf_parser.py'))
++  }
++});
++if (forensic) forensic.startup(startupInfo);
++
+ // Setup multer for checklist uploads
+ const storage = multer.diskStorage({
+   destination: (req, file, cb) => {
+-    cb(null, path.join(__dirname, 'uploads'));
++    cb(null, UPLOADS_DIR);
+   },
+   filename: (req, file, cb) => {
+     const ext = path.extname(file.originalname);
+@@ -97,7 +120,7 @@
+ // Spawns Python process to parse checklist PDF
+ function parseChecklistPDF(filePath) {
+   return new Promise((resolve, reject) => {
+-    const py = spawn('python', ['compiler.py', 'parse', filePath]);
++    const py = spawn(PYTHON, ['compiler.py', 'parse', filePath], { cwd: __dirname });
+     let output = '';
+     let errorOutput = '';
+ 
+@@ -126,8 +149,7 @@
+ // Spawns Python process to compile Excel spreadsheets
+ function runExcelCompiler(jobPayload) {
+   return new Promise((resolve, reject) => {
+-    const downloadsDir = path.join(__dirname, 'public', 'downloads');
+-    const py = spawn('python', ['compiler.py', 'compile', downloadsDir]);
++    const py = spawn(PYTHON, ['compiler.py', 'compile', DOWNLOADS_DIR], { cwd: __dirname });
+     let output = '';
+     let errorOutput = '';
+ 
+@@ -165,6 +187,7 @@
+   }
+ 
+   const user = verifyUser(username, password);
++  if (forensic) forensic.login(req, username, user);
+   if (user) {
+     return res.json({
+       success: true,
+@@ -182,7 +205,7 @@
+   try {
+     res.json(getAllUsers());
+   } catch (err) {
+-    res.status(500).json({ error: err.message });
++    res.status(err.status || 500).json({ error: err.message });
+   }
+ });
+ 
+@@ -193,19 +216,23 @@
+   }
+   try {
+     createUser({ username, password, name, role });
++    if (forensic) forensic.userChanged(req, 'user.created', username, { name, role });
+     res.status(201).json({ success: true });
+   } catch (err) {
+-    res.status(400).json({ error: err.message });
++    res.status(err.status || 400).json({ error: err.message });
+   }
+ });
+ 
+ app.delete('/api/users/:username', requireAdmin, (req, res) => {
+   const { username } = req.params;
+   try {
++    const removed = getAllUsers().find(u => u.username.toLowerCase() === username.trim().toLowerCase());
++    if (forensic && removed) forensic.userChanged(req, 'user.delete_requested', username, { removed });
+     deleteUser(username);
++    if (forensic) forensic.userChanged(req, 'user.deleted', username, { removed });
+     res.json({ success: true });
+   } catch (err) {
+-    res.status(400).json({ error: err.message });
++    res.status(err.status || 400).json({ error: err.message });
+   }
+ });
+ 
+@@ -215,15 +242,20 @@
+     return res.status(400).json({ error: 'No checklist file uploaded' });
+   }
+ 
++  const fx = forensic && forensic.begin(req, req.body && req.body.user);
++  if (fx) forensic.sourceUploaded(fx, req.file);
++
+   try {
+     const parsedData = await parseChecklistPDF(req.file.path);
++    if (fx) forensic.sourceParsed(fx, req.file, parsedData);
+     
+     // Inject checklist local URL for storage later
+     parsedData.checklist_pdf_url = `/uploads/${req.file.filename}`;
+     
+     res.json(parsedData);
+   } catch (err) {
+-    res.status(500).json({ error: err.message });
++    if (fx) forensic.sourceParsed(fx, req.file, null, err);
++    res.status(err.status || 500).json({ error: err.message });
+   }
+ });
+ 
+@@ -232,7 +264,7 @@
+   try {
+     res.json(getAllJobs());
+   } catch (err) {
+-    res.status(500).json({ error: err.message });
++    res.status(err.status || 500).json({ error: err.message });
+   }
+ });
+ 
+@@ -243,9 +275,13 @@
+       return res.status(400).json({ error: 'Job Number is required' });
+     }
+ 
++    const fx = forensic && forensic.begin(req, creator);
++
+     // Run Excel Compiler first to generate the BL and Billing spreadsheets
+     try {
+-      const compileResult = await runExcelCompiler({ info });
++      const compileResult = fx
++        ? await forensic.generate(fx, null, info, () => runExcelCompiler({ info }))
++        : await runExcelCompiler({ info });
+       if (compileResult.success) {
+         info.download_urls = mapCompileResult(info, compileResult);
+       }
+@@ -256,6 +292,14 @@
+ 
+     const jobId = createJob({ info, creator });
+     const newJob = getJobById(jobId);
++    if (fx) {
++      try {
++        forensic.jobCreated(fx, newJob, info);
++      } catch (ferr) {
++        deleteJob(jobId); // no evidence, no record: undo the insert
++        throw ferr;
++      }
++    }
+ 
+     // Broadcast creation
+     broadcast('job_created', newJob);
+@@ -266,7 +310,7 @@
+     if (err.message.includes('UNIQUE constraint failed') || err.message.includes('unique')) {
+       res.status(400).json({ error: `Job number already exists.` });
+     } else {
+-      res.status(500).json({ error: err.message });
++      res.status(err.status || 500).json({ error: err.message });
+     }
+   }
+ });
+@@ -276,9 +320,15 @@
+     const id = parseInt(req.params.id);
+     const { info, creator } = req.body;
+ 
++    const before = structuredClone(getJobById(id)); // copy: db.js mutates rows in place
++    const fx = forensic && before && forensic.begin(req, creator, id);
++    if (fx) forensic.updateRequested(fx, before, info); // old state is preserved before anything is overwritten
++
+     // Run Excel Compiler on edit to update the spreadsheets
+     try {
+-      const compileResult = await runExcelCompiler({ info });
++      const compileResult = fx
++        ? await forensic.generate(fx, before, info, () => runExcelCompiler({ info }))
++        : await runExcelCompiler({ info });
+       if (compileResult.success) {
+         info.download_urls = mapCompileResult(info, compileResult);
+       }
+@@ -287,6 +337,7 @@
+     }
+ 
+     const updatedJob = updateJob(id, { info, creator });
++    if (fx) forensic.jobUpdated(fx, before, updatedJob);
+ 
+     // Broadcast update
+     broadcast('job_updated', updatedJob);
+@@ -294,7 +345,7 @@
+ 
+     res.json(updatedJob);
+   } catch (err) {
+-    res.status(500).json({ error: err.message });
++    res.status(err.status || 500).json({ error: err.message });
+   }
+ });
+ 
+@@ -304,7 +355,11 @@
+     const job = getJobById(id);
+     if (!job) return res.status(404).json({ error: 'Job not found' });
+ 
++    const fx = forensic && forensic.begin(req, req.body && req.body.user, id);
++    if (fx) forensic.deleteRequested(fx, job); // full snapshot, including the history deleteJob() erases
++
+     deleteJob(id);
++    if (fx) forensic.jobDeleted(fx, job);
+ 
+     // Broadcast deletion
+     broadcast('job_deleted', { id });
+@@ -312,7 +367,7 @@
+ 
+     res.json({ success: true });
+   } catch (err) {
+-    res.status(500).json({ error: err.message });
++    res.status(err.status || 500).json({ error: err.message });
+   }
+ });
+ 
+@@ -326,7 +381,13 @@
+       return res.status(400).json({ error: 'status and user are required' });
+     }
+ 
++    const before = structuredClone(getJobById(jobId)); // copy: db.js mutates rows in place
++    const doc = before && before.documents.find(d => d.id === docId);
++    const fx = forensic && doc && forensic.begin(req, user, jobId);
++    if (fx) forensic.statusChangeRequested(fx, 'document', before, doc, status);
++
+     const result = toggleDocumentStatus(jobId, docId, status, user);
++    if (fx) forensic.statusChanged(fx, 'document', before, result.job, doc);
+ 
+     // Broadcast document status toggle
+     broadcast('document_toggled', {
+@@ -345,7 +406,7 @@
+ 
+     res.json(result.job);
+   } catch (err) {
+-    res.status(500).json({ error: err.message });
++    res.status(err.status || 500).json({ error: err.message });
+   }
+ });
+ 
+@@ -359,7 +420,13 @@
+       return res.status(400).json({ error: 'status and user are required' });
+     }
+ 
++    const before = structuredClone(getJobById(jobId)); // copy: db.js mutates rows in place
++    const step = before && before.workflow_steps.find(s => s.id === stepId);
++    const fx = forensic && step && forensic.begin(req, user, jobId);
++    if (fx) forensic.statusChangeRequested(fx, 'workflow_step', before, step, status, { closing_details_supplied: closingDetails ?? null });
++
+     const result = toggleWorkflowStep(jobId, stepId, status, user, closingDetails);
++    if (fx) forensic.statusChanged(fx, 'workflow_step', before, result.job, step);
+ 
+     // Broadcast workflow status toggle
+     broadcast('workflow_toggled', {
+@@ -378,7 +445,7 @@
+ 
+     res.json(result.job);
+   } catch (err) {
+-    res.status(500).json({ error: err.message });
++    res.status(err.status || 500).json({ error: err.message });
+   }
+ });
+ 
+@@ -386,7 +453,7 @@
+   try {
+     res.json(getAllHistoryLogs());
+   } catch (err) {
+-    res.status(500).json({ error: err.message });
++    res.status(err.status || 500).json({ error: err.message });
+   }
+ });
+ 

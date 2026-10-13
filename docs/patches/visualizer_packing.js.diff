@@ -1,0 +1,32 @@
+--- a/3D_stuffing_visualizer/src/packing.js (original)
++++ b/3D_stuffing_visualizer/src/packing.js
+@@ -130,10 +130,11 @@
+   for (const item of individualItems) {
+     let bestPlacement = null;
+     let bestScore = Infinity;
++    let fitsButUnsupported = false; // a free position existed but failed the support check
+ 
+     // Check if item weight would exceed container max payload
+     if (currentWeight + item.weight > containerMaxWeight) {
+-      unplacedBoxes.push(item);
++      unplacedBoxes.push({ ...item, unplacedReason: 'payload_exceeded' });
+       continue;
+     }
+ 
+@@ -202,6 +203,7 @@
+ 
+         // 3. Stability check (optimized internally using topZ height map index)
+         if (!checkStability(ep.x, ep.y, ep.z, dl, dw)) {
++          fitsButUnsupported = true;
+           continue;
+         }
+ 
+@@ -305,7 +307,7 @@
+ 
+     } else {
+       // Could not pack item
+-      unplacedBoxes.push(item);
++      unplacedBoxes.push({ ...item, unplacedReason: fitsButUnsupported ? 'no_stable_position' : 'no_space' });
+     }
+   }
+ 

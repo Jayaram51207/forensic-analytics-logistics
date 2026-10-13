@@ -66,3 +66,9 @@ node server.js
 * **Time Savings:** Replaced manual Excel data entry for AWB/BL documentation with automation scripts, reducing processing time by over 70%.
 * **Zero Visual Guesswork:** Allowed operators to visualize exact volumetric loads prior to truck/container arrivals, preventing cargo rejection at CFS.
 * **Seamless Invoicing:** Streamlined customer quote workflows from several minutes of manual formatting to a single-click email copy-paste operation.
+
+---
+
+## 🔎 Forensic Analytics Layer
+
+An evidence capture, correlation and incident-reconstruction layer has been added alongside these applications. See [forensics/README.md](forensics/README.md) and the documents under [docs/](docs/).

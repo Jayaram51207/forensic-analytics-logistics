@@ -1,0 +1,10 @@
+--- a/3D_stuffing_visualizer/index.html (original)
++++ b/3D_stuffing_visualizer/index.html
+@@ -57,6 +57,7 @@
+             <button id="btn-unit-in" class="btn-toggle" data-unit="in">in</button>
+             <button id="btn-unit-mm" class="btn-toggle" data-unit="mm">mm</button>
+           </div>
++          <input id="shipment-ref" type="text" placeholder="Job / shipment ref (optional)" title="Recorded with packing evidence so runs can be linked to a job" style="padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.8rem; width: 190px;">
+           <button id="btn-recalculate" class="btn btn-primary" title="Force stuffing calculation">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+             Recalculate

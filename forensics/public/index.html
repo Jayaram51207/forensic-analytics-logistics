@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forensic Investigation</title>
+<style>
+  :root { --bg:#f6f7f9; --panel:#fff; --ink:#1c2430; --mute:#5d6b7c; --line:#dfe3e8; --hi:#b42318; --med:#b54708; --low:#175cd3; --ok:#067647; --cite:#fff7e6; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12161c; --panel:#1b212a; --ink:#e6eaf0; --mute:#97a3b3; --line:#2c3541; --hi:#f97066; --med:#fdb022; --low:#84adff; --ok:#47cd89; --cite:#33290f; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, Segoe UI, sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel); display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0; }
+  main { display:grid; grid-template-columns:minmax(300px, 380px) 1fr; gap:16px; padding:16px 20px; align-items:start; }
+  @media (max-width: 900px) { main { grid-template-columns:1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:14px; overflow-x:auto; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--mute); margin:0 0 8px; }
+  .case { padding:8px 10px; border:1px solid var(--line); border-radius:6px; margin-bottom:6px; cursor:pointer; }
+  .case:hover, .case.sel { border-color:var(--low); }
+  .row { display:flex; justify-content:space-between; gap:8px; }
+  .mute { color:var(--mute); font-size:12px; }
+  .tag { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; border:1px solid currentColor; }
+  .high { color:var(--hi); } .medium { color:var(--med); } .low, .informational { color:var(--low); } .ok { color:var(--ok); }
+  table { border-collapse:collapse; width:100%; font-size:12.5px; }
+  th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mute); font-weight:600; white-space:nowrap; }
+  tr.cited td { background:var(--cite); }
+  code, .mono { font:12px ui-monospace, Consolas, monospace; word-break:break-all; }
+  .finding { border-left:3px solid var(--line); padding:4px 0 4px 10px; margin-bottom:10px; }
+  .finding.high { border-color:var(--hi); } .finding.medium { border-color:var(--med); } .finding.low { border-color:var(--low); }
+  .finding p { margin:3px 0; color:var(--ink); }
+  .chg { margin:2px 0 0; padding:0; list-style:none; }
+  .chg li { font:12px ui-monospace, Consolas, monospace; }
+  .old { color:var(--hi); text-decoration:line-through; } .new { color:var(--ok); }
+  select, input, textarea, button { font:inherit; padding:5px 7px; border:1px solid var(--line); border-radius:5px; background:var(--panel); color:var(--ink); }
+  button { cursor:pointer; }
+  .warn { color:var(--hi); font-weight:600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Forensic Investigation</h1>
+  <span id="integrity" class="mute">checking evidence integrity…</span>
+  <span class="mute">Findings are potential anomalies for human review. Scores rank the queue; they are not probabilities.</span>
+</header>
+<main>
+  <section>
+    <div class="panel"><h2>Review queue</h2><div id="cases"></div></div>
+  </section>
+  <section id="detail"><div class="panel mute">Select a case.</div></section>
+</main>
+<script>
+// All data from the evidence store is untrusted text: it is only ever placed
+// in the page through textContent, never as HTML.
+const $ = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === 'class' ? e.className = v : k.startsWith('on') ? e.addEventListener(k.slice(2), v) : e.setAttribute(k, v);
+  for (const k of kids.flat()) if (k !== null && k !== undefined && k !== false) e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return e;
+};
+const show = v => v === null || v === undefined ? '∅' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+const short = h => h ? h.slice(0, 12) + '…' : '—';
+let overview = null;
+
+async function loadOverview(keep) {
+  overview = await (await fetch('/api/overview')).json();
+  const i = overview.integrity, el = document.getElementById('integrity');
+  el.textContent = i.ok ? `Evidence chain verified: ${i.count} events, head ${short(i.last_hash)}` : `INTEGRITY PROBLEMS (${i.problems.length}): ${i.problems.slice(0, 3).map(p => p.type).join(', ')}`;
+  el.className = i.ok ? 'ok' : 'warn';
+  const box = document.getElementById('cases');
+  box.replaceChildren(...overview.cases.map(c => $('div', { class: 'case' + (c.case_id === keep ? ' sel' : ''), onclick: () => openCase(c.case_id) },
+    $('div', { class: 'row' }, $('strong', {}, c.job_no ?? '(no job number)'), $('span', { class: 'tag ' + c.band }, `${c.priority} ${c.band}`)),
+    $('div', { class: 'mute' }, `${c.case_id} · ${c.status.replaceAll('_', ' ')} · ${c.n_anomaly_findings} finding(s), ${c.n_data_quality_findings} note(s)`),
+    $('div', {}, c.reasons[0] || 'data-quality notes only'))));
+  if (!overview.cases.length) box.append($('div', { class: 'mute' }, 'No cases.'));
+}
+
+function changes(list) {
+  return $('ul', { class: 'chg' }, list.slice(0, 12).map(c => $('li', {}, c.field + ': ', $('span', { class: 'old' }, show(c.old)), ' → ', $('span', { class: 'new' }, show(c.new)))), list.length > 12 ? $('li', { class: 'mute' }, `… ${list.length - 12} more`) : null);
+}
+
+async function openCase(id) {
+  const d = await (await fetch('/api/cases/' + encodeURIComponent(id))).json();
+  document.querySelectorAll('.case').forEach(e => e.classList.remove('sel'));
+  const s = d.priority.components;
+  const el = document.getElementById('detail');
+  el.replaceChildren(
+    $('div', { class: 'panel' },
+      $('h2', {}, 'Case'),
+      $('div', { class: 'row' }, $('strong', {}, `${d.case_id} — job ${d.job_no}`), $('span', { class: 'tag ' + d.priority.band }, `priority ${d.priority.value} (${d.priority.band})`)),
+      $('div', { class: 'mute' }, `status: ${d.status.replaceAll('_', ' ')} · correlation ${d.correlation_id} · job numbers seen: ${d.job_nos_seen.join(', ')} · sources: ${d.provenance.applications.join(', ')}`),
+      $('div', { class: 'mute' }, `score = families ${JSON.stringify(s.families)} → base ${s.base} + corroboration ${s.corroboration_bonus}, × evidence factor ${s.evidence_gap_factor}`)),
+    $('div', { class: 'panel' }, $('h2', {}, 'Why this was raised'),
+      d.findings.map(f => $('div', { class: 'finding ' + f.severity },
+        $('div', {}, $('span', { class: 'tag ' + f.severity }, f.severity), ' ', $('strong', {}, f.title), ' ', $('span', { class: 'mute' }, `${f.rule_id} v${f.rule_version} · ${f.kind.replace('_', ' ')}`)),
+        $('p', {}, f.explanation),
+        f.assumptions.length ? $('p', { class: 'mute' }, 'Assumptions: ' + f.assumptions.join(' ')) : null,
+        $('div', { class: 'mute mono' }, 'evidence: ' + f.evidence_event_ids.join(', '))))),
+    d.limitations.length ? $('div', { class: 'panel' }, $('h2', {}, 'Uncertainty and limitations'), $('ul', {}, d.limitations.map(l => $('li', {}, l)))) : null,
+    $('div', { class: 'panel' }, $('h2', {}, 'Document generations'),
+      $('table', {}, $('tr', {}, ['#', 'time', 'outcome', 'input hash', 'outputs (path · sha256 · content fingerprint)'].map(h => $('th', {}, h))),
+        d.generations.map((g, i) => $('tr', {},
+          $('td', {}, g.number), $('td', {}, g.at), $('td', { class: g.outcome === 'generated' ? 'ok' : 'warn' }, g.outcome),
+          $('td', { class: 'mono' }, short(g.input_sha256) + (i && g.input_sha256 === d.generations[i - 1].input_sha256 ? ' (same as previous)' : '')),
+          $('td', { class: 'mono' }, g.artifacts.length ? g.artifacts.map(a => $('div', {}, `${a.path} · ${short(a.sha256)} · ${short(a.content_fingerprint)}`)) : (g.error || '—').slice(0, 200))))),
+      $('div', { class: 'mute' }, 'A matching hash shows two files have the same content. It says nothing about whether that content is correct.')),
+    $('div', { class: 'panel' }, $('h2', {}, 'Timeline (highlighted rows are cited by a finding)'),
+      $('table', {}, $('tr', {}, ['seq', 'time (UTC)', 'actor', 'event', 'details'].map(h => $('th', {}, h))),
+        d.timeline.map(t => $('tr', { class: t.cited_by_finding ? 'cited' : '' },
+          $('td', {}, t.sequence), $('td', {}, t.time.replace('T', ' ').replace('.000Z', ''), t.clock_source === 'simulated' ? $('div', { class: 'mute' }, 'simulated clock') : null),
+          $('td', {}, t.actor || '—', $('div', { class: 'mute' }, t.actor_verified ? 'verified' : t.actor_source.replaceAll('_', ' ') + ', unverified')),
+          $('td', {}, t.summary, $('div', { class: 'mute mono' }, t.event_id), t.link ? $('div', { class: 'mute' }, 'link: ' + t.link) : null),
+          $('td', {}, t.changes.length ? changes(t.changes) : null, t.artifacts.map(a => $('div', { class: 'mono' }, `${a.role}: ${short(a.sha256)}`)))))),
+      d.gaps.length ? $('p', { class: 'warn' }, 'Evidence gaps: ' + d.gaps.map(g => g.detail).join(' | ')) : null,
+      $('p', { class: 'mute' }, 'An event missing from this list was not captured; that is not proof it did not happen.')),
+    $('div', { class: 'panel' }, $('h2', {}, 'Review outcome'),
+      d.dispositions.map(x => $('div', {}, `${x.at} — ${x.disposition.replaceAll('_', ' ')} by ${x.reviewer || 'unnamed'}: ${x.note}`)),
+      overview.review_enabled ? $('div', { style: 'display:grid; gap:6px; max-width:520px; margin-top:8px' },
+        $('select', { id: 'disp' }, overview.dispositions.map(x => $('option', { value: x }, x.replaceAll('_', ' ')))),
+        $('input', { id: 'reviewer', placeholder: 'reviewer name' }), $('input', { id: 'token', type: 'password', placeholder: 'review token' }),
+        $('textarea', { id: 'note', rows: 3, placeholder: 'basis for this assessment' }),
+        $('button', { onclick: () => saveDisposition(d.case_id) }, 'Record assessment'), $('span', { id: 'saved', class: 'mute' }))
+        : $('div', { class: 'mute' }, 'Read-only: recording assessments needs the dashboard to be started with FORENSIC_REVIEW_TOKEN.')));
+}
+
+async function saveDisposition(id) {
+  const val = x => document.getElementById(x).value;
+  const res = await fetch(`/api/cases/${encodeURIComponent(id)}/disposition`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Review-Token': val('token') }, body: JSON.stringify({ disposition: val('disp'), reviewer: val('reviewer'), note: val('note') }) });
+  const body = await res.json();
+  if (!res.ok) { document.getElementById('saved').textContent = 'Not saved: ' + body.error; return; }
+  await loadOverview(id);
+  openCase(id);
+}
+
+loadOverview();
+</script>
+</body>
+</html>

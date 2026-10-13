@@ -1,0 +1,55 @@
+--- a/3D_stuffing_visualizer/src/main.js (original)
++++ b/3D_stuffing_visualizer/src/main.js
+@@ -1,6 +1,7 @@
+ import { packCargo } from './packing';
+ import { initVisualizer, renderContainer, renderCargo, resetCameraPosition, setCameraAngle } from './visualizer';
+ import { exportStuffingReport } from './projectionExporter';
++import { packingPayload } from './forensicPayload';
+ 
+ 
+ // --- STATE MANAGEMENT ---
+@@ -334,6 +335,26 @@
+   }
+ }
+ 
++// --- FORENSIC EVIDENCE (desktop mode only) ---
++// Sends a summary to app.py, which appends it to the evidence outbox. In a plain
++// browser there is no wrapper and nothing is captured.
++
++function shipmentRef() {
++  const el = document.getElementById('shipment-ref');
++  return el ? el.value.trim() : '';
++}
++
++function sendForensicEvent(action, payload) {
++  try {
++    const api = window.pywebview && window.pywebview.api;
++    if (api && api.forensic_event) {
++      api.forensic_event(JSON.stringify({ action, shipment_ref: shipmentRef() || null, payload }));
++    }
++  } catch (err) {
++    console.error('Forensic event not sent:', err.message);
++  }
++}
++
+ // --- LOGIC ACTIONS ---
+ 
+ function calculateStuffing() {
+@@ -356,6 +377,7 @@
+       // Calculate optimal packing
+       packingResults = packCargo(selectedContainer, manifestList);
+       console.log("packCargo completed. placedBoxes length =", packingResults.placedBoxes.length);
++      sendForensicEvent('packing.run_completed', packingPayload(selectedContainer, manifestList, packingResults));
+       
+       const { placedBoxes, volumeUtilization, weightUtilization, totalVolume, totalWeight } = packingResults;
+ 
+@@ -939,7 +961,8 @@
+       manifestList, 
+       currentUnit, 
+       stats, 
+-      unplacedBoxes ? unplacedBoxes.length : 0
++      unplacedBoxes ? unplacedBoxes.length : 0,
++      shipmentRef()
+     );
+   });
+ 

@@ -1,0 +1,22 @@
+--- a/Workflow syncroniser/public/js/app.js (original)
++++ b/Workflow syncroniser/public/js/app.js
+@@ -1736,7 +1736,8 @@
+ 
+   try {
+     const res = await fetch(`/api/jobs/${state.currentJobId}`, {
+-      method: 'DELETE'
++      method: 'DELETE',
++      headers: { 'X-Claimed-User': state.currentUser ? state.currentUser.name : '' }
+     });
+ 
+     if (!res.ok) {
+@@ -1762,7 +1763,8 @@
+ 
+   try {
+     const res = await fetch(`/api/jobs/${jobId}`, {
+-      method: 'DELETE'
++      method: 'DELETE',
++      headers: { 'X-Claimed-User': state.currentUser ? state.currentUser.name : '' }
+     });
+ 
+     if (!res.ok) {

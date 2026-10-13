@@ -1736,7 +1736,8 @@ async function handleDeleteJob() {
 
   try {
     const res = await fetch(`/api/jobs/${state.currentJobId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: { 'X-Claimed-User': state.currentUser ? state.currentUser.name : '' }
     });
 
     if (!res.ok) {
@@ -1762,7 +1763,8 @@ async function handleTableDeleteJob(event, jobId) {
 
   try {
     const res = await fetch(`/api/jobs/${jobId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: { 'X-Claimed-User': state.currentUser ? state.currentUser.name : '' }
     });
 
     if (!res.ok) {

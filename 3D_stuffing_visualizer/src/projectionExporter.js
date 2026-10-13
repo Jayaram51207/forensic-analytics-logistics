@@ -22,7 +22,7 @@ function hexToRgb(hex) {
  * @param {Object} stats Pre-calculated statistics (volume, weight, etc.)
  * @param {number} unplacedCount Number of leftover boxes that could not be packed
  */
-export function exportStuffingReport(container, placedBoxes, manifestList, currentUnit, stats, unplacedCount) {
+export function exportStuffingReport(container, placedBoxes, manifestList, currentUnit, stats, unplacedCount, shipmentRef = '') {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -229,7 +229,7 @@ export function exportStuffingReport(container, placedBoxes, manifestList, curre
 
   if (window.pywebview && window.pywebview.api && window.pywebview.api.save_pdf) {
     const pdfBase64 = doc.output('datauristring');
-    window.pywebview.api.save_pdf(filename, pdfBase64).then((success) => {
+    window.pywebview.api.save_pdf(filename, pdfBase64, shipmentRef).then((success) => {
       if (success) {
         console.log("PDF saved successfully via pywebview API.");
       }

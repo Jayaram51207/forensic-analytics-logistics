@@ -12,6 +12,14 @@ import json
 
 import pdf_parser
 
+# Optional forensic evidence outbox (forensics/adapters/forensic_outbox.py).
+# The generator runs unchanged when the module is not present, e.g. in the PyInstaller build.
+try:
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'forensics', 'adapters'))
+    import forensic_outbox
+except Exception:
+    forensic_outbox = None
+
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
@@ -1925,6 +1933,7 @@ class UnifiedGeneratorApp(tk.Tk):
                     return
                     
         success_count = 0
+        generated = []  # (document kind, path) of every file actually written
         
         # Clean invoice number
         inv_no_raw = data.get("invoice_no_date", "")
@@ -1990,6 +1999,7 @@ class UnifiedGeneratorApp(tk.Tk):
                 out_path = os.path.join(dest_dir, bl_filename)
                 self.log_to_box(f"Generating BL Instructions: {os.path.basename(out_path)}...")
                 self.generate_bl_instructions_file(data, containers, out_path)
+                generated.append(('bl_instruction', out_path))
                 self.log_to_box(f"  Successfully generated BL Instructions: {os.path.basename(out_path)}!\n")
                 success_count += 1
             except Exception as e:
@@ -2001,6 +2011,7 @@ class UnifiedGeneratorApp(tk.Tk):
                 out_path = os.path.join(dest_dir, bill_filename)
                 self.log_to_box(f"Generating Billing Invoice: {os.path.basename(out_path)}...")
                 self.generate_billing_invoice_file(out_path)
+                generated.append(('billing_invoice', out_path))
                 self.log_to_box(f"  Successfully generated Billing Invoice: {os.path.basename(out_path)}!\n")
                 success_count += 1
             except Exception as e:
@@ -2012,15 +2023,56 @@ class UnifiedGeneratorApp(tk.Tk):
                 out_path = os.path.join(dest_dir, awb_filename)
                 self.log_to_box(f"Generating AWB Instructions: {os.path.basename(out_path)}...")
                 self.generate_awb_instructions_file(data, out_path)
+                generated.append(('awb_instruction', out_path))
                 self.log_to_box(f"  Successfully generated AWB Instructions: {os.path.basename(out_path)}!\n")
                 success_count += 1
             except Exception as e:
                 self.log_to_box(f"  Error generating AWB Instructions: {e}\n")
                 
+        self._forensic_snapshot(data, containers, generated)
         self.log_to_box(f"--- Export Finished: {success_count} documents compiled ---")
         if success_count > 0:
             messagebox.showinfo("Success", f"{success_count} documents successfully generated in:\n{dest_dir}")
             
+    def _forensic_snapshot(self, data, containers, generated):
+        """One evidence record per generation run: inputs as they stood, sources and outputs by hash."""
+        if forensic_outbox is None:
+            return
+        try:
+            charges = []
+            for row in self.charge_rows:
+                charges.append({
+                    "description": row["desc_var"].get(),
+                    "amount": row["amount_ent"].get().strip(),
+                    "cgst_rate": row["cgst_rate_var"].get(),
+                    "sgst_rate": row["sgst_rate_var"].get(),
+                })
+            sources = [forensic_outbox.file_artifact(role, var.get().strip())
+                       for role, var in (("source_invoice", self.invoice_path_var),
+                                         ("source_packing_list", self.packing_path_var),
+                                         ("source_checklist", self.checklist_path_var)) if var.get().strip()]
+            outputs = [forensic_outbox.file_artifact(kind, path) for kind, path in generated]
+            job_no = self.billing_vars["JOB NO:"].get().strip()
+            forensic_outbox.emit(
+                "biil_unified", "document.batch_generated",
+                {
+                    "fields": {k: v for k, v in data.items() if not k.startswith("template_")},
+                    "billing_metadata": {k: v.get() for k, v in self.billing_vars.items()},
+                    "containers": containers,
+                    "container_nos": [c["container_no"] for c in containers],
+                    "charges": charges,
+                    "totals": {
+                        "taxable": self.total_taxable_var.get(), "cgst": self.total_cgst_var.get(),
+                        "sgst": self.total_sgst_var.get(), "grand_total": self.grand_total_var.get(),
+                        "tds": self.tds_var.get(), "payable": self.total_payable_var.get(),
+                    },
+                    "bl_template": self.bl_template_var.get(),
+                    "documents_written": [kind for kind, _ in generated],
+                },
+                shipment_ref=job_no or None, entity_type="document_batch", artifacts=sources + outputs)
+        except Exception as e:
+            self.log_to_box(f"  Forensic snapshot not recorded: {e}")
+
     def generate_bl_instructions_file(self, data, containers, out_path):
         template_choice = self.bl_template_var.get()
         self.log_to_box(f"Selected BL Template: {template_choice}")
