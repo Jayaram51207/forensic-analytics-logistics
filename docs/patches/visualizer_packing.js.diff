@@ -1,6 +1,8 @@
---- a/3D_stuffing_visualizer/src/packing.js (original)
+diff --git a/3D_stuffing_visualizer/src/packing.js b/3D_stuffing_visualizer/src/packing.js
+index c7108f1..637f542 100644
+--- a/3D_stuffing_visualizer/src/packing.js
 +++ b/3D_stuffing_visualizer/src/packing.js
-@@ -130,10 +130,11 @@
+@@ -130,10 +130,11 @@ export function packCargo(container, itemTypes, settings = {}) {
    for (const item of individualItems) {
      let bestPlacement = null;
      let bestScore = Infinity;
@@ -13,7 +15,7 @@
        continue;
      }
  
-@@ -202,6 +203,7 @@
+@@ -202,6 +203,7 @@ export function packCargo(container, itemTypes, settings = {}) {
  
          // 3. Stability check (optimized internally using topZ height map index)
          if (!checkStability(ep.x, ep.y, ep.z, dl, dw)) {
@@ -21,7 +23,7 @@
            continue;
          }
  
-@@ -305,7 +307,7 @@
+@@ -305,7 +307,7 @@ export function packCargo(container, itemTypes, settings = {}) {
  
      } else {
        // Could not pack item

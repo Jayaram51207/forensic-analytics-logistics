@@ -1,6 +1,8 @@
---- a/Workflow syncroniser/db.js (original)
-+++ b/Workflow syncroniser/db.js
-@@ -5,7 +5,10 @@
+diff --git a/Workflow syncroniser/db.js b/Workflow syncroniser/db.js
+index 83a6672..c722155 100644
+--- a/Workflow syncroniser/db.js	
++++ b/Workflow syncroniser/db.js	
+@@ -5,7 +5,10 @@ import bcrypt from 'bcryptjs';
  import crypto from 'crypto';
  
  const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -12,7 +14,7 @@
  
  // Initialize local DB state
  let data = {
-@@ -186,6 +189,7 @@
+@@ -186,6 +189,7 @@ export function getDefaultWorkflowSteps(type) {
  
  // Check if db.json exists, if not initialize it
  if (fs.existsSync(dbPath)) {
@@ -20,7 +22,7 @@
    try {
      const raw = fs.readFileSync(dbPath, 'utf8');
      data = JSON.parse(raw);
-@@ -323,6 +327,7 @@
+@@ -323,6 +327,7 @@ if (fs.existsSync(dbPath)) {
        }
      });
  

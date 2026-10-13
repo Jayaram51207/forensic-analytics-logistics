@@ -1,6 +1,8 @@
---- a/3D_stuffing_visualizer/src/projectionExporter.js (original)
+diff --git a/3D_stuffing_visualizer/src/projectionExporter.js b/3D_stuffing_visualizer/src/projectionExporter.js
+index a1c3863..85217cb 100644
+--- a/3D_stuffing_visualizer/src/projectionExporter.js
 +++ b/3D_stuffing_visualizer/src/projectionExporter.js
-@@ -22,7 +22,7 @@
+@@ -22,7 +22,7 @@ function hexToRgb(hex) {
   * @param {Object} stats Pre-calculated statistics (volume, weight, etc.)
   * @param {number} unplacedCount Number of leftover boxes that could not be packed
   */
@@ -9,7 +11,7 @@
    const doc = new jsPDF({
      orientation: 'portrait',
      unit: 'mm',
-@@ -229,7 +229,7 @@
+@@ -229,7 +229,7 @@ export function exportStuffingReport(container, placedBoxes, manifestList, curre
  
    if (window.pywebview && window.pywebview.api && window.pywebview.api.save_pdf) {
      const pdfBase64 = doc.output('datauristring');

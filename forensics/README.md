@@ -7,28 +7,20 @@ No npm dependencies. Node.js 20+.
 ## Quick start
 
 ```
-# 1. Run the synchroniser as usual. Capture is on by default; evidence goes to forensics/data/.
+forensics\setup_env.cmd               (once: Python environment for document generation)
+
 cd "Workflow syncroniser"
-node server.js
+node server.js                         capture on, sign-in required; evidence in forensics/data/
 
-# 2. Investigate.
 cd ../forensics
-node cli.js verify          # is the evidence chain intact?
-node cli.js cases           # review queue
+node cli.js ingest                     evidence from the desktop tools
+node cli.js verify                     is the evidence chain intact?
+node cli.js cases                      review queue
 node cli.js case CASE-XXXXXXXX
-node src/dashboard.js       # http://127.0.0.1:3100
+node src/dashboard.js                  http://127.0.0.1:3100
 ```
 
-Document generation in the synchroniser needs `pip install openpyxl pdfplumber`.
-
-To record reviewer assessments from the dashboard, start it with a token:
-
-```
-set FORENSIC_REVIEW_TOKEN=choose-a-long-secret
-node src/dashboard.js
-```
-
-Evidence from the desktop tools (3D visualizer, B.I.I.L., EasyQuote) is written to `%LOCALAPPDATA%\LeadkingForensics\outbox`. Bring it into the chain with `node cli.js ingest`.
+Settings, sign-in, what an HTTP 503 means, and how to protect the evidence: [docs/RUNTIME_SETUP.md](../docs/RUNTIME_SETUP.md).
 
 ## Try it on synthetic data
 
@@ -51,6 +43,8 @@ node --test
 | Event format and catalogue | [docs/FORENSIC_EVENT_SCHEMA.md](../docs/FORENSIC_EVENT_SCHEMA.md) |
 | Where existing code was changed | [docs/INTEGRATION_POINTS.md](../docs/INTEGRATION_POINTS.md), [docs/patches/](../docs/patches/) |
 | Rules and scoring | [docs/DETECTION_RULES.md](../docs/DETECTION_RULES.md) |
+| Provenance and cross-application contradictions | [docs/PROVENANCE_AND_CONTRADICTIONS.md](../docs/PROVENANCE_AND_CONTRADICTIONS.md) |
+| Setup, recovery, operations | [docs/RUNTIME_SETUP.md](../docs/RUNTIME_SETUP.md) |
 | Synthetic data | [docs/SYNTHETIC_DATASET.md](../docs/SYNTHETIC_DATASET.md) |
 | Measured results | [docs/EXPERIMENTS_AND_RESULTS.md](../docs/EXPERIMENTS_AND_RESULTS.md) |
 | What it does not guarantee | [docs/SECURITY_AND_LIMITATIONS.md](../docs/SECURITY_AND_LIMITATIONS.md) |

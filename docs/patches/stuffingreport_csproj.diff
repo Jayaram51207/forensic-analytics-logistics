@@ -1,4 +1,6 @@
---- a/EasyQuote/StuffingReport/StuffingReport.csproj (original)
+diff --git a/EasyQuote/StuffingReport/StuffingReport.csproj b/EasyQuote/StuffingReport/StuffingReport.csproj
+index d70983a..a46b91b 100644
+--- a/EasyQuote/StuffingReport/StuffingReport.csproj
 +++ b/EasyQuote/StuffingReport/StuffingReport.csproj
 @@ -17,4 +17,8 @@
      <PackageReference Include="ClosedXML" Version="0.105.0" />

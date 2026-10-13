@@ -9,9 +9,9 @@ Labels: **S** = confirmed by source inspection, **R** = confirmed by runtime tes
 | Component | Path | Runtime | Forensic status |
 |---|---|---|---|
 | Workflow Synchroniser | `Workflow syncroniser/` | Node/Express + `db.json` + Python subprocess | **Live source.** Every state-changing route emits evidence (R) |
-| 3D Load & Stuffing Visualizer | `3D_stuffing_visualizer/` | Browser bundle in a pywebview window | Adapter added; Python side and payload tested, GUI path not exercised (see §4) |
+| 3D Load & Stuffing Visualizer | `3D_stuffing_visualizer/` | Browser bundle in a pywebview window | Adapter added; real window driven end to end (R); PDF save not exercised |
 | B.I.I.L. | `B,I,I,L/unified_generator.py` | Tkinter desktop | Adapter added; real `generate_all()` run tested headlessly (R) |
-| EasyQuote, EasyQuoteImport, StuffingReport | `EasyQuote/` | WPF desktop | Adapter added; all three projects compile (R); export path not executed (U) |
+| EasyQuote, EasyQuoteImport, StuffingReport | `EasyQuote/` | WPF desktop | Adapter added; clipboard export clicked in each real window (R); file exports not executed (U) |
 | Forensic layer | `forensics/` | Node (no dependencies) + one Python script for the ML baseline | New |
 
 The four applications are still **not** one integrated system. They share no database or identifier. What now exists is a common evidence format and a store that the synchroniser writes to directly and the desktop tools reach through outbox files.
@@ -28,8 +28,8 @@ The four applications are still **not** one integrated system. They share no dat
 | `DELETE /api/jobs/:id` | Removes the job, children and `history_logs` rows | R |
 | `POST /api/parse-checklist` | Fails with ENOENT until `uploads/` exists (multer does not create it) | R |
 | `/uploads/<file>` | Not served; falls through to `index.html` | R |
-| Actor names | Any string sent as `user`/`creator` is stored | R |
-| `requireAdmin` | Passes when the caller sends `adminUsername=admin` | R |
+| Actor names | As received: any string sent as `user`/`creator` was stored (R). Now taken from the session |
+| `requireAdmin` | As received: passed when the caller sent `adminUsername=admin` (R). Now checks the session role |
 | Generated `.xlsx` | Byte content differs between two runs on identical input (save time embedded) | R |
 | Start-up | `db.js` seeds users and runs migrations at import time, outside any request | S |
 | Row objects | `getJobById()` returns references to live rows, so a "before" snapshot must be deep-copied | R (found by a failing test) |
@@ -48,6 +48,7 @@ forensics/
   src/normalize.js    weights, packages, number+date strings, ISO 6346, money
   src/model.js        shipment views, timeline reconstruction, entity links, reconciliation
   src/rules.js        16 detection rules + configuration
+  src/provenance.js   evidence items, lineage roots, corroboration, cross-application contradictions
   src/cases.js        case assembly, priority score, behavioural features, dispositions
   src/dashboard.js    read-only HTTP dashboard (localhost)
   public/index.html   dashboard page
@@ -55,7 +56,9 @@ forensics/
   adapters/forensic_outbox.py   outbox writer for the Python tools
   synthetic/          scenario catalogue and dataset generator
   evaluation/         rule evaluation (Node) and Isolation Forest baseline (Python)
+  e2e/                scripted end-to-end run; drivers for the real visualizer and WPF windows
   test/               automated tests
+  requirements.txt, setup_env.cmd   project Python environment (.venv)
   data/               live evidence (created at first run; not for version control)
   datasets/           generated synthetic datasets
 EasyQuote/ForensicOutbox.cs     outbox writer for the three WPF tools
@@ -71,6 +74,7 @@ flowchart LR
     EQ[EasyQuote x3<br/>MainWindow.xaml.cs]
   end
   WS -->|capture.js hooks, same process| STORE[(events.jsonl<br/>hash chain + head anchor)]
+  STORE -.->|optional| ANCHOR[(external anchor<br/>FORENSIC_ANCHOR_FILE)]
   WS -->|copy by sha256| ART[(artifacts/)]
   VIS -->|outbox .jsonl| OB[(outbox files<br/>no integrity until ingested)]
   BIIL --> OB
@@ -79,6 +83,8 @@ flowchart LR
   STORE --> MODEL[model.js<br/>views, links, timeline]
   MODEL --> RULES[rules.js]
   MODEL --> FEAT[features] --> ML[ml_baseline.py]
+  MODEL --> PROV[provenance.js<br/>lineage, corroboration,<br/>contradictions]
+  PROV --> CASES
   RULES --> CASES[cases.js<br/>cases + priority]
   CASES --> DASH[dashboard.js / cli.js]
   DASH -->|reviewer disposition| STORE
@@ -91,8 +97,8 @@ Full diffs are in [docs/patches/](patches/). Summary in [INTEGRATION_POINTS.md](
 | File | Change |
 |---|---|
 | `Workflow syncroniser/db.js` | `SYNC_DB_PATH` override; exported `startupInfo` |
-| `Workflow syncroniser/server.js` | Capture hooks in every write route; configurable folders and Python path; `uploads/` created at start; evidence-store failures return 503 |
-| `Workflow syncroniser/public/js/app.js` | The two delete calls send the logged-in user's name in `X-Claimed-User` |
+| `Workflow syncroniser/server.js` | Capture hooks in every write route; **authenticated sessions**; configurable folders and Python path; `uploads/` created at start; evidence-store failures return 503 |
+| `Workflow syncroniser/public/js/app.js` | Session check on load, event stream after sign-in, 401 handling, logout call; delete calls send `X-Claimed-User` |
 | `3D_stuffing_visualizer/src/packing.js` | `unplacedReason` on unplaced items (`payload_exceeded`, `no_space`, `no_stable_position`) |
 | `3D_stuffing_visualizer/src/main.js`, `projectionExporter.js`, `index.html`, `app.py` | Optional shipment-reference input; packing-run and report-saved events through the pywebview bridge |
 | `B,I,I,L/unified_generator.py` | One evidence snapshot per `generate_all()` run |

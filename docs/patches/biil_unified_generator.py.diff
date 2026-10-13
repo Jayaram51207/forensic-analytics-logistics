@@ -1,6 +1,8 @@
---- a/B,I,I,L/unified_generator.py (original)
+diff --git a/B,I,I,L/unified_generator.py b/B,I,I,L/unified_generator.py
+index 50c0558..9771da1 100644
+--- a/B,I,I,L/unified_generator.py
 +++ b/B,I,I,L/unified_generator.py
-@@ -12,6 +12,14 @@
+@@ -12,6 +12,14 @@ import json
  
  import pdf_parser
  
@@ -15,7 +17,7 @@
  def resource_path(relative_path):
      """ Get absolute path to resource, works for dev and for PyInstaller """
      try:
-@@ -1925,6 +1933,7 @@
+@@ -1925,6 +1933,7 @@ class UnifiedGeneratorApp(tk.Tk):
                      return
                      
          success_count = 0
@@ -23,7 +25,7 @@
          
          # Clean invoice number
          inv_no_raw = data.get("invoice_no_date", "")
-@@ -1990,6 +1999,7 @@
+@@ -1990,6 +1999,7 @@ class UnifiedGeneratorApp(tk.Tk):
                  out_path = os.path.join(dest_dir, bl_filename)
                  self.log_to_box(f"Generating BL Instructions: {os.path.basename(out_path)}...")
                  self.generate_bl_instructions_file(data, containers, out_path)
@@ -31,7 +33,7 @@
                  self.log_to_box(f"  Successfully generated BL Instructions: {os.path.basename(out_path)}!\n")
                  success_count += 1
              except Exception as e:
-@@ -2001,6 +2011,7 @@
+@@ -2001,6 +2011,7 @@ class UnifiedGeneratorApp(tk.Tk):
                  out_path = os.path.join(dest_dir, bill_filename)
                  self.log_to_box(f"Generating Billing Invoice: {os.path.basename(out_path)}...")
                  self.generate_billing_invoice_file(out_path)
@@ -39,7 +41,7 @@
                  self.log_to_box(f"  Successfully generated Billing Invoice: {os.path.basename(out_path)}!\n")
                  success_count += 1
              except Exception as e:
-@@ -2012,15 +2023,56 @@
+@@ -2012,15 +2023,56 @@ class UnifiedGeneratorApp(tk.Tk):
                  out_path = os.path.join(dest_dir, awb_filename)
                  self.log_to_box(f"Generating AWB Instructions: {os.path.basename(out_path)}...")
                  self.generate_awb_instructions_file(data, out_path)

@@ -1,6 +1,8 @@
---- a/EasyQuote/StuffingReport/MainWindow.xaml.cs (original)
+diff --git a/EasyQuote/StuffingReport/MainWindow.xaml.cs b/EasyQuote/StuffingReport/MainWindow.xaml.cs
+index 9f16f89..c50ed61 100644
+--- a/EasyQuote/StuffingReport/MainWindow.xaml.cs
 +++ b/EasyQuote/StuffingReport/MainWindow.xaml.cs
-@@ -623,6 +623,7 @@
+@@ -623,6 +623,7 @@ namespace StuffingReport
                      dataObject.SetData("HTML Format", ms);
                      dataObject.SetText(html, TextDataFormat.UnicodeText);
                      Clipboard.SetDataObject(dataObject, true);
@@ -8,7 +10,7 @@
                  }
  
                  StatusTxt.Text = "HTML Table copied to Clipboard!";
-@@ -642,6 +643,7 @@
+@@ -642,6 +643,7 @@ namespace StuffingReport
                  SaveCurrentValuesFromUI();
                  string txt = GeneratePlainText();
                  Clipboard.SetText(txt, TextDataFormat.UnicodeText);
@@ -16,7 +18,7 @@
                  StatusTxt.Text = "Plain Text copied to Clipboard!";
                  MessageBox.Show("Plain Text copied to Clipboard!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
              }
-@@ -696,6 +698,7 @@
+@@ -696,6 +698,7 @@ namespace StuffingReport
  </body>
  </html>";
                      File.WriteAllText(sfd.FileName, fullHtml, Encoding.UTF8);
@@ -24,7 +26,7 @@
                      StatusTxt.Text = $"Exported HTML to {Path.GetFileName(sfd.FileName)}.";
                      MessageBox.Show("Stuffing Report HTML file exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                  }
-@@ -722,6 +725,7 @@
+@@ -722,6 +725,7 @@ namespace StuffingReport
                  if (sfd.ShowDialog() == true)
                  {
                      GenerateExcelWorkbook(sfd.FileName);
@@ -32,7 +34,7 @@
                      StatusTxt.Text = $"Exported Excel to {Path.GetFileName(sfd.FileName)}.";
                      MessageBox.Show("Excel file exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                  }
-@@ -947,6 +951,30 @@
+@@ -947,6 +951,30 @@ namespace StuffingReport
              StatusTxt.Text = "All rows deselected.";
          }
  

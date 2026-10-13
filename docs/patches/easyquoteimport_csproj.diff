@@ -1,4 +1,6 @@
---- a/EasyQuote/EasyQuoteImport/EasyQuoteImport.csproj (original)
+diff --git a/EasyQuote/EasyQuoteImport/EasyQuoteImport.csproj b/EasyQuote/EasyQuoteImport/EasyQuoteImport.csproj
+index d70983a..a46b91b 100644
+--- a/EasyQuote/EasyQuoteImport/EasyQuoteImport.csproj
 +++ b/EasyQuote/EasyQuoteImport/EasyQuoteImport.csproj
 @@ -17,4 +17,8 @@
      <PackageReference Include="ClosedXML" Version="0.105.0" />

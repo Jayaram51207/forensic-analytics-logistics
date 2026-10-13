@@ -1,6 +1,8 @@
---- a/EasyQuote/EasyQuoteImport/MainWindow.xaml.cs (original)
+diff --git a/EasyQuote/EasyQuoteImport/MainWindow.xaml.cs b/EasyQuote/EasyQuoteImport/MainWindow.xaml.cs
+index c8bde27..b0085a2 100644
+--- a/EasyQuote/EasyQuoteImport/MainWindow.xaml.cs
 +++ b/EasyQuote/EasyQuoteImport/MainWindow.xaml.cs
-@@ -779,6 +779,7 @@
+@@ -779,6 +779,7 @@ namespace EasyQuoteImport
                      dataObject.SetData("HTML Format", ms);
                      dataObject.SetText(html, TextDataFormat.UnicodeText);
                      Clipboard.SetDataObject(dataObject, true);
@@ -8,7 +10,7 @@
                  }
  
                  StatusTxt.Text = "HTML Table copied to Clipboard! You can now paste (Ctrl+V) directly into Outlook, Gmail, or Word.";
-@@ -798,6 +799,7 @@
+@@ -798,6 +799,7 @@ namespace EasyQuoteImport
                  SaveCurrentValuesFromUI();
                  string txt = GeneratePlainText();
                  Clipboard.SetText(txt, TextDataFormat.UnicodeText);
@@ -16,7 +18,7 @@
                  StatusTxt.Text = "Plain Text Table copied to Clipboard!";
                  MessageBox.Show("Plain Text Table copied to Clipboard!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
              }
-@@ -852,6 +854,7 @@
+@@ -852,6 +854,7 @@ namespace EasyQuoteImport
  </body>
  </html>";
                      File.WriteAllText(sfd.FileName, fullHtml, Encoding.UTF8);
@@ -24,7 +26,7 @@
                      StatusTxt.Text = $"Exported to {Path.GetFileName(sfd.FileName)} successfully.";
                      MessageBox.Show("Quotation HTML file exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                  }
-@@ -903,6 +906,7 @@
+@@ -903,6 +906,7 @@ namespace EasyQuoteImport
                  if (sfd.ShowDialog() == true)
                  {
                      GenerateExcelWorkbook(sfd.FileName);
@@ -32,7 +34,7 @@
                      StatusTxt.Text = $"Exported to {Path.GetFileName(sfd.FileName)} successfully.";
                      MessageBox.Show("Quotation Excel file exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                  }
-@@ -1123,6 +1127,41 @@
+@@ -1123,6 +1127,41 @@ namespace EasyQuoteImport
              StatusTxt.Text = "All rows deselected.";
          }
  

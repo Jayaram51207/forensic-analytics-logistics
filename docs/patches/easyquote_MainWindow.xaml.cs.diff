@@ -1,6 +1,8 @@
---- a/EasyQuote/MainWindow.xaml.cs (original)
+diff --git a/EasyQuote/MainWindow.xaml.cs b/EasyQuote/MainWindow.xaml.cs
+index 6d2ef13..0984073 100644
+--- a/EasyQuote/MainWindow.xaml.cs
 +++ b/EasyQuote/MainWindow.xaml.cs
-@@ -781,6 +781,7 @@
+@@ -781,6 +781,7 @@ namespace EasyQuote
                      dataObject.SetData("HTML Format", ms);
                      dataObject.SetText(html, TextDataFormat.UnicodeText);
                      Clipboard.SetDataObject(dataObject, true);
@@ -8,7 +10,7 @@
                  }
  
                  StatusTxt.Text = "HTML Table copied to Clipboard! You can now paste (Ctrl+V) directly into Outlook, Gmail, or Word.";
-@@ -800,6 +801,7 @@
+@@ -800,6 +801,7 @@ namespace EasyQuote
                  SaveCurrentValuesFromUI();
                  string txt = GeneratePlainText();
                  Clipboard.SetText(txt, TextDataFormat.UnicodeText);
@@ -16,7 +18,7 @@
                  StatusTxt.Text = "Plain Text Table copied to Clipboard!";
                  MessageBox.Show("Plain Text Table copied to Clipboard!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
              }
-@@ -854,6 +856,7 @@
+@@ -854,6 +856,7 @@ namespace EasyQuote
  </body>
  </html>";
                      File.WriteAllText(sfd.FileName, fullHtml, Encoding.UTF8);
@@ -24,7 +26,7 @@
                      StatusTxt.Text = $"Exported to {Path.GetFileName(sfd.FileName)} successfully.";
                      MessageBox.Show("Quotation HTML file exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                  }
-@@ -905,6 +908,7 @@
+@@ -905,6 +908,7 @@ namespace EasyQuote
                  if (sfd.ShowDialog() == true)
                  {
                      GenerateExcelWorkbook(sfd.FileName);
@@ -32,7 +34,7 @@
                      StatusTxt.Text = $"Exported to {Path.GetFileName(sfd.FileName)} successfully.";
                      MessageBox.Show("Quotation Excel file exported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                  }
-@@ -1125,6 +1129,41 @@
+@@ -1125,6 +1129,41 @@ namespace EasyQuote
              StatusTxt.Text = "All rows deselected.";
          }
  

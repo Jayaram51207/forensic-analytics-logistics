@@ -104,8 +104,10 @@ Pass overrides as the second argument of `analyze(records, config)`.
 - "Documents had been generated" is deliberately not a criterion: the synchroniser generates at creation, so it is true of every job.
 - **Tests:** `deleted_after_close`; hard negative `deleted_draft`.
 
-### ACT-001 · actor · low — Actor name matches no account
-- Compares claimed names with account display names known from evidence. Shows the request did not come from the standard UI for a known user. Does not identify the sender. A spoofer who uses a real display name is not detected.
+### ACT-001 · actor · medium / low — Request names a different actor
+- **Default mode (sessions):** an event whose authenticated actor differs from the name in the request body (`claimed_display_name`). Medium. The bundled UI always sends the signed-in user's own name, so the request was built another way. The session identity is the recorded actor.
+- **`SYNC_AUTH=off`:** a claimed name matching no account. Low. Does not identify the sender.
+- Not detected: someone signed in with another person's password.
 - **Tests:** `spoofed_actor`.
 
 ### PCK-001 · physical_feasibility · medium — Linked packing run left cargo unplaced
@@ -116,6 +118,9 @@ Pass overrides as the second argument of `analyze(records, config)`.
 
 ### EVD-001 · evidence_gap — Evidence incomplete for this shipment
 - `data_quality`. A `…_requested` event with no completion, or events with no origin.
+
+### XAP-* · cross_application — Contradictions between applications
+Produced by `src/provenance.js`, not by `rules.js`: `XAP-GROSS_WEIGHT`, `XAP-NET_WEIGHT`, `XAP-PACKAGES`, `XAP-INVOICE_NO`, `XAP-SHIPPING_BILL_NO`, `XAP-CONTAINER_NOS`, `XAP-TAXABLE_TOTAL`, `XAP-JOB_NO`, `XAP-TIMING` (anomalies) and `XAP-TAX`, `XAP-UNATTRIBUTED` (notes). Conditions, classification and configuration: PROVENANCE_AND_CONTRADICTIONS.md §6. All share one family, so several contradictions on one shipment count once in the score.
 
 ## Case priority score
 

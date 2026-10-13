@@ -27,7 +27,7 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
-NON_FEATURES = {'rule_flag', 'rule_priority', 'job_no'}  # plus every LABEL_* column
+NON_FEATURES = {'rule_flag', 'full_flag', 'rule_priority', 'job_no'}  # plus every LABEL_* column
 
 
 def load(path):
@@ -80,9 +80,10 @@ def main():
         rows, cols2, X = load(path)
         assert cols2 == cols
         y = np.array([int(r['LABEL_anomalous']) for r in rows])
-        rule = np.array([int(r['rule_flag']) for r in rows])
+        rule = np.array([int(r['rule_flag']) for r in rows])   # variant A: rules only
+        full = np.array([int(r['full_flag']) for r in rows])   # variant D: rules + contradiction analysis
         types = sorted({r['LABEL_type'] for r in rows})
-        per_seed = {'ml_only': [], 'hybrid_rules_or_ml': []}
+        per_seed = {'ml_only': [], 'hybrid_rules_or_ml': [], 'full_or_ml': []}
         ml_votes = np.zeros(len(rows))
         for seed in args.model_seeds:
             model = IsolationForest(n_estimators=200, contamination='auto', random_state=seed).fit(scaler.transform(Xtr))
@@ -91,14 +92,17 @@ def main():
             ml_votes += ml
             per_seed['ml_only'].append(metrics(y, ml))
             per_seed['hybrid_rules_or_ml'].append(metrics(y, np.maximum(ml, rule)))
+            per_seed['full_or_ml'].append(metrics(y, np.maximum(ml, full)))
         by_type = {}
         for t in types:
             idx = np.array([r['LABEL_type'] == t for r in rows])
             by_type[t] = {'class': next(r['LABEL_class'] for r in rows if r['LABEL_type'] == t), 'n': int(idx.sum()),
-                          'rules_flag_rate': float(rule[idx].mean()), 'ml_flag_rate_mean_over_seeds': float(ml_votes[idx].mean() / len(args.model_seeds))}
+                          'rules_flag_rate': float(rule[idx].mean()), 'full_flag_rate': float(full[idx].mean()), 'ml_flag_rate_mean_over_seeds': float(ml_votes[idx].mean() / len(args.model_seeds))}
         result['tests'].append({
             'dataset': os.path.basename(path), 'rows': len(rows), 'positives': int(y.sum()),
             'rules_only': metrics(y, rule),
+            'full_framework': metrics(y, full),
+            'full_or_ml': {'per_seed': per_seed['full_or_ml'], 'summary': summarise(per_seed['full_or_ml'])},
             'ml_only': {'per_seed': per_seed['ml_only'], 'summary': summarise(per_seed['ml_only'])},
             'hybrid_rules_or_ml': {'per_seed': per_seed['hybrid_rules_or_ml'], 'summary': summarise(per_seed['hybrid_rules_or_ml'])},
             'by_type': by_type})
@@ -113,8 +117,10 @@ def main():
     for t in result['tests']:
         r = t['rules_only']
         print(f"{t['dataset']}  n={t['rows']} positives={t['positives']}")
-        print(f"  rules   P {fmt(r['precision'])} R {fmt(r['recall'])} F1 {fmt(r['f1'])} FPR {fmt(r['false_positive_rate'])}")
-        for name in ('ml_only', 'hybrid_rules_or_ml'):
+        print(f"  A rules            P {fmt(r['precision'])} R {fmt(r['recall'])} F1 {fmt(r['f1'])} FPR {fmt(r['false_positive_rate'])}")
+        d = t['full_framework']
+        print(f"  D full framework   P {fmt(d['precision'])} R {fmt(d['recall'])} F1 {fmt(d['f1'])} FPR {fmt(d['false_positive_rate'])}")
+        for name in ('ml_only', 'hybrid_rules_or_ml', 'full_or_ml'):
             s = t[name]['summary']
             print(f"  {name:<18} P {fmt(s['precision']['mean'])}+/-{fmt(s['precision']['sd'])} R {fmt(s['recall']['mean'])}+/-{fmt(s['recall']['sd'])} "
                   f"F1 {fmt(s['f1']['mean'])}+/-{fmt(s['f1']['sd'])} FPR {fmt(s['false_positive_rate']['mean'])}+/-{fmt(s['false_positive_rate']['sd'])}")

@@ -77,3 +77,26 @@ The third item is worth noting: the unexpected findings were correct description
 - EasyQuote exports at runtime.
 - Any concurrency beyond one synchroniser process plus test writers.
 - Operation on a machine other than the development one.
+
+## Second round (2026-10-14)
+
+| Item | Result |
+|---|---|
+| Version control | Git initialised. `original-suite` holds the applications as received; every patch in `docs/patches/` was first checked to reverse to the preserved original byte for byte (14 of 14) |
+| Python environment | `forensics/.venv` created by `setup_env.cmd` from `requirements.txt`; used automatically by the synchroniser and the tests |
+| End-to-end run on the real synchroniser | `e2e/run_e2e.js`: 26 of 26 steps, with sessions and an external anchor |
+| Real 3D visualizer window | Driven by script: two packing events captured, one with the typed reference |
+| Real EasyQuote, EasyQuoteImport, StuffingReport windows | "Copy HTML Table for Email" clicked through UI Automation in each; evidence written and ingested |
+| Anonymous and spoofed requests | Refused or recorded as claims (`auth.integration.test.js`) |
+| Full rewrite of chain plus head anchor | Passes local verification (demonstrated); caught with an external anchor |
+
+Defects found in this round:
+
+| Found by | Defect | Fix |
+|---|---|---|
+| End-to-end run | A reviewer decision written by a process without the anchor setting left an unwitnessed record | Working as intended (reported by `verify`); the run now sets the anchor for both processes |
+| Contradiction analysis on existing scenarios | Packing scenarios used manifests unrelated to the job's declared cargo | Manifests now derive from the job |
+| GUI driver | The first window handle of a WPF program can belong to a transient window | Driver re-acquires the handle while searching |
+| Visualizer | The first packing run happened before the desktop bridge existed and was never captured | `pywebviewready` listener sends it once the bridge is ready |
+
+Still not verified: see TESTING_GUIDE.md, "Paths that were NOT tested".

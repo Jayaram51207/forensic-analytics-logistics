@@ -1,4 +1,6 @@
---- a/3D_stuffing_visualizer/src/main.js (original)
+diff --git a/3D_stuffing_visualizer/src/main.js b/3D_stuffing_visualizer/src/main.js
+index b2a2b01..5d67ba6 100644
+--- a/3D_stuffing_visualizer/src/main.js
 +++ b/3D_stuffing_visualizer/src/main.js
 @@ -1,6 +1,7 @@
  import { packCargo } from './packing';
@@ -8,7 +10,7 @@
  
  
  // --- STATE MANAGEMENT ---
-@@ -334,6 +335,26 @@
+@@ -334,6 +335,33 @@ function renderLoadedList() {
    }
  }
  
@@ -32,10 +34,17 @@
 +  }
 +}
 +
++// The first packing run happens before the desktop bridge exists; record it once the bridge is ready.
++window.addEventListener('pywebviewready', () => {
++  if (packingResults) {
++    sendForensicEvent('packing.run_completed', packingPayload(selectedContainer, manifestList, packingResults));
++  }
++});
++
  // --- LOGIC ACTIONS ---
  
  function calculateStuffing() {
-@@ -356,6 +377,7 @@
+@@ -356,6 +384,7 @@ function calculateStuffing() {
        // Calculate optimal packing
        packingResults = packCargo(selectedContainer, manifestList);
        console.log("packCargo completed. placedBoxes length =", packingResults.placedBoxes.length);
@@ -43,7 +52,7 @@
        
        const { placedBoxes, volumeUtilization, weightUtilization, totalVolume, totalWeight } = packingResults;
  
-@@ -939,7 +961,8 @@
+@@ -939,7 +968,8 @@ function bindEventListeners() {
        manifestList, 
        currentUnit, 
        stats, 

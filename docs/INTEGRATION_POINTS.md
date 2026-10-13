@@ -14,7 +14,9 @@ Where the forensic layer touches existing code. Exact diffs: [docs/patches/](pat
 | `PUT …/workflow/:stepId` | deep copy → `statusChangeRequested` → `toggleWorkflowStep` → `statusChanged` (also emits `job.closed` / `job.reopened`) |
 | `PUT …/documents/:docId` | same pattern with `'document'` |
 | `POST /api/parse-checklist` | `sourceUploaded` → parser → `sourceParsed` (success or failure) |
-| `POST /api/login` | `login` |
+| every `/api` route except login | session middleware → `rejected` on refusal |
+| `POST /api/login` | `login`; creates the session |
+| `POST /api/logout` | `logout` |
 | `POST`/`DELETE /api/users` | `userChanged` |
 | start-up | `startup(startupInfo)`: `system.started`, then a baseline for every job without evidence |
 
@@ -44,10 +46,12 @@ Every failure is printed to stderr, appended to `capture_failures.log`, and summ
 
 ### Behaviour changes to the synchroniser
 
+0. **Every `/api` route except `/api/login` now requires a signed-in session**, and admin routes require the Admin role of that session. `SYNC_AUTH=off` restores the previous behaviour. The bundled UI was adjusted: it validates the session on load, starts the event stream after sign-in, returns to the login screen on any 401, and calls `/api/logout`.
 1. `uploads/` is created at start (it previously had to exist or uploads failed).
 2. Destructive routes return 503 when evidence cannot be written (default mode).
 3. Subprocesses run with `cwd` set to the synchroniser folder, so the server can be started from any directory.
-4. Delete requests from the bundled UI carry `X-Claimed-User`.
+4. Delete requests from the bundled UI carry `X-Claimed-User` (now only a claim; the session decides).
+5. The operational record (`updated_by`, history `user`) uses the session's display name, not the name in the request body.
 
 Nothing else in request or response shape changed; the regression test with `FORENSIC_DISABLED=1` and the 31 scenario runs exercise the original routes.
 
@@ -57,10 +61,12 @@ These tools have no server, so they append JSON lines to `%LOCALAPPDATA%\Leadkin
 
 | Tool | Hook | Event | Verified how |
 |---|---|---|---|
-| 3D visualizer | `calculateStuffing()` in `main.js` → `Api.forensic_event` in `app.py` | `packing.run_completed` | Python bridge method and ingestion tested; payload function unit-tested; the GUI itself was not driven |
+| 3D visualizer | `calculateStuffing()` and the `pywebviewready` listener in `main.js` → `Api.forensic_event` in `app.py` | `packing.run_completed` | Real window driven by `e2e/visualizer_gui.py`: built bundle, real WebView, real bridge; reference typed in the page arrives with the evidence |
 | 3D visualizer | `Api.save_pdf` | `packing.report_saved` | Not executed (needs a save dialog) |
 | B.I.I.L. | `generate_all()` → `_forensic_snapshot` | `document.batch_generated` | Real run through `test/biil_headless.py` |
-| EasyQuote ×3 | `RecordExport()` after each export/copy | `quotation.exported`, `stuffing_report.exported` | Compiles in all three projects; not executed |
+| EasyQuote ×3 | `RecordExport()` after each export/copy | `quotation.exported`, `stuffing_report.exported` | Real windows driven by UI Automation (`e2e/wpf_click.ps1`): the "Copy HTML Table for Email" button was clicked in each program and the evidence line checked. The Excel/HTML file exports (save dialog) were not executed |
+
+Ingestion (`ingest()`): validates each line, rejects bad ones with a reason, skips `source_event_id`s already in the chain, surfaces store failures, and never modifies the outbox, so a re-run completes what a failed run started. `verifyArtifacts()` / `cli.js artifacts` re-hashes recorded files.
 
 Limits: the visualizer captures only in desktop mode (no bridge in a plain browser); the PyInstaller build of B.I.I.L. does not bundle the adapter, so the packaged executable captures nothing until `build_unified.py` is extended; an outbox line can be edited or deleted before ingestion without detection.
 
@@ -74,3 +80,5 @@ There is still no shared key. Links are made at analysis time (`linkExternal` in
 | `container_number_match` | 0.6 | A container number in the external record appears on the job |
 | ambiguous | base ÷ candidates | The same reference matches several job lifecycles; the record is shown on each, flagged ambiguous, and scored at half weight |
 | `unlinked` | 0 | No reference, or no match. The record stays in the store, attached to nothing |
+
+Links below 0.5 confidence, and ambiguous links, can never support a contradiction: they yield one `insufficient_evidence` note. What is compared across applications, and how the result is classified, is in PROVENANCE_AND_CONTRADICTIONS.md.

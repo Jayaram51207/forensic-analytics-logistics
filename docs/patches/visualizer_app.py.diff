@@ -1,6 +1,8 @@
---- a/3D_stuffing_visualizer/app.py (original)
+diff --git a/3D_stuffing_visualizer/app.py b/3D_stuffing_visualizer/app.py
+index 321b113..c082d45 100644
+--- a/3D_stuffing_visualizer/app.py
 +++ b/3D_stuffing_visualizer/app.py
-@@ -7,6 +7,16 @@
+@@ -7,6 +7,16 @@ import threading
  
  PORT = 24689
  
@@ -17,7 +19,7 @@
  def start_local_server(directory, port):
      """Spins up a lightweight local HTTP server to host the web app assets"""
      os.chdir(directory)
-@@ -42,7 +52,20 @@
+@@ -42,7 +52,20 @@ class Api:
          print(f"JS EXCEPTION CAPTURED: {error_json}", file=sys.stderr)
          sys.stderr.flush()
  
@@ -39,7 +41,7 @@
          try:
              import base64
              if ',' in base64_data:
-@@ -64,6 +87,10 @@
+@@ -64,6 +87,10 @@ class Api:
                  with open(file_path, 'wb') as f:
                      f.write(pdf_bytes)
                  print(f"PDF saved successfully to: {file_path}")

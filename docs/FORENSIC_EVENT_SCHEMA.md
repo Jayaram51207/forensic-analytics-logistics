@@ -41,7 +41,8 @@ Canonical JSON: keys sorted recursively, `undefined` dropped, no whitespace (`ca
 
 | `source` | `verified` | Meaning |
 |---|---|---|
-| `client_claimed` | false | Name sent by the browser in the request body or `X-Claimed-User`. Anyone on the network can send any name |
+| `session` | true | The signed-in account of the request (default mode). The actor object also carries `username` and `role`, and `claimed_display_name` when the request body named someone else |
+| `client_claimed` | false | Only with `SYNC_AUTH=off`: a name sent by the client, unchecked |
 | `password_login` | true | Only on `auth.login_succeeded`: the password check passed for that request |
 | `os_account_claimed` | false | Windows account name read by a desktop tool |
 | `review_token` | true | Dashboard reviewer who presented `FORENSIC_REVIEW_TOKEN`; the name typed is still free text |
@@ -78,7 +79,9 @@ Ordering is by `sequence`. "Required" means the operation is refused (HTTP 503) 
 | `document.generation_failed` | compiler failed | job | Error text (first 2000 characters), link to the request | no | sync: failed generation |
 | `source.uploaded` | `POST /api/parse-checklist` | upload | SHA-256, size, original and stored names | no | sync: upload |
 | `source.parsed` / `source.parse_failed` | same request | upload | Parsed values marked as unverified regex extraction, or the error | no | sync: upload; scenarios |
-| `auth.login_succeeded` / `auth.login_failed` | `POST /api/login` | user | username, role, client IP. Never the password | no | sync: login |
+| `auth.login_succeeded` / `auth.login_failed` | `POST /api/login` | user | username, role, client IP. Never the password or the session token | no | sync: login |
+| `auth.logout` | `POST /api/logout` | user | account, client IP | no | auth: forged or expired tokens |
+| `auth.request_rejected` | session middleware (non-GET without a session), `requireAdmin` (any method without the Admin role) | request | method, path, reason, client IP, session actor if any | no | auth: unauthenticated, admin privileges |
 | `user.created` / `user.delete_requested` / `user.deleted` | `/api/users` | user | name and role; claimed admin name | **yes** | sync: login |
 
 A generation request is never reported as a generated document: `document.generated` is written only after the files have been opened and hashed.
@@ -102,9 +105,17 @@ A generation request is never reported as a generated document: `document.genera
 
 Every ingested event carries `payload.source = { source_event_id, occurred_at, clock, outbox, integrity_before_ingest: "none" }`.
 
-## 3. What the schema does not record
+## 3. External anchor
+
+When `FORENSIC_ANCHOR_FILE` is set, each append also writes `{ sequence, integrity_hash, witnessed_at }` to that file. It is not part of the schema and is not chained; its value comes only from being stored where the evidence folder's users cannot write. `verify()` reports `anchor_mismatch`, `anchored_record_missing`, `unwitnessed_records`, `anchor_missing`.
+
+## 4. Derived model (not stored)
+
+Evidence items, lineage roots, corroboration and contradictions are computed from events at analysis time by `src/provenance.js`; see PROVENANCE_AND_CONTRADICTIONS.md. They are never written back as if they were source evidence.
+
+## 5. What the schema does not record
 
 - Field edits inside the desktop tools between exports.
 - Anything typed into the synchroniser's form but not submitted.
-- Who actually sent a request.
+- Who was physically at the keyboard. `verified: true` means the request carried a session created by a password check.
 - The content of overwritten output files, unless archiving is on (default on; `FORENSIC_ARCHIVE=0` keeps hashes only).

@@ -1,95 +1,98 @@
 # Implementation Status
 
-Last updated: 2026-10-13. Labels: **done** (implemented and tested), **partial**, **not done**.
+Last updated: 2026-10-14. Labels: **done** (implemented and tested), **partial**, **not done**, **blocked** (needs a decision or access).
 
-## Phase checklist
+## Recovery point
+
+Git repository, branch `main`. Tags: `original-suite` (applications as received), `forensic-v1` (first forensic layer). See RUNTIME_SETUP.md §1. No live operational data is tracked; `Workflow syncroniser/db.json` still holds zero jobs and `forensics/data/` has not been created.
+
+## Hardening and contribution phases
 
 | # | Phase | Status | Evidence |
 |---|---|---|---|
-| 0 | Repository audit and baseline | done | [BASELINE_AND_VERIFICATION.md](BASELINE_AND_VERIFICATION.md) |
-| 1 | Event schema and catalogue | done | [FORENSIC_EVENT_SCHEMA.md](FORENSIC_EVENT_SCHEMA.md) |
-| 2 | Independent evidence store | done | `forensics/src/store.js`; `test/store.test.js` (18 tests) |
-| 3 | Synchroniser instrumentation | done | `forensics/src/capture.js`, `Workflow syncroniser/server.js`; `test/sync.integration.test.js` (9 tests) |
-| 4 | Completeness and reconstruction | done | `forensics/src/model.js` (`reconstruct`, `reconcile`); scenario tests |
-| 5 | Normalisation and entity resolution | done | `forensics/src/normalize.js`, `linkExternal` in `model.js` |
-| 6 | Rule-based detection | done | `forensics/src/rules.js` (16 rules); [DETECTION_RULES.md](DETECTION_RULES.md) |
-| 7 | Synthetic dataset and ground truth | done | `forensics/synthetic/`; [SYNTHETIC_DATASET.md](SYNTHETIC_DATASET.md) |
-| 8 | Behavioural features and ML baseline | done, with a negative result | `features()` in `cases.js`, `evaluation/ml_baseline.py`; [EXPERIMENTS_AND_RESULTS.md](EXPERIMENTS_AND_RESULTS.md) |
-| 9 | Evidence correlation and cases | done | `forensics/src/cases.js` |
-| 10 | Investigation interface | done | `forensics/src/dashboard.js`, `forensics/public/index.html`, `forensics/cli.js` |
-| 11 | Additional application adapters | partial | See below |
-| 12 | Security, privacy, limitations | done (review and documentation); hardening not done | [SECURITY_AND_LIMITATIONS.md](SECURITY_AND_LIMITATIONS.md) |
-| 13 | Testing and validation | done | 86 automated tests, all passing; [TESTING_GUIDE.md](TESTING_GUIDE.md) |
-| 14 | Evaluation | done | [EXPERIMENTS_AND_RESULTS.md](EXPERIMENTS_AND_RESULTS.md) |
-| 15 | Documentation | done | this folder |
+| 1 | Recoverability and baseline | done | 14 of 14 patches reverse to the exact originals; two tagged commits |
+| 2 | Environment and end-to-end verification | done, with untested paths listed | `forensics/setup_env.cmd`, `e2e/run_e2e.js` (26/26), real visualizer and WPF windows driven; TESTING_GUIDE "Paths that were NOT tested" |
+| 3 | Integrity, security, failure handling | done; residual weaknesses documented | Sessions in `server.js`; `auth.integration.test.js`; external anchor and limitation tests in `store.test.js`; SECURITY_AND_LIMITATIONS.md; RUNTIME_SETUP.md §5–6 |
+| 4 | Complete the evidence pipeline | done for ingestion and analysis; partial for capture coverage | `pipeline.test.js`; `verifyArtifacts`; B.I.I.L., stuffing-report and packing evidence analysed. EasyQuote quotations are captured and stored but not analysed |
+| 5 | Provenance-aware contradiction analysis | done | `src/provenance.js`; cases, dashboard, timeline; PROVENANCE_AND_CONTRADICTIONS.md |
+| 6 | Synthetic data and business assumptions | done; four questions remain open | 44 scenarios; SYNTHETIC_DATASET.md; open questions below |
+| 7 | Evaluation of the contribution | done | EXPERIMENTS_AND_RESULTS.md; `evaluation/results/` |
+| 8 | Documentation and final verification | done | this folder; final test run below |
 
-## Test results (last full run)
+Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remain as described at tag `forensic-v1` and are covered by the same test suite.
 
-`node --test` in `forensics/`, with a Python that has `openpyxl` and `pdfplumber`: **86 tests, 86 passed, 0 failed, 0 skipped**, about 27 s.
+## Verification status
 
-With the system Python as found on the development machine (no `openpyxl`): the two tests that need real document generation are skipped with a stated reason; the rest pass.
-
-| File | Tests |
-|---|---|
-| `store.test.js` | 18 |
-| `units.test.js` | 17 |
-| `sync.integration.test.js` | 9 |
-| `scenarios.integration.test.js` | 39 (31 scenarios + 8 checks) |
-| `adapters.test.js` | 3 |
+| Check | Result | When |
+|---|---|---|
+| `node --test` in `forensics/` | 131 tests: 127 passed, 0 failed, 4 skipped (opt-in GUI) | final run |
+| Same with `FORENSIC_GUI_TESTS=1` (pipeline file) | 13 of 13 passed, including the 4 real-window tests | during phase 4/5 |
+| `node e2e/run_e2e.js` | 26 of 26 steps | final run |
+| Three WPF projects build | 0 warnings, 0 errors | phase 2 of the first round; binaries reused |
+| Visualizer bundle builds | yes (`npm run build`) | after the bridge-ready change |
+| Four datasets generated, chains verify, no capture failures | yes; 4 jobs lost to generator network errors | final datasets |
 
 ## Definition of done
 
-| # | Criterion | Met | How shown |
+| Criterion | Met | Note |
+|---|---|---|
+| Repository recoverable | yes | tags and reversible patches |
+| End-to-end operation demonstrated in a controlled environment | yes | scripted, disposable, repeatable |
+| Evidence capture, integrity verification, actor attribution tested | yes | including the case integrity does not cover |
+| Adapters feed real analysis | partly | B.I.I.L., stuffing report, packing: yes. EasyQuote quotations: captured only |
+| Provenance-aware contradiction analysis implemented and integrated | yes | findings, cases, score, dashboard, CLI |
+| Contribution evaluated against the previous system | yes | variants A, B, C, D on the same data and labels |
+| Report separates verified facts, synthetic findings, assumptions, untested behaviour | yes | each document labels them |
+
+## Mismatches found between documentation and code at the start of this round, and fixed
+
+| Document said | Reality | Fix |
+|---|---|---|
+| "EasyQuote export never executed", "visualizer GUI not driven" | Still true then | Both now driven; documents updated |
+| Actors are unverified claims; no sessions | True then | Sessions implemented; documents rewritten |
+| "Hash chain … head anchor detects truncation" without saying both can be rewritten together | Under-stated | Limitation now demonstrated by a test and stated first |
+| Packing scenarios described as "linked packing run" | Manifests were unrelated to the job's cargo (found by the new contradiction analysis) | Manifests now describe the job's own cargo |
+| `docs/patches/` as the only record of originals | No version control | Git history; patches regenerated from `git diff original-suite` |
+
+## Open questions
+
+| # | Question | Status | Basis |
 |---|---|---|---|
-| 1 | Real synchroniser changes produce structured events | yes | Integration tests over HTTP |
-| 2 | Previous values and deletion snapshots preserved | yes | `job.update_requested`, `job.delete_requested`; erased closing-bill figures recovered in test |
-| 3 | Generated documents tied to inputs and events | yes | `operation_id`, `input_sha256`, output hashes, archived copies |
-| 4 | Integrity independently verifiable | yes, within stated limits | `cli.js verify`; adversarial tests. Not immutable: see limitations |
-| 5 | Normalised and correlated without hiding uncertainty | yes | Originals kept; link method and confidence; ambiguity test |
-| 6 | Rules find known synthetic anomalies with evidence links | yes | Scenario tests; every finding cites existing event ids |
-| 7 | Behavioural detection evaluated against rules-only | yes | Reported honestly, including that it performed poorly |
-| 8 | Findings assembled into cases | yes | `analyze()`, `caseDetail()` |
-| 9 | Investigator can reconstruct chronology | yes | Dashboard and `cli.js case` |
-| 10 | Tests cover behaviour, integrity failure, regression | yes | 86 tests |
-| 11 | Results reproducible and qualified | yes | Seeds and commands in the results document |
-| 12 | Documentation separates implemented from planned | yes | This file |
+| 1 | May the sample documents, templates and hard-coded defaults be used or published? | **blocked** | Needs their owner. Not opened; now in local git history only |
+| 2 | Which workflow steps are mandatory before closure, and which fix the record? | **unresolved; configurable** | The application enforces no order (source). `required_before_close` and `lock_steps` remain labelled assumptions |
+| 3 | Correct tax treatment of ocean freight: 9 %+9 % or 2.5 %+2.5 %? | **unresolved; both accepted** | Two implementations in the repository; nothing identifies the authoritative one. Reported as `unresolved_business_rule_conflict`, never as an anomaly |
+| 4 | Should the closing bill equal taxable total, grand total, or amount after TDS? | **unresolved; any accepted** | The closure dialog asks for bill amount, SGST and CGST separately (source), which suggests but does not establish that the amount excludes tax |
+| 5 | Fail-closed or fail-open in real use? | **unresolved; default unchanged (closed)** | Operational consequences documented in RUNTIME_SETUP.md §5 |
+| 6 | Is the document-status toggle used? | **resolved from source** | `toggleDocument` is defined in `app.js` and called nowhere in `app.js` or `index.html`. The route is reachable only by direct API call |
 
-Core acceptance path (synthetic job with a controlled anomaly → captured → integrity verified → detected → correlated → reconstructable) is exercised by the test "core demonstration: anomaly -> case -> reconstructable timeline".
+New question from this round: should deleting a job require the Admin role? The original UI offers "Archive" to every user; the server therefore allows any signed-in user.
 
-## Phase 11 detail
+## Blockers
 
-| Application | Implemented | Tested | Gap |
-|---|---|---|---|
-| 3D visualizer | Reason codes in `packing.js`; packing-run event; report-saved event; optional shipment reference field; `dist/` rebuilt | Reason codes, payload, Python bridge, ingestion, resulting finding | GUI not driven; `save_pdf` event not executed; nothing captured in plain-browser mode |
-| B.I.I.L. unified | Snapshot per `generate_all()` | Real headless run; hashes checked against files | PyInstaller build does not bundle the adapter; upload/parse events not emitted separately; legacy `document_generator.py` untouched |
-| EasyQuote ×3 | `RecordExport()` on every export and copy | All three projects compile, 0 warnings | Never executed. No rule consumes these events yet. No shipment reference exists in these tools |
-
-These applications should be described as **having adapters**, not as integrated, until their events are seen arriving from real use.
+| Blocker | Affects | Work proceeded by |
+|---|---|---|
+| No answer on data provenance (Q1) | Publishing the repository; using real documents for parser validation | Synthetic data only |
+| No authoritative business rules (Q2–Q4) | Severity and precision of GEN-002, WFL-001, FIN-001, XAP-TAX on real data | Configurable assumptions, both tax rules accepted |
+| No independent data source | Detecting consistent falsification | Stating the limit explicitly on every case |
+| No real operational data or users | Any claim about real performance or usefulness | Not claimed |
 
 ## Not done
 
-- Authenticated sessions in the synchroniser (actors remain unverified claims).
-- External anchoring or write-once storage for the evidence chain.
-- Backup, retention and deletion policy.
-- Rules over EasyQuote and B.I.I.L. evidence (events are stored and linkable; nothing analyses them).
-- Cross-document comparison of generated workbook **contents** (hashes and input snapshots are compared; cell values are not read back).
-- Full replay of evidence into a `db.json`.
-- Scenarios for air and import job types, and for IDN-002.
-- Validation against real operational data.
+- Password change, login throttling, HTTPS, finer-grained authorisation in the synchroniser.
+- External anchor on an actually separate host; trusted timestamps; backup automation; retention policy.
+- Analysis of EasyQuote quotations (free text, no shipment reference).
+- Capture of B.I.I.L. upload/parse steps separately; adapter in its PyInstaller build.
+- Reading generated workbooks back to compare cell values.
+- Full replay of evidence into `db.json`.
+- Scenarios for air and import jobs, misspelt references, combined anomalies.
+- Browser-level tests of the synchroniser UI.
+- Evaluation with human reviewers.
 
-## Open questions for the project owner
+## Recommended next steps
 
-1. May the sample documents, templates and hard-coded defaults in the repository be used or published?
-2. Which workflow steps are truly mandatory before closure, and which fix the record (`required_before_close`, `lock_steps`)?
-3. Which tax treatment is correct for ocean freight: 9 %+9 % or 2.5 %+2.5 %?
-4. Should the closing bill equal the taxable total, the grand total, or the amount after TDS?
-5. Fail-closed or fail-open in real use?
-6. Is the document-status toggle used anywhere in practice?
-
-## Action needed on this machine
-
-The system Python has no `openpyxl` or `pdfplumber`. Until `pip install openpyxl pdfplumber` is run, the synchroniser saves jobs without generating documents and reports nothing to the user. (With capture on, each such attempt is now recorded as `document.generation_failed`.)
-
-## Next step if work continues
-
-Add server-side sessions to the synchroniser and switch `actor.source` to a verified value; then store the evidence head hash outside the application host.
+1. Get answers to Q1–Q5 from the system owner.
+2. Test the synchroniser UI in a browser after the session changes, and replace the seeded passwords.
+3. Place the external anchor on another machine and schedule backups.
+4. Run the parser against a small set of cleared, real checklists and measure extraction accuracy; SRC-001 and all document-backed contradictions depend on it.
+5. Add a shipment-reference field to EasyQuote and B.I.I.L. exports so links do not depend on typed job numbers and container numbers.
+6. Have someone other than the author write anomaly scenarios, and evaluate on those.
