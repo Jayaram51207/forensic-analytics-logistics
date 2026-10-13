@@ -44,8 +44,16 @@ function sleepMs(ms) {
 const REQUIRED = ['application', 'action', 'entity_type'];
 
 export class EventStore {
-  constructor(dir, { lockTimeoutMs = 5000, staleLockMs = 30000 } = {}) {
+  /**
+   * `anchorFile` (or FORENSIC_ANCHOR_FILE) is an external witness log: after every
+   * append, {sequence, integrity_hash} is also appended there. It only adds protection
+   * if it lives where someone able to rewrite the evidence folder cannot write, e.g.
+   * another machine's share, another account's folder, or write-once media.
+   */
+  constructor(dir, { lockTimeoutMs = 5000, staleLockMs = 30000, anchorFile = process.env.FORENSIC_ANCHOR_FILE || null } = {}) {
     this.dir = dir;
+    this.anchorFile = anchorFile;
+    this.anchorFailures = 0;
     this.file = path.join(dir, 'events.jsonl');
     this.headFile = path.join(dir, 'events.head.json');
     this.lockFile = path.join(dir, 'events.lock');
@@ -151,6 +159,7 @@ export class EventStore {
       };
       // The record is durable from here on. Nothing below may turn this append into a reported failure.
       this._writeHead(record);
+      this._witness(record);
       return record;
     } catch (err) {
       this._tail = null;
@@ -187,6 +196,21 @@ export class EventStore {
     }
   }
 
+  // External witness. Failure never fails the append (the record is already durable) but is
+  // counted and reported, and verify() lists the records the witness did not see.
+  _witness(record) {
+    if (!this.anchorFile) return true;
+    try {
+      fs.mkdirSync(path.dirname(this.anchorFile), { recursive: true });
+      fs.appendFileSync(this.anchorFile, JSON.stringify({ sequence: record.sequence, integrity_hash: record.integrity_hash, witnessed_at: new Date().toISOString() }) + '\n');
+      return true;
+    } catch (err) {
+      this.anchorFailures++;
+      console.error('[forensic] external anchor not updated:', err.message);
+      return false;
+    }
+  }
+
   /** Read every line. Malformed lines are returned as problems, never dropped silently. */
   readAll() {
     const records = [], problems = [];
@@ -204,8 +228,12 @@ export class EventStore {
     return { records, problems, endsWithNewline: text === '' || text.endsWith('\n') };
   }
 
-  /** Verify the whole chain, start to end. */
-  verify() {
+  /**
+   * Verify the whole chain, start to end.
+   * `expect` = { sequence, integrity_hash } recorded somewhere else (paper, another system):
+   * the chain must contain exactly that record.
+   */
+  verify({ anchorFile = this.anchorFile, expect = null } = {}) {
     const { records, problems, endsWithNewline } = this.readAll();
     if (!endsWithNewline) problems.push({ type: 'incomplete_final_record', detail: 'file does not end with a newline; last write may have been interrupted' });
     let prevSeq = 0, prevHash = GENESIS_HASH;
@@ -241,7 +269,33 @@ export class EventStore {
     } else if (records.length) {
       problems.push({ type: 'head_missing', detail: 'events.head.json not found; truncation cannot be detected' });
     }
-    return { ok: problems.length === 0, count: records.length, last_sequence: prevSeq, last_hash: prevHash, head, problems };
+    // External evidence that the chain is the one that was originally written.
+    const bySeq = new Map(records.map(x => [x.record.sequence, x.record.integrity_hash]));
+    const checkWitness = (w, origin) => {
+      if (!bySeq.has(w.sequence)) problems.push({ type: 'anchored_record_missing', sequence: w.sequence, detail: `${origin} records sequence ${w.sequence}, which is not in the chain` });
+      else if (bySeq.get(w.sequence) !== w.integrity_hash) problems.push({ type: 'anchor_mismatch', sequence: w.sequence, detail: `${origin} holds a different hash for sequence ${w.sequence}: the chain was rewritten after it was witnessed` });
+    };
+    let anchor = { configured: !!anchorFile, witnessed: 0, last_witnessed_sequence: null };
+    if (anchorFile) {
+      if (!fs.existsSync(anchorFile)) {
+        if (records.length) problems.push({ type: 'anchor_missing', detail: 'external anchor file is configured but does not exist' });
+      } else {
+        for (const line of fs.readFileSync(anchorFile, 'utf8').split('\n')) {
+          if (!line.trim()) continue;
+          try {
+            const w = JSON.parse(line);
+            checkWitness(w, 'external anchor');
+            anchor.witnessed++;
+            anchor.last_witnessed_sequence = Math.max(anchor.last_witnessed_sequence ?? 0, w.sequence);
+          } catch {
+            problems.push({ type: 'anchor_unreadable', detail: 'a line of the external anchor is not valid JSON' });
+          }
+        }
+        if (anchor.witnessed < records.length) problems.push({ type: 'unwitnessed_records', detail: `${records.length - anchor.witnessed} record(s) have no entry in the external anchor; they are protected by the local chain only` });
+      }
+    }
+    if (expect) checkWitness(expect, 'expected head');
+    return { ok: problems.length === 0, count: records.length, last_sequence: prevSeq, last_hash: prevHash, head, anchor, problems };
   }
 
   /** Filter events. All criteria are optional and combined with AND. */

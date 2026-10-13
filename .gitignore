@@ -47,3 +47,6 @@
 # Forensic layer: live evidence and regenerable datasets
 forensics/data/
 forensics/datasets/
+
+# Project Python environment
+forensics/.venv/

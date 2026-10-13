@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Command-line access to the evidence store.
-//   node cli.js verify                         integrity check of the whole chain
+//   node cli.js verify [--anchor <file>] [--expect <seq>:<hash>]   integrity check of the whole chain
+//   node cli.js head                           current head as <seq>:<hash>, to record somewhere the host cannot change
 //   node cli.js reconcile --db <db.json>       evidence vs operational database
 //   node cli.js cases                          review queue
 //   node cli.js case <CASE-ID>                 one case with findings and timeline
@@ -35,9 +36,17 @@ export function featureRows(analysis) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   switch (cmd) {
     case 'verify': {
-      const v = store.verify();
+      const exp = opt('expect') ? { sequence: +opt('expect').split(':')[0], integrity_hash: opt('expect').split(':')[1] } : null;
+      const v = store.verify({ ...(opt('anchor') ? { anchorFile: path.resolve(opt('anchor')) } : {}), expect: exp });
       console.log(`${v.ok ? 'OK' : 'INTEGRITY PROBLEMS'}: ${v.count} events, last sequence ${v.last_sequence}, head ${v.last_hash.slice(0, 16)}...`);
+      console.log(v.anchor.configured ? `external anchor: ${v.anchor.witnessed} record(s) witnessed` : 'external anchor: NOT CONFIGURED - a full rewrite of this folder would not be detected (set FORENSIC_ANCHOR_FILE, or keep the output of "cli.js head" elsewhere and pass it to --expect)');
       for (const p of v.problems) console.log(`  [${p.type}] line ${p.line ?? '-'} seq ${p.sequence ?? '-'}: ${p.detail ?? ''}`);
+      process.exitCode = v.ok ? 0 : 2;
+      break;
+    }
+    case 'head': {
+      const v = store.verify();
+      console.log(`${v.last_sequence}:${v.last_hash}`);
       process.exitCode = v.ok ? 0 : 2;
       break;
     }

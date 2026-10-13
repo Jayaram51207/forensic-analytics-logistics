@@ -6,6 +6,7 @@ import path from 'path';
 import multer from 'multer';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 import {
   getAllJobs,
   getJobById,
@@ -33,7 +34,9 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Runtime folders are configurable so tests and synthetic runs never touch live data.
-const PYTHON = process.env.SYNC_PYTHON || 'python';
+// Python for compiler.py: SYNC_PYTHON, else the project environment (forensics/setup_env.cmd), else PATH.
+const VENV_PYTHON = path.join(__dirname, '..', 'forensics', '.venv', 'Scripts', 'python.exe');
+const PYTHON = process.env.SYNC_PYTHON || (fs.existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python');
 const UPLOADS_DIR = process.env.SYNC_UPLOADS_DIR || path.join(__dirname, 'uploads');
 const DOWNLOADS_DIR = process.env.SYNC_DOWNLOADS_DIR || path.join(__dirname, 'public', 'downloads');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true }); // multer does not create it
@@ -64,8 +67,49 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// ---- Authenticated sessions ------------------------------------------------
+// Identity and privileges come from a server-side session created at login.
+// Names sent by the client (creator, user, adminUsername) are no longer trusted.
+// SYNC_AUTH=off restores the original unauthenticated behaviour (not recommended).
+const AUTH_REQUIRED = process.env.SYNC_AUTH !== 'off';
+const SESSION_IDLE_MS = 12 * 60 * 60 * 1000;
+const sessions = new Map(); // token -> { username, name, role, created_at, last_seen }  (in memory: a restart signs everyone out)
+if (!AUTH_REQUIRED) console.warn('WARNING: SYNC_AUTH=off - API requests are not authenticated and actor names are unverified.');
+
+function sessionFrom(req) {
+  const cookie = /(?:^|;\s*)sync_sid=([a-f0-9]{64})/.exec(req.headers.cookie || '');
+  const bearer = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization || '');
+  const token = (cookie || bearer || [])[1];
+  const session = token && sessions.get(token);
+  if (!session) return null;
+  if (Date.now() - session.last_seen > SESSION_IDLE_MS) {
+    sessions.delete(token);
+    return null;
+  }
+  session.last_seen = Date.now();
+  return { token, ...session };
+}
+
+app.use('/api', (req, res, next) => {
+  if (!AUTH_REQUIRED || req.path === '/login') return next();
+  req.session = sessionFrom(req);
+  if (req.session) return next();
+  if (forensic && req.method !== 'GET') forensic.rejected(req, 'no valid session');
+  res.status(401).json({ error: 'Authentication required' });
+});
+
+// The acting user's display name: from the session when authentication is on.
+function actorName(req, claimed) {
+  return req.session ? req.session.name : claimed;
+}
+
 // Admin check middleware
 function requireAdmin(req, res, next) {
+  if (AUTH_REQUIRED) {
+    if (req.session.role === 'Admin') return next();
+    if (forensic) forensic.rejected(req, 'admin role required');
+    return res.status(403).json({ error: 'Access denied: Admin only' });
+  }
   const adminUsername = req.query.adminUsername || req.body.adminUsername || req.headers['x-admin-username'];
   if (adminUsername === 'admin') {
     next();
@@ -189,15 +233,33 @@ app.post('/api/login', (req, res) => {
   const user = verifyUser(username, password);
   if (forensic) forensic.login(req, username, user);
   if (user) {
+    const token = crypto.randomBytes(32).toString('hex');
+    sessions.set(token, { username: user.username, name: user.name, role: user.role, created_at: Date.now(), last_seen: Date.now() });
+    res.setHeader('Set-Cookie', `sync_sid=${token}; HttpOnly; SameSite=Strict; Path=/`);
     return res.json({
       success: true,
       username: user.username,
       name: user.name,
-      role: user.role
+      role: user.role,
+      token
     });
   }
 
   res.status(401).json({ error: 'Invalid username or password' });
+});
+
+app.get('/api/session', (req, res) => {
+  if (!req.session) return res.status(401).json({ error: 'Authentication required' });
+  res.json({ username: req.session.username, name: req.session.name, role: req.session.role });
+});
+
+app.post('/api/logout', (req, res) => {
+  if (req.session) {
+    sessions.delete(req.session.token);
+    if (forensic) forensic.logout(req);
+  }
+  res.setHeader('Set-Cookie', 'sync_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+  res.json({ success: true });
 });
 
 // Users management endpoints (restricted to admin)
@@ -270,12 +332,13 @@ app.get('/api/jobs', (req, res) => {
 
 app.post('/api/jobs', async (req, res) => {
   try {
-    const { info, creator } = req.body;
+    const { info } = req.body;
+    const creator = actorName(req, req.body.creator);
     if (!info || !info.job_no) {
       return res.status(400).json({ error: 'Job Number is required' });
     }
 
-    const fx = forensic && forensic.begin(req, creator);
+    const fx = forensic && forensic.begin(req, req.body.creator);
 
     // Run Excel Compiler first to generate the BL and Billing spreadsheets
     try {
@@ -318,10 +381,11 @@ app.post('/api/jobs', async (req, res) => {
 app.put('/api/jobs/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { info, creator } = req.body;
+    const { info } = req.body;
+    const creator = actorName(req, req.body.creator);
 
     const before = structuredClone(getJobById(id)); // copy: db.js mutates rows in place
-    const fx = forensic && before && forensic.begin(req, creator, id);
+    const fx = forensic && before && forensic.begin(req, req.body.creator, id);
     if (fx) forensic.updateRequested(fx, before, info); // old state is preserved before anything is overwritten
 
     // Run Excel Compiler on edit to update the spreadsheets
@@ -363,7 +427,7 @@ app.delete('/api/jobs/:id', (req, res) => {
 
     // Broadcast deletion
     broadcast('job_deleted', { id });
-    broadcast('log_entry', { message: `Shipment #${job.job_no} archived/deleted.` });
+    broadcast('log_entry', { message: `Shipment #${job.job_no} archived/deleted${req.session ? ` by ${req.session.name}` : ''}.` });
 
     res.json({ success: true });
   } catch (err) {
@@ -375,7 +439,8 @@ app.put('/api/jobs/:id/documents/:docId', (req, res) => {
   try {
     const jobId = parseInt(req.params.id);
     const docId = parseInt(req.params.docId);
-    const { status, user } = req.body;
+    const { status } = req.body;
+    const user = actorName(req, req.body.user);
 
     if (!status || !user) {
       return res.status(400).json({ error: 'status and user are required' });
@@ -383,7 +448,7 @@ app.put('/api/jobs/:id/documents/:docId', (req, res) => {
 
     const before = structuredClone(getJobById(jobId)); // copy: db.js mutates rows in place
     const doc = before && before.documents.find(d => d.id === docId);
-    const fx = forensic && doc && forensic.begin(req, user, jobId);
+    const fx = forensic && doc && forensic.begin(req, req.body.user, jobId);
     if (fx) forensic.statusChangeRequested(fx, 'document', before, doc, status);
 
     const result = toggleDocumentStatus(jobId, docId, status, user);
@@ -414,7 +479,8 @@ app.put('/api/jobs/:id/workflow/:stepId', (req, res) => {
   try {
     const jobId = parseInt(req.params.id);
     const stepId = parseInt(req.params.stepId);
-    const { status, user, closingDetails } = req.body;
+    const { status, closingDetails } = req.body;
+    const user = actorName(req, req.body.user);
 
     if (!status || !user) {
       return res.status(400).json({ error: 'status and user are required' });
@@ -422,7 +488,7 @@ app.put('/api/jobs/:id/workflow/:stepId', (req, res) => {
 
     const before = structuredClone(getJobById(jobId)); // copy: db.js mutates rows in place
     const step = before && before.workflow_steps.find(s => s.id === stepId);
-    const fx = forensic && step && forensic.begin(req, user, jobId);
+    const fx = forensic && step && forensic.begin(req, req.body.user, jobId);
     if (fx) forensic.statusChangeRequested(fx, 'workflow_step', before, step, status, { closing_details_supplied: closingDetails ?? null });
 
     const result = toggleWorkflowStep(jobId, stepId, status, user, closingDetails);

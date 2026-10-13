@@ -209,7 +209,7 @@ export const SCENARIOS = {
   spoofed_actor: async c => {
     const fake = c.r.pick(['Admin Override', 'desk9', 'Supervisor']);
     await lifecycle(c, { actor: step => (['Sailing Completed', 'Accounts Processing Done', 'Job Closed'].includes(step) ? fake : undefined) });
-    return lbl('anomaly', ['ACT-001'], 'Key steps carry an actor name that matches no account.', { name: fake });
+    return lbl('anomaly', ['ACT-001'], 'Key steps sent from one signed-in session while naming a different, non-existent actor in the request.', { name: fake });
   },
   source_mismatch: async c => {
     const info = makeJob(c.r, c.jobNo, c.start);

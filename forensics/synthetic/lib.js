@@ -132,11 +132,24 @@ export function checklistPdf(f) {
   return Buffer.from(out, 'latin1');
 }
 
-/** HTTP driver bound to one synchroniser instance; every call carries a simulated timestamp. */
-export function driver(base) {
-  const send = async (method, url, body, t, headers = {}) => {
+const ACCOUNTS = { 'Desk 1 (Invoice)': 'desk1', 'Desk 2 (Documentation)': 'desk2', 'Desk 3 (Customs / CHA)': 'desk3', 'Desk 4 (Operations)': 'desk4', 'System Admin': 'admin' };
+
+/**
+ * HTTP driver bound to one synchroniser instance; every call carries a simulated timestamp.
+ * Each actor is a real signed-in session. A name that is not an account (a spoofing
+ * attempt) is sent in the request body from Desk 4's session, as a crafted request would be.
+ */
+export async function driver(base) {
+  const cookies = {};
+  for (const [name, username] of Object.entries(ACCOUNTS)) {
+    const res = await fetch(base + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password: username }) });
+    if (res.status !== 200) throw new Error(`login failed for ${username}`);
+    cookies[name] = res.headers.get('set-cookie').split(';')[0];
+  }
+  const cookieFor = actor => cookies[actor] || cookies['Desk 4 (Operations)'];
+  const send = async (method, url, body, t, headers = {}, actor) => {
     const res = await fetch(base + url, {
-      method, headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), 'X-Forensic-Sim-Time': t.toISOString(), ...headers },
+      method, headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), Cookie: cookieFor(actor), 'X-Forensic-Sim-Time': t.toISOString(), ...headers },
       body: body ? JSON.stringify(body) : undefined
     });
     const text = await res.text();
@@ -147,14 +160,14 @@ export function driver(base) {
   // A refused step would silently change what the scenario is, so anything but 200 aborts the scenario.
   const must = async (p, what) => { const r = await p; if (r.status !== 200) throw new Error(`${what} failed: HTTP ${r.status} ${JSON.stringify(r.json)}`); return r; };
   return {
-    create: (info, actor, t) => send('POST', '/api/jobs', { info, creator: actor }, t),
-    update: (id, info, actor, t) => send('PUT', `/api/jobs/${id}`, { info, creator: actor }, t),
-    step: (id, stepId, status, actor, t, closingDetails) => must(send('PUT', `/api/jobs/${id}/workflow/${stepId}`, { status, user: actor, closingDetails }, t), 'workflow step'),
-    remove: (id, actor, t) => must(send('DELETE', `/api/jobs/${id}`, null, t, { 'X-Claimed-User': actor }), 'delete'),
+    create: (info, actor, t) => send('POST', '/api/jobs', { info, creator: actor }, t, {}, actor),
+    update: (id, info, actor, t) => send('PUT', `/api/jobs/${id}`, { info, creator: actor }, t, {}, actor),
+    step: (id, stepId, status, actor, t, closingDetails) => must(send('PUT', `/api/jobs/${id}/workflow/${stepId}`, { status, user: actor, closingDetails }, t, {}, actor), 'workflow step'),
+    remove: (id, actor, t) => must(send('DELETE', `/api/jobs/${id}`, null, t, { 'X-Claimed-User': actor }, actor), 'delete'),
     upload: async (buf, name, t) => {
       const form = new FormData();
       form.append('checklist', new Blob([buf], { type: 'application/pdf' }), name);
-      const res = await fetch(base + '/api/parse-checklist', { method: 'POST', body: form, headers: { 'X-Forensic-Sim-Time': t.toISOString() } });
+      const res = await fetch(base + '/api/parse-checklist', { method: 'POST', body: form, headers: { Cookie: cookieFor('Desk 1 (Invoice)'), 'X-Forensic-Sim-Time': t.toISOString() } });
       return { status: res.status, json: await res.json().catch(() => null) };
     }
   };

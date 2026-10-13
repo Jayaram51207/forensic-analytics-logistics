@@ -371,17 +371,30 @@ export const RULES = [
   },
   {
     id: 'ACT-001', version: '1.0', family: 'actor', severity: 'low',
-    purpose: 'A write carried an actor name that matches no known account.',
+    purpose: 'The actor named in a request does not match the authenticated session, or (unauthenticated mode) matches no account.',
     run(view, cfg, context) {
-      if (!context.users.size) return [];
-      const odd = view.events.filter(e => e.actor?.source === 'client_claimed' && e.actor.display_name && !context.users.has(e.actor.display_name));
-      if (!odd.length) return [];
-      const names = [...new Set(odd.map(e => e.actor.display_name))];
-      return [finding(view, this, {
-        severity: this.severity, title: `Actor name(s) not matching any account: ${names.slice(0, 3).join(', ')}`,
-        explanation: `${odd.length} event(s) carry an actor name that is not the display name of any account known from evidence. The synchroniser accepts any name the client sends, so this shows the request did not come from the standard interface for a known user; it does not identify who sent it.`,
-        evidence_event_ids: ids(odd.slice(0, 20)), details: { names, events: odd.length }
-      })];
+      const out = [];
+      // Authenticated requests: the session says who acted; the request body named someone else.
+      const mismatched = view.events.filter(e => e.actor?.verified && e.actor.claimed_display_name);
+      if (mismatched.length) {
+        const pairs = [...new Set(mismatched.map(e => `"${e.actor.claimed_display_name}" (signed in as ${e.actor.display_name})`))];
+        out.push(finding(view, this, {
+          severity: 'medium', title: 'Request named a different user than the signed-in account',
+          explanation: `${mismatched.length} event(s) were sent by an authenticated session while the request body named another actor: ${pairs.slice(0, 3).join('; ')}. The bundled interface always sends the signed-in user's own name, so this request was built some other way. The session identity is the one recorded as actor.`,
+          evidence_event_ids: ids(mismatched.slice(0, 20)), details: { pairs, events: mismatched.length }
+        }));
+      }
+      // Unauthenticated mode (SYNC_AUTH=off): names are claims only.
+      const odd = context.users.size ? view.events.filter(e => e.actor?.source === 'client_claimed' && e.actor.display_name && !context.users.has(e.actor.display_name)) : [];
+      if (odd.length) {
+        const names = [...new Set(odd.map(e => e.actor.display_name))];
+        out.push(finding(view, this, {
+          severity: this.severity, title: `Actor name(s) not matching any account: ${names.slice(0, 3).join(', ')}`,
+          explanation: `${odd.length} event(s) carry an actor name that is not the display name of any account known from evidence. These requests were not authenticated, so this shows the request did not come from the standard interface for a known user; it does not identify who sent it.`,
+          evidence_event_ids: ids(odd.slice(0, 20)), details: { names, events: odd.length }
+        }));
+      }
+      return out;
     }
   },
   {

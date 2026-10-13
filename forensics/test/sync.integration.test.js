@@ -23,7 +23,7 @@ test('job lifecycle produces structured, verifiable evidence that survives delet
   assert.ok(createdEvt, 'job.created captured');
   assert.equal(createdEvt.job_no, 'SYN-TEST-001');
   assert.equal(createdEvt.entity_id, String(id));
-  assert.deepEqual(createdEvt.actor, { display_name: 'Desk 1 (Invoice)', source: 'client_claimed', verified: false });
+  assert.deepEqual(createdEvt.actor, { display_name: 'Desk 1 (Invoice)', username: 'desk1', role: 'Invoice', source: 'session', verified: true }, 'actor comes from the session');
   assert.equal(createdEvt.payload.stored.gross_weight, '20200 KGS');
   assert.equal(createdEvt.payload.supplied.gross_weight, '20200 KGS');
   const corr = createdEvt.correlation_id;
@@ -58,8 +58,9 @@ test('job lifecycle produces structured, verifiable evidence that survives delet
   ev = events(s);
   const stepEvt = ev.find(e => e.action === 'workflow_step.status_changed');
   assert.deepEqual(stepEvt.changes.find(c => c.field.endsWith('.status')), { field: 'workflow_steps[Shipping Instruction Received].status', old: 'Pending', new: 'Completed' });
-  assert.equal(stepEvt.actor.display_name, 'Mallory (no such user)');
-  assert.equal(stepEvt.actor.verified, false, 'claimed actor is never marked verified');
+  assert.equal(stepEvt.actor.display_name, 'Desk 1 (Invoice)', 'the signed-in account is the actor, whatever the body says');
+  assert.equal(stepEvt.actor.claimed_display_name, 'Mallory (no such user)', 'the spoofed name is kept as a claim');
+  assert.equal(s.db().workflow_steps.find(w => w.id === step.id).updated_by, 'Desk 1 (Invoice)', 'operational record also uses the session identity');
   assert.equal(ev.find(e => e.action === 'workflow_step.status_change_requested').payload.old_status, 'Pending');
 
   // close, then reopen: closing details are blanked by the application but kept as evidence
@@ -82,7 +83,8 @@ test('job lifecycle produces structured, verifiable evidence that survives delet
   const delReq = ev.find(e => e.action === 'job.delete_requested');
   assert.equal(delReq.payload.snapshot.job_no, 'SYN-TEST-001');
   assert.ok(delReq.payload.operational_logs.length >= 4, 'operational log copied into evidence before deletion');
-  assert.equal(delReq.actor.display_name, 'System Admin');
+  assert.equal(delReq.actor.display_name, 'Desk 1 (Invoice)');
+  assert.equal(delReq.actor.claimed_display_name, 'System Admin');
   assert.ok(ev.find(e => e.action === 'job.deleted').sequence > delReq.sequence);
   assert.ok(ev.filter(e => e.correlation_id === corr).length >= 10, 'whole lifecycle shares one correlation id');
 
@@ -143,16 +145,17 @@ test('failed generation is recorded as a failure, never as a generated document'
 test('login attempts and user administration are captured without credentials', async t => {
   const s = await startSync();
   t.after(() => s.stop());
-  await s.call('POST', '/api/login', { username: 'desk1', password: 'wrong-secret-value' });
-  await s.call('POST', '/api/login', { username: 'desk1', password: 'desk1' });
-  await s.call('POST', '/api/users?adminUsername=admin', { username: 'temp1', password: 'pw-secret-value', name: 'Temp', role: 'Operations' });
-  await s.call('DELETE', '/api/users/temp1?adminUsername=admin');
+  await s.anon('POST', '/api/login', { username: 'desk1', password: 'wrong-secret-value' });
+  const admin = await s.as('admin');
+  assert.equal((await admin('POST', '/api/users', { username: 'temp1', password: 'pw-secret-value', name: 'Temp', role: 'Operations' })).status, 201);
+  assert.equal((await admin('DELETE', '/api/users/temp1')).status, 200);
   const a = actions(s);
   for (const x of ['auth.login_failed', 'auth.login_succeeded', 'user.created', 'user.deleted']) assert.ok(a.includes(x), x);
   const ok = events(s).find(e => e.action === 'auth.login_succeeded');
   assert.equal(ok.actor.verified, true);
   const raw = fs.readFileSync(path.join(s.evidenceDir, 'events.jsonl'), 'utf8');
-  assert.equal(/secret-value|passwordHash/.test(raw), false, 'no passwords or hashes in evidence');
+  assert.equal(/secret-value|passwordHash|[a-f0-9]{64}\"?,\"created_at/.test(raw), false, 'no passwords or hashes in evidence');
+  for (const c of [await s.cookieFor('admin'), await s.cookieFor('desk1')]) assert.equal(raw.includes(c.split('=')[1]), false, 'no session tokens in evidence');
 });
 
 test('upload: file hash recorded; unparseable source recorded as parse failure', async t => {
@@ -160,7 +163,7 @@ test('upload: file hash recorded; unparseable source recorded as parse failure',
   t.after(() => s.stop());
   const form = new FormData();
   form.append('checklist', new Blob(['this is not a pdf']), 'broken.pdf');
-  const res = await fetch(s.base + '/api/parse-checklist', { method: 'POST', body: form });
+  const res = await fetch(s.base + '/api/parse-checklist', { method: 'POST', body: form, headers: { Cookie: await s.cookieFor('desk1') } });
   assert.equal(res.status, 500);
   const ev = events(s);
   const up = ev.find(e => e.action === 'source.uploaded');

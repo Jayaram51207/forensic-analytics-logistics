@@ -193,3 +193,89 @@ test('a failing head-anchor write does not turn a written record into a reported
   s.append(evt(4));
   assert.deepEqual(s.verify().problems, [], 'next append repairs the anchor');
 });
+
+// ---- what a local chain cannot do, and what an external anchor adds ----
+function rewriteWholeChain(s, mutate) {
+  // An attacker with write access to the evidence folder: change a record, then recompute every hash and the head.
+  const recs = lines(s).map(l => JSON.parse(l));
+  mutate(recs);
+  let prev = GENESIS_HASH;
+  for (const r of recs) { r.previous_event_hash = prev; r.integrity_hash = hashRecord(r); prev = r.integrity_hash; }
+  rewrite(s, recs.map(r => JSON.stringify(r)));
+  fs.writeFileSync(s.headFile, JSON.stringify({ sequence: recs.at(-1).sequence, integrity_hash: prev }));
+}
+
+test('LIMITATION: a full rewrite of chain and head anchor passes local verification', () => {
+  const s = seeded();
+  rewriteWholeChain(s, recs => { recs[1].payload.n = 999; });
+  const v = s.verify();
+  assert.equal(v.ok, true, 'the local hash chain alone cannot detect this');
+  assert.equal(v.anchor.configured, false);
+});
+
+test('external anchor detects a full rewrite', () => {
+  const dir = tmp(), anchorFile = path.join(tmp(), 'witness.jsonl');
+  const s = new EventStore(dir, { anchorFile });
+  for (let i = 1; i <= 5; i++) s.append(evt(i));
+  assert.deepEqual(s.verify().problems, []);
+  assert.equal(s.verify().anchor.witnessed, 5);
+  rewriteWholeChain(s, recs => { recs[1].payload.n = 999; });
+  const t = types(s.verify());
+  assert.ok(t.includes('anchor_mismatch'));
+  assert.equal(s.verify().problems.find(p => p.type === 'anchor_mismatch').sequence, 2, 'first rewritten record identified');
+});
+
+test('external anchor detects removal of the newest records together with the head anchor', () => {
+  const anchorFile = path.join(tmp(), 'witness.jsonl');
+  const s = new EventStore(tmp(), { anchorFile });
+  for (let i = 1; i <= 5; i++) s.append(evt(i));
+  rewriteWholeChain(s, recs => { recs.splice(3); });
+  assert.ok(types(s.verify()).includes('anchored_record_missing'));
+});
+
+test('a head recorded elsewhere (--expect) detects a rewrite without any anchor file', () => {
+  const s = seeded();
+  const v0 = s.verify();
+  const expect = { sequence: v0.last_sequence, integrity_hash: v0.last_hash };
+  assert.equal(s.verify({ expect }).ok, true);
+  rewriteWholeChain(s, recs => { recs[0].payload.n = 42; });
+  assert.ok(types(s.verify({ expect })).includes('anchor_mismatch'));
+});
+
+test('altered head anchor is detected', () => {
+  const s = seeded();
+  const head = JSON.parse(fs.readFileSync(s.headFile, 'utf8'));
+  fs.writeFileSync(s.headFile, JSON.stringify({ ...head, integrity_hash: 'f'.repeat(64) }));
+  assert.deepEqual(types(s.verify()), ['head_mismatch']);
+  fs.writeFileSync(s.headFile, '{broken');
+  assert.deepEqual(types(s.verify()), ['head_unreadable']);
+});
+
+test('unreachable external anchor does not fail appends but is reported', () => {
+  const blocker = path.join(tmp(), 'not-a-folder');
+  fs.writeFileSync(blocker, '');
+  const s = new EventStore(tmp(), { anchorFile: path.join(blocker, 'witness.jsonl') });
+  assert.equal(s.append(evt(1)).sequence, 1);
+  assert.equal(s.anchorFailures, 1);
+  assert.ok(types(s.verify()).includes('anchor_missing'));
+});
+
+test('records appended while the anchor was unavailable are listed as unwitnessed', () => {
+  const anchorFile = path.join(tmp(), 'witness.jsonl');
+  const dir = tmp();
+  new EventStore(dir, { anchorFile }).append(evt(1));
+  new EventStore(dir, { anchorFile: null }).append(evt(2)); // e.g. started without the setting
+  const v = new EventStore(dir, { anchorFile }).verify();
+  assert.deepEqual(types(v), ['unwitnessed_records']);
+});
+
+test('interrupted write in the middle of the file is isolated to that line', () => {
+  const s = seeded(4);
+  const ls = lines(s);
+  ls[1] = ls[1].slice(0, 40);
+  rewrite(s, ls);
+  const v = s.verify();
+  assert.ok(types(v).includes('malformed_record'));
+  assert.ok(types(v).includes('sequence_gap'), 'the lost record shows as a gap, not as silence');
+  assert.equal(v.count, 3);
+});

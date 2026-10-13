@@ -109,16 +109,22 @@ export function createCapture({
     failMode,
 
     /**
-     * Start one traced operation. The actor is whatever the client claimed:
-     * the synchroniser has no sessions, so it is never marked verified here.
+     * Start one traced operation. With an authenticated session (req.session, set by
+     * server.js) the actor is the signed-in account and is marked verified; a
+     * different name sent by the client is kept as `claimed_display_name`.
+     * Without a session (SYNC_AUTH=off) the actor is only what the client claimed.
      */
     begin(req, claimedActor, jobId) {
       const claimed = claimedActor || req?.headers?.['x-claimed-user'] || null;
       const sim = allowSimTime && req?.headers?.['x-forensic-sim-time'];
+      const s = req?.session;
+      const actor = s
+        ? { display_name: s.name, username: s.username, role: s.role, source: 'session', verified: true, ...(claimed && claimed !== s.name ? { claimed_display_name: claimed } : {}) }
+        : { display_name: claimed, source: claimed ? 'client_claimed' : 'not_supplied', verified: false };
       return {
         operation_id: crypto.randomUUID(),
         correlation_id: jobId != null ? (corrByJobId.get(String(jobId)) ?? null) : crypto.randomUUID(),
-        actor: { display_name: claimed, source: claimed ? 'client_claimed' : 'not_supplied', verified: false },
+        actor,
         client_ip: req?.ip ?? null,
         simTime: sim && !Number.isNaN(Date.parse(sim)) ? new Date(sim).toISOString() : null
       };
@@ -306,8 +312,24 @@ export function createCapture({
       }, false);
     },
 
+    logout(req) {
+      const ctx = api.begin(req, null);
+      ctx.correlation_id = null;
+      return write(ctx, { action: 'auth.logout', entity_type: 'user', entity_id: String(req.session?.username ?? ''), payload: { client_ip: ctx.client_ip } }, false);
+    },
+
+    /** A write that was refused before reaching any handler: no session, or not enough privilege. */
+    rejected(req, reason) {
+      const ctx = api.begin(req, req?.body?.user || req?.body?.creator || req?.query?.adminUsername || null);
+      ctx.correlation_id = null;
+      return write(ctx, {
+        action: 'auth.request_rejected', entity_type: 'request', entity_id: `${req.method} ${req.path}`,
+        payload: { reason, method: req.method, path: req.originalUrl?.split('?')[0] ?? req.path, client_ip: ctx.client_ip }
+      }, false);
+    },
+
     userChanged(req, action, username, details = {}) {
-      const ctx = api.begin(req, req?.query?.adminUsername || req?.body?.adminUsername || req?.headers?.['x-admin-username']);
+      const ctx = api.begin(req, req?.session ? null : (req?.query?.adminUsername || req?.body?.adminUsername || req?.headers?.['x-admin-username']));
       ctx.correlation_id = null;
       return write(ctx, { action, entity_type: 'user', entity_id: String(username), payload: { ...details, client_ip: ctx.client_ip } }, true);
     }

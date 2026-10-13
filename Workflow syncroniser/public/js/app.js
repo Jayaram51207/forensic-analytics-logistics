@@ -108,7 +108,6 @@ const autofillStatus = document.getElementById('autofill-status');
 document.addEventListener('DOMContentLoaded', () => {
   checkLoginSession();
   initEventListeners();
-  setupSSE();
   
   // Set LAN URL string
   lanUrl.textContent = window.location.origin;
@@ -119,12 +118,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// The server holds the session (HttpOnly cookie). Any 401 means it is gone: return to the login screen.
+const nativeFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const res = await nativeFetch(...args);
+  if (res.status === 401 && !String(args[0]).includes('/api/login') && state.currentUser) {
+    localStorage.removeItem('currentUser');
+    state.currentUser = null;
+    showLoginScreen();
+  }
+  return res;
+};
+
+let sseStarted = false;
+
 // Check Login Session
-function checkLoginSession() {
+async function checkLoginSession() {
   const session = localStorage.getItem('currentUser');
   if (session) {
     try {
-      state.currentUser = JSON.parse(session);
+      const check = await nativeFetch('/api/session');
+      if (!check.ok) throw new Error('session expired');
+      state.currentUser = await check.json();
       applyUserSession();
       fetchInitialData();
       
@@ -255,6 +270,10 @@ function setupWorkspaceUI() {
 
 function applyUserSession() {
   loginOverlay.classList.add('hidden');
+  if (!sseStarted) {
+    sseStarted = true;
+    setupSSE(); // the event stream needs the session cookie, so it starts after sign-in
+  }
   currentUserName.textContent = state.currentUser.name;
 
   // Show Admin Tab if Role is Admin
@@ -457,6 +476,7 @@ function initEventListeners() {
 
   // Logout Click
   btnLogout.addEventListener('click', () => {
+    nativeFetch('/api/logout', { method: 'POST' });
     localStorage.removeItem('currentUser');
     localStorage.removeItem('currentWorkspace');
     state.currentUser = null;

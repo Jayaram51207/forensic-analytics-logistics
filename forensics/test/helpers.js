@@ -8,7 +8,8 @@ import { fileURLToPath } from 'url';
 
 export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const SYNC_DIR = path.join(REPO, 'Workflow syncroniser');
-export const PYTHON = process.env.SYNC_PYTHON || 'python';
+const VENV_PYTHON = path.join(REPO, 'forensics', '.venv', 'Scripts', 'python.exe');
+export const PYTHON = process.env.SYNC_PYTHON || (fs.existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python');
 
 /** Document generation needs openpyxl; tests that depend on it are skipped when it is missing. */
 export const pythonCanCompile = spawnSync(PYTHON, ['-c', 'import openpyxl, pdfplumber']).status === 0;
@@ -40,19 +41,33 @@ export async function startSync({ dir = fs.mkdtempSync(path.join(os.tmpdir(), 'f
       await new Promise(r => setTimeout(r, 100));
     }
   }
-  const call = async (method, url, body, headers = {}) => {
+  const caller = cookie => async (method, url, body, headers = {}) => {
     const res = await fetch(base + url, {
       method,
-      headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers },
+      headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(cookie ? { Cookie: cookie } : {}), ...headers },
       body: body ? JSON.stringify(body) : undefined
     });
     const text = await res.text();
     let json = null;
     try { json = JSON.parse(text); } catch { /* non-JSON response */ }
-    return { status: res.status, json, text };
+    return { status: res.status, json, text, headers: res.headers };
   };
+  const anon = caller(null);
+  // Seeded accounts use the username as the password (existing behaviour of db.js).
+  const cookies = {};
+  const login = async username => {
+    if (!cookies[username]) {
+      const res = await anon('POST', '/api/login', { username, password: username });
+      if (res.status !== 200) throw new Error(`login failed for ${username}: ${res.status}`);
+      cookies[username] = res.headers.get('set-cookie').split(';')[0];
+    }
+    return cookies[username];
+  };
+  const authOff = env.SYNC_AUTH === 'off';
+  const as = async username => (authOff ? anon : caller(await login(username)));
+  const call = authOff ? anon : caller(await login('desk1'));
   return {
-    base, dir, dbPath, evidenceDir: path.join(dir, 'evidence'), call,
+    base, dir, dbPath, evidenceDir: path.join(dir, 'evidence'), call, anon, as, cookieFor: login,
     log: () => log,
     db: () => JSON.parse(fs.readFileSync(dbPath, 'utf8')),
     stop: () => new Promise(res => { proc.once('exit', res); proc.kill(); })
