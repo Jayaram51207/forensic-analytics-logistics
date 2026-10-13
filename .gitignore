@@ -1,0 +1,45 @@
+# Node.js dependencies
+**/node_modules/
+
+# Python cache and byte-code
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Visual Studio / .NET build outputs and caches
+**/bin/
+**/obj/
+**/.vs/
+**/App.config
+**/*.suo
+**/*.user
+**/*.userosscache
+**/*.sln.docstates
+
+# Vite / Frontend build outputs
+**/dist/
+**/build/
+**/*.spec
+
+# Executables, libraries and installer packages
+**/*.exe
+**/*.dll
+**/*.pdb
+**/*.msi
+**/*.zip
+
+# IDE/Editor configurations
+**/.idea/
+**/.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Uploads and temporary generated output folders
+**/uploads/
+**/Generated/
+**/Billing/
+**/downloads/
+**/db.json

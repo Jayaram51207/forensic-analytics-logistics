@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Container Load & Stuffing Visualizer</title>
+    <script>
+      window.my_logs = [];
+      
+      // Global exception handler
+      window.onerror = function(msg, url, line, col, error) {
+        const errorMsg = `EXCEPTION: ${msg} at ${url}:${line}:${col} \nStack: ${error ? error.stack : 'No stack'}`;
+        window.my_logs.push(errorMsg);
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.log_error) {
+          window.pywebview.api.log_error(errorMsg);
+        }
+        return false;
+      };
+
+      // Redirect console.log
+      const originalLog = console.log;
+      console.log = function(...args) {
+        originalLog.apply(console, args);
+        const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+        window.my_logs.push(`LOG: ${msg}`);
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.log_message) {
+          window.pywebview.api.log_message(msg);
+        }
+      };
+
+      // Redirect console.error
+      const originalError = console.error;
+      console.error = function(...args) {
+        originalError.apply(console, args);
+        const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+        window.my_logs.push(`ERROR: ${msg}`);
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.log_error) {
+          window.pywebview.api.log_error(msg);
+        }
+      };
+    </script>
+    <link rel="stylesheet" href="/src/style.css">
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Header -->
+      <header class="app-header">
+        <div class="app-title">
+          <div class="app-logo">Antigravity</div>
+          <div class="app-logo-sub">3D Load & Stuffing Visualizer</div>
+        </div>
+        <div class="header-actions">
+          <div class="unit-selector">
+            <span class="unit-label">Dimensions:</span>
+            <button id="btn-unit-cm" class="btn-toggle active" data-unit="cm">cm</button>
+            <button id="btn-unit-in" class="btn-toggle" data-unit="in">in</button>
+            <button id="btn-unit-mm" class="btn-toggle" data-unit="mm">mm</button>
+          </div>
+          <button id="btn-recalculate" class="btn btn-primary" title="Force stuffing calculation">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Recalculate
+          </button>
+        </div>
+      </header>
+
+      <!-- Navigation Tabs -->
+      <nav class="tab-navigation">
+        <button class="tab-btn active" data-tab="tab-products">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          PRODUCTS
+        </button>
+        <button class="tab-btn" data-tab="tab-containers">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="22" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+          CONTAINERS & TRUCKS
+        </button>
+        <button class="tab-btn" id="tab-result-btn" data-tab="tab-result">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          STUFFING RESULT
+        </button>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="tab-content">
+        <!-- 1. PRODUCTS TAB -->
+        <section id="tab-products" class="tab-panel active">
+          <div class="panel-split">
+            <!-- Sidebar: Add Product Form -->
+            <div class="panel-sidebar">
+              <div class="card">
+                <h3 class="card-title">Add Cargo Item</h3>
+                <form id="product-form">
+                  <div class="form-group">
+                    <label for="prod-name">Cargo Name</label>
+                    <input type="text" id="prod-name" value="Standard Carton" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="prod-type">Cargo Type</label>
+                    <select id="prod-type">
+                      <option value="carton" selected>Carton (Box)</option>
+                      <option value="pallet">Pallet (Loaded)</option>
+                      <option value="bag">One-Ton Bag (FIBC)</option>
+                      <option value="barrel">Barrel / Drum</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group" id="group-prod-predefined" style="display: none;">
+                    <label for="prod-predefined-size">Predefined Size</label>
+                    <select id="prod-predefined-size">
+                      <!-- Populated dynamically -->
+                    </select>
+                  </div>
+
+                  <div class="form-group" id="group-prod-material" style="display: none;">
+                    <label for="prod-pallet-material">Pallet Material</label>
+                    <select id="prod-pallet-material">
+                      <option value="wood" selected>Wooden Pallet</option>
+                      <option value="plastic">Plastic / Synthetic Pallet</option>
+                    </select>
+                  </div>
+
+                  <!-- Carton Palletizing Calculator (Only for Pallet Cargo Type) -->
+                  <div id="group-prod-pallet-calc" style="display: none; border-top: 1px dashed var(--border); padding-top: 0.75rem; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                      <input type="checkbox" id="prod-pallet-calc-enable" style="width: auto; cursor: pointer;">
+                      <label for="prod-pallet-calc-enable" style="margin-bottom: 0; font-weight: 600; cursor: pointer;">Pack cartons on this pallet</label>
+                    </div>
+
+                    <div id="pallet-calc-fields" style="display: none; flex-direction: column; gap: 0.75rem; background-color: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 6px; border: 1px dashed var(--border);">
+                      <div class="form-row">
+                        <div class="form-group">
+                          <label for="prod-pallet-carton-l" id="lbl-pallet-carton-l">Carton Length (cm)</label>
+                          <input type="number" id="prod-pallet-carton-l" value="40" min="1" step="0.5">
+                        </div>
+                        <div class="form-group">
+                          <label for="prod-pallet-carton-w" id="lbl-pallet-carton-w">Carton Width (cm)</label>
+                          <input type="number" id="prod-pallet-carton-w" value="30" min="1" step="0.5">
+                        </div>
+                        <div class="form-group">
+                          <label for="prod-pallet-carton-h" id="lbl-pallet-carton-h">Carton Height (cm)</label>
+                          <input type="number" id="prod-pallet-carton-h" value="30" min="1" step="0.5">
+                        </div>
+                      </div>
+
+                      <div class="form-row">
+                        <div class="form-group">
+                          <label for="prod-pallet-carton-wt">Carton Weight (kg)</label>
+                          <input type="number" id="prod-pallet-carton-wt" value="10" min="0.1" step="0.1">
+                        </div>
+                        <div class="form-group">
+                          <label for="prod-pallet-max-h" id="lbl-pallet-max-h">Max Height (cm)</label>
+                          <input type="number" id="prod-pallet-max-h" value="160" min="20" step="1">
+                        </div>
+                      </div>
+
+                      <div class="form-group">
+                        <label for="prod-pallet-carton-orient">Carton Stacking Orientation</label>
+                        <select id="prod-pallet-carton-orient">
+                          <option value="upright" selected>Must stay upright (Z-axis fixed)</option>
+                          <option value="any">Any orientation (6-way rotation)</option>
+                        </select>
+                      </div>
+
+                      <small id="pallet-calc-msg" style="display: block; font-size: 0.75rem; color: var(--text-muted); line-height: 1.3;"></small>
+                    </div>
+                  </div>
+
+                  <div class="form-group" id="group-prod-bag-material" style="display: none;">
+                    <label for="prod-bag-material">Filling Material</label>
+                    <select id="prod-bag-material">
+                      <option value="seeds" selected>Corn Seeds / Grains (Highly Bulging)</option>
+                      <option value="sand">Sand / Gravel / Ore (Moderately Bulging)</option>
+                      <option value="powder">Powders / Flour (Soft Bulging)</option>
+                      <option value="solid">Solid Pellets / Baffled Bag (No Bulging)</option>
+                      <option value="custom">Custom Material...</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group" id="group-prod-bulging-factor" style="display: none;">
+                    <label for="prod-bulging-factor">Bulging Factor (%)</label>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <input type="range" id="prod-bulging-factor" min="0" max="25" value="15" style="flex: 1; vertical-align: middle;">
+                      <span id="lbl-prod-bulging-factor" style="min-width: 38px; font-weight: 600; font-size: 0.9rem; text-align: right;">15%</span>
+                    </div>
+                    <small id="bag-eff-dim-msg" style="display: block; margin-top: 0.35rem; font-size: 0.75rem; color: var(--text-muted); line-height: 1.3;"></small>
+                  </div>
+
+                  <div class="form-group" id="group-prod-barrel-pallet-size" style="display: none;">
+                    <label for="prod-barrel-pallet-size">Barrel Pallet Size</label>
+                    <select id="prod-barrel-pallet-size">
+                      <option value="us_std" selected>US Standard (121.9x101.6 cm)</option>
+                      <option value="eur1">Euro EUR 1 (120x80 cm)</option>
+                      <option value="eur2">Euro EUR 2 (120x100 cm)</option>
+                      <option value="custom">Custom Size Pallet...</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group" id="group-prod-barrel-pallet-material" style="display: none;">
+                    <label for="prod-barrel-pallet-material">Barrel Pallet Material</label>
+                    <select id="prod-barrel-pallet-material">
+                      <option value="wood" selected>Wooden Pallet</option>
+                      <option value="plastic">Plastic Pallet</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group" id="group-prod-barrel-layout" style="display: none; margin-top: 0.5rem;">
+                    <small id="barrel-layout-msg" style="display: block; font-size: 0.75rem; color: var(--text-muted); line-height: 1.3;"></small>
+                  </div>
+                  
+                  <div class="form-row">
+                    <div class="form-group" id="group-prod-length">
+                      <label for="prod-length" id="lbl-prod-length">Length (cm)</label>
+                      <input type="number" id="prod-length" value="60" min="1" step="0.5" required>
+                    </div>
+                    <div class="form-group" id="group-prod-width">
+                      <label for="prod-width" id="lbl-prod-width">Width (cm)</label>
+                      <input type="number" id="prod-width" value="40" min="1" step="0.5" required>
+                    </div>
+                    <div class="form-group" id="group-prod-height">
+                      <label for="prod-height" id="lbl-prod-height">Height (cm)</label>
+                      <input type="number" id="prod-height" value="40" min="1" step="0.5" required>
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="prod-weight">Weight (kg)</label>
+                      <input type="number" id="prod-weight" value="12" min="0.1" step="0.1" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="prod-qty">Quantity</label>
+                      <input type="number" id="prod-qty" value="50" min="1" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="prod-color">Color</label>
+                      <input type="color" id="prod-color" value="#0ea5e9">
+                    </div>
+                  </div>
+
+                  <div class="form-group" id="group-prod-orientation">
+                    <label for="prod-orientation">Allowed Orientations</label>
+                    <select id="prod-orientation">
+                      <option value="any">Full Rotation (6 orientations)</option>
+                      <option value="upright" selected>Must stay upright (Z-axis fixed)</option>
+                      <option value="none">No rotation (Strict L x W x H)</option>
+                    </select>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Add Product
+                  </button>
+                </form>
+              </div>
+
+              <!-- Quick Cargo Presets -->
+              <div class="card" style="max-height: 320px; overflow-y: auto;">
+                <h4 style="margin-bottom: 0.75rem;">Cargo Presets</h4>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                  <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Cartons</span>
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.25rem;">
+                      <button type="button" class="btn btn-preset" data-preset="carton_std" style="width:100%; text-align:left; font-size:0.8rem; padding:0.4rem 0.6rem;">Standard Carton (60x40x40 cm, 15kg)</button>
+                      <button type="button" class="btn btn-preset" data-preset="carton_small" style="width:100%; text-align:left; font-size:0.8rem; padding:0.4rem 0.6rem;">Small Parcel Box (30x20x20 cm, 3kg)</button>
+                    </div>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Wooden Pallets</span>
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.25rem;">
+                      <button type="button" class="btn btn-preset" data-preset="pallet_eur1" style="width:100%; text-align:left; font-size:0.8rem; padding:0.4rem 0.6rem;">Euro EUR 1 Wood (120x80x160 cm, 400kg)</button>
+                      <button type="button" class="btn btn-preset" data-preset="pallet_eur2" style="width:100%; text-align:left; font-size:0.8rem; padding:0.4rem 0.6rem;">Euro EUR 2 Wood (120x100x160 cm, 500kg)</button>
+                    </div>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Plastic Pallets</span>
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.25rem;">
+                      <button type="button" class="btn btn-preset" data-preset="pallet_us_plastic" style="width:100%; text-align:left; font-size:0.8rem; padding:0.4rem 0.6rem;">US Std Plastic (121.9x101.6x160 cm, 600kg)</button>
+                    </div>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">One-Ton Bags</span>
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.25rem;">
+                      <button type="button" class="btn btn-preset" data-preset="bag_fibc" style="width:100%; text-align:left; font-size:0.8rem; padding:0.4rem 0.6rem;">Standard FIBC Bag (110x90x90 cm, 1000kg)</button>
+                      <button type="button" class="btn btn-preset" data-preset="bag_fibc_large" style="width:100%; text-align:left; font-size:0.8rem; padding:0.4rem 0.6rem;">Large FIBC Bag (100x100x120 cm, 1200kg)</button>
+                    </div>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Drums & Barrels</span>
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.25rem;">
+                      <button type="button" class="btn btn-preset" data-preset="drum_55g" style="width:100%; text-align:left; font-size:0.8rem; padding:0.4rem 0.6rem;">55-Gal Oil Barrel (58.4x58.4x87.6 cm, 220kg)</button>
+                      <button type="button" class="btn btn-preset" data-preset="drum_30g" style="width:100%; text-align:left; font-size:0.8rem; padding:0.4rem 0.6rem;">30-Gal Drum (46x46x74 cm, 110kg)</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Main area: Products List -->
+            <div class="panel-main">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2>Cargo Manifest Items</h2>
+                <button id="btn-clear-manifest" class="btn btn-danger">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                  Clear All
+                </button>
+              </div>
+
+              <div class="table-container">
+                <table id="products-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 50px;">Color</th>
+                      <th>Name</th>
+                      <th id="th-manifest-dim">Dimensions (cm)</th>
+                      <th>Weight</th>
+                      <th>Quantity</th>
+                      <th>Rotations</th>
+                      <th style="width: 100px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Injected dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. CONTAINERS TAB -->
+        <section id="tab-containers" class="tab-panel">
+          <div class="panel-split">
+            <!-- Sidebar: Custom Container Specification -->
+            <div class="panel-sidebar">
+              <div class="card">
+                <h3 class="card-title">Custom Container</h3>
+                <form id="custom-container-form">
+                  <div class="form-group">
+                    <label for="cc-name">Name</label>
+                    <input type="text" id="cc-name" value="Custom Box Truck" required>
+                  </div>
+                  
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="cc-length" id="lbl-cc-length">Length (cm)</label>
+                      <input type="number" id="cc-length" value="600" min="10" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="cc-width" id="lbl-cc-width">Width (cm)</label>
+                      <input type="number" id="cc-width" value="240" min="10" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="cc-height" id="lbl-cc-height">Height (cm)</label>
+                      <input type="number" id="cc-height" value="240" min="10" required>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="cc-payload">Max Payload (kg)</label>
+                    <input type="number" id="cc-payload" value="15000" min="100" required>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+                    Use Custom Container
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Main area: Predefined Containers Grid -->
+            <div class="panel-main">
+              <h2>Select Container or Truck</h2>
+              <p class="text-muted" style="margin-top: 0.25rem; margin-bottom: 1.5rem;">Select the container profile to calculate stuffing for. Standard ISO dimensions are loaded.</p>
+              
+              <div class="containers-grid" id="containers-grid">
+                <!-- Predefined container cards injected dynamically -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. STUFFING RESULT TAB -->
+        <section id="tab-result" class="tab-panel">
+          <div class="result-layout">
+            <!-- Left/Center: Interactive 3D Visualizer & Slider controls -->
+            <div class="visualizer-pane">
+              <!-- Overlay stats badges -->
+              <div class="visualizer-overlay-stats">
+                <div class="overlay-stat-badge">
+                  <div class="color-badge" style="background-color: var(--accent);"></div>
+                  Container: <span id="overlay-container-name">40' High Cube</span>
+                </div>
+                <div class="overlay-stat-badge">
+                  Vol Utilized: <span id="overlay-vol-util">0.0%</span>
+                </div>
+                <div class="overlay-stat-badge">
+                  Weight Utilized: <span id="overlay-wt-util">0.0%</span>
+                </div>
+              </div>
+
+              <!-- 3D Canvas Viewport -->
+              <div class="visualizer-viewport" style="position: relative;">
+                <div class="calc-overlay" id="calc-spinner">
+                  <div class="spinner"></div>
+                  <h3>Calculating Optimal Loading Plan...</h3>
+                  <p class="text-muted">Arranging packages to maximize space and ensure stability.</p>
+                </div>
+                
+                <div class="empty-state" id="empty-visualizer">
+                  <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <line x1="22" y1="12" x2="2" y2="12"></line>
+                    <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                    <line x1="6" y1="16" x2="6.01" y2="16"></line>
+                    <line x1="10" y1="16" x2="10.01" y2="16"></line>
+                  </svg>
+                  <h3>No Cargo to Display</h3>
+                  <p>Add some products in the "PRODUCTS" tab, select a container, and click "Recalculate" to compute stuffing.</p>
+                </div>
+
+                <div id="viewport-3d" style="width: 100%; height: 100%;"></div>
+              </div>
+
+              <!-- Visualizer step animation slider -->
+              <div class="visualizer-controls" id="visualizer-controls-bar">
+                <div style="display: flex; gap: 0.5rem;">
+                  <button id="btn-step-prev" class="btn" title="Previous Step">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  </button>
+                  <button id="btn-step-play" class="btn" title="Animate Loading">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  </button>
+                  <button id="btn-step-next" class="btn" title="Next Step">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </button>
+                </div>
+                
+                <div class="slider-container">
+                  <label for="step-slider">Loading Step: <span id="lbl-current-step">0</span> / <span id="lbl-total-steps">0</span></label>
+                  <input type="range" id="step-slider" min="0" max="0" value="0">
+                </div>
+
+                <div style="display: flex; gap: 0.25rem;">
+                  <button id="btn-view-iso" class="btn" title="Isometric View">ISO</button>
+                  <button id="btn-view-top" class="btn" title="Top View">TOP</button>
+                  <button id="btn-view-side" class="btn" title="Side View">SIDE</button>
+                  <button id="btn-reset-view" class="btn btn-primary" title="Reset Camera Angle">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Panel: Loading Stats & Exporter -->
+            <div class="stats-pane">
+              <!-- Metrics -->
+              <div class="card">
+                <h3 style="margin-bottom: 1rem;">Space & Weight Utilization</h3>
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                  <!-- Volume Metric -->
+                  <div class="stat-metric-card">
+                    <div class="stat-metric-header">
+                      <span>Volume Utilization</span>
+                      <span id="txt-vol-percent">0%</span>
+                    </div>
+                    <div class="stat-metric-val">
+                      <span id="txt-vol-used">0.00</span> / <span id="txt-vol-total">0.00</span> <span id="txt-vol-unit">m³</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                      <div class="progress-bar-fill volume" id="bar-vol"></div>
+                    </div>
+                  </div>
+
+                  <!-- Weight Metric -->
+                  <div class="stat-metric-card">
+                    <div class="stat-metric-header">
+                      <span>Weight Utilization</span>
+                      <span id="txt-wt-percent">0%</span>
+                    </div>
+                    <div class="stat-metric-val">
+                      <span id="txt-wt-used">0</span> / <span id="txt-wt-total">0</span> kg
+                    </div>
+                    <div class="progress-bar-bg">
+                      <div class="progress-bar-fill weight" id="bar-wt"></div>
+                    </div>
+                  </div>
+
+                  <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-top: 0.25rem;">
+                    <span>Total Packages Loaded:</span>
+                    <span id="txt-total-packed-qty" style="font-weight: 600;">0</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Export PDF Report -->
+              <div class="card" style="margin-bottom: 0.5rem;">
+                <h3 style="margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                  Export Report
+                </h3>
+                <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 1rem;">Generate a high-quality, print-ready PDF containing the 3D projection view and container utilization summary.</p>
+                <button id="btn-export-pdf" class="btn btn-success" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  Export PDF Report
+                </button>
+              </div>
+
+              <!-- Loaded Cargo Breakdown -->
+              <div class="card flex-space" style="display: flex; flex-direction: column; overflow: hidden; min-height: 200px;">
+                <h3 style="margin-bottom: 0.75rem;">Loaded Manifest</h3>
+                <div class="details-list" id="loaded-cargo-list" style="flex: 1; overflow-y: auto; padding-right: 2px;">
+                  <!-- Dynamically populated loaded manifest list -->
+                </div>
+              </div>
+
+              <!-- Unpacked Leftovers -->
+              <div class="card" id="unpacked-cargo-card" style="display: none;">
+                <h3 class="text-danger" style="margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  Leftover Items (Exceeded Limit)
+                </h3>
+                <div class="details-list" id="unpacked-cargo-list">
+                  <!-- Dynamically populated left-overs -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modals or notifications can go here -->
+
+    <!-- Main Module script -->
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

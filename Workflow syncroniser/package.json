@@ -1,0 +1,17 @@
+{
+  "name": "workflow-synchroniser",
+  "version": "1.0.0",
+  "description": "LAN-based real-time workflow synchronizer for logistics shipments",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}

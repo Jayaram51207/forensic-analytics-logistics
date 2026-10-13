@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logistics Workflow Synchronizer</title>
+  <!-- Google Fonts Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Google Material Symbols -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Fullscreen Login Overlay -->
+  <div class="login-overlay" id="login-overlay">
+    <div class="login-card">
+      <div class="login-header">
+        <span class="material-symbols-outlined login-logo">sync_alt</span>
+        <h1>Workflow Synchronizer</h1>
+        <p>Logistics LAN Office Suite</p>
+      </div>
+      <form id="login-form">
+        <div class="login-group">
+          <label for="login-username">Username</label>
+          <input type="text" id="login-username" required placeholder="e.g. desk1">
+        </div>
+        <div class="login-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" required placeholder="Enter password...">
+        </div>
+        <div id="login-error" class="login-error-msg hidden">Invalid password. Passwords match usernames.</div>
+        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Workspace Selector Overlay -->
+  <div class="workspace-selector-overlay" id="workspace-selector-overlay">
+    <div class="workspace-selector-card">
+      <div class="workspace-selector-header">
+        <span class="material-symbols-outlined workspace-logo">grid_view</span>
+        <h1>Select Workspace</h1>
+        <p>Choose your department module to begin synchronizing workflows</p>
+      </div>
+      <div class="workspace-grid">
+        <!-- Sea Import Card -->
+        <div class="workspace-card" data-workspace="sea_import">
+          <div class="workspace-card-icon sea-import">
+            <span class="material-symbols-outlined">directions_boat</span>
+          </div>
+          <h3>Sea Import</h3>
+          <p>Import shipments, cargo arrivals, customs clearances & local delivery</p>
+          <span class="workspace-status active">Active Module</span>
+        </div>
+        <!-- Sea Export Card -->
+        <div class="workspace-card" data-workspace="sea_export">
+          <div class="workspace-card-icon sea-export">
+            <span class="material-symbols-outlined">sailing</span>
+          </div>
+          <h3>Sea Export</h3>
+          <p>FCL/LCL ocean exports, booking confirmation, stuffing, and sailing checklists</p>
+          <span class="workspace-status active">Active Module</span>
+        </div>
+        <!-- Air Import Card -->
+        <div class="workspace-card" data-workspace="air_import">
+          <div class="workspace-card-icon air-import">
+            <span class="material-symbols-outlined">flight_land</span>
+          </div>
+          <h3>Air Import</h3>
+          <p>Air imports, airline consol manifests, airport cargo duty payments, OOC releases</p>
+          <span class="workspace-status active">Active Module</span>
+        </div>
+        <!-- Air Export Card -->
+        <div class="workspace-card" data-workspace="air_export">
+          <div class="workspace-card-icon air-export">
+            <span class="material-symbols-outlined">flight_takeoff</span>
+          </div>
+          <h3>Air Export</h3>
+          <p>Air exports, airway bills, cargo status, TC copies, flight departures</p>
+          <span class="workspace-status active">Active Module</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container hidden" id="app-container">
+    
+    <!-- Left Navigation Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="material-symbols-outlined logo-icon">sync_alt</span>
+        <h2>Logistics Sync</h2>
+      </div>
+
+      <nav class="sidebar-menu">
+        <!-- Switch Workspace Button -->
+        <button class="menu-btn" id="menu-btn-switch-workspace" style="border-bottom: 1px solid var(--border); margin-bottom: 10px; padding-bottom: 12px; border-radius: 0;">
+          <span class="material-symbols-outlined" style="color:var(--primary)">swap_horizontal_circle</span>
+          <span style="font-weight: 600;">Switch Workspace</span>
+        </button>
+
+        <button class="menu-btn active" data-filter="active">
+          <span class="material-symbols-outlined">pending_actions</span>
+          <span>Active Shipments</span>
+          <span class="badge badge-active" id="count-active">0</span>
+        </button>
+        <button class="menu-btn" data-filter="completed">
+          <span class="material-symbols-outlined">task_alt</span>
+          <span>Completed</span>
+          <span class="badge badge-completed" id="count-completed">0</span>
+        </button>
+        <button class="menu-btn" data-filter="all">
+          <span class="material-symbols-outlined">list_alt</span>
+          <span>All Shipments</span>
+          <span class="badge badge-all" id="count-all">0</span>
+        </button>
+        
+        <!-- Admin Menu Button (Hidden from Desks) -->
+        <button class="menu-btn hidden" data-filter="admin-board" id="menu-btn-admin">
+          <span class="material-symbols-outlined">monitoring</span>
+          <span>Admin Board</span>
+        </button>
+
+        <button class="menu-btn hidden" data-filter="logs" id="menu-btn-logs">
+          <span class="material-symbols-outlined">history</span>
+          <span>Office Activity Log</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-profile-bar">
+          <span class="material-symbols-outlined">account_circle</span>
+          <div class="profile-info">
+            <span id="current-user-name">Desk Name</span>
+            <button class="logout-link" id="btn-logout">Logout</button>
+          </div>
+        </div>
+        <div class="server-status">
+          <div class="status-indicator online"></div>
+          <div>
+            <span class="status-title">LAN Server Connected</span>
+            <span class="status-desc" id="lan-url">Detecting LAN URL...</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+      
+      <!-- Top Action Bar -->
+      <header class="top-bar">
+        <div class="header-search">
+          <span class="material-symbols-outlined search-icon">search</span>
+          <input type="text" id="search-input" placeholder="Search by Job No, Customer, Vessel or Destination...">
+        </div>
+        <div class="header-actions" style="display: flex; gap: 12px; align-items: center;">
+          <button class="btn btn-secondary" id="btn-toggle-theme" title="Toggle Light/Dark Theme" style="padding: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); height: 42px; width: 42px;">
+            <span class="material-symbols-outlined" id="theme-icon" style="font-size: 20px;">light_mode</span>
+          </button>
+          <button class="btn btn-primary" id="btn-add-job">
+            <span class="material-symbols-outlined">add_circle</span> Add New Job
+          </button>
+        </div>
+      </header>
+
+      <!-- Statistics Panel -->
+      <section class="stats-panel">
+        <div class="stat-card total">
+          <div class="stat-icon">
+            <span class="material-symbols-outlined">inventory_2</span>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Total Cargo Jobs</span>
+            <h3 id="stat-total">0</h3>
+          </div>
+        </div>
+        <div class="stat-card pending">
+          <div class="stat-icon">
+            <span class="material-symbols-outlined">hourglass_empty</span>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Active Jobs</span>
+            <h3 id="stat-pending">0</h3>
+          </div>
+        </div>
+        <div class="stat-card completed">
+          <div class="stat-icon">
+            <span class="material-symbols-outlined">check_circle</span>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Fully Completed</span>
+            <h3 id="stat-completed">0</h3>
+          </div>
+        </div>
+        <div class="stat-card documents">
+          <div class="stat-icon">
+            <span class="material-symbols-outlined">assignment_turned_in</span>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Milestones Cleared</span>
+            <h3 id="stat-docs">0/0</h3>
+          </div>
+        </div>
+      </section>
+
+      <!-- Content Views -->
+      <div class="content-view" id="shipments-view">
+        <div class="section-title">
+          <h2 id="view-title">Active Shipments</h2>
+          <span class="title-helper">Real-time status of all active shipments on LAN</span>
+        </div>
+
+        <!-- Pipeline Stage Tracker Grid -->
+        <div id="pipeline-tracker-container" class="hidden" style="margin-bottom: 30px;"></div>
+        
+        <!-- Job List Table Layout -->
+        <div class="table-responsive job-list-table-container">
+          <table class="job-list-table" id="job-list-table">
+            <thead>
+              <tr>
+                <th>Job No</th>
+                <th>Customer / File Ref</th>
+                <th>Vessel / Voyage</th>
+                <th>Destination</th>
+                <th>ETA</th>
+                <th style="width: 220px;">Workflow Progress</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="job-list-tbody">
+              <tr class="loading-row">
+                <td colspan="7" class="text-center text-muted">
+                  <div style="display:flex; align-items:center; justify-content:center; gap:8px; padding: 40px 0;">
+                    <span class="material-symbols-outlined spin">sync</span> Loading shipments list...
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sea Import Dummy View -->
+      <div class="content-view hidden" id="sea-import-dummy-view">
+        <div class="dummy-card-wrapper" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:60vh; text-align:center; padding: 40px; border: 1px dashed var(--border); border-radius: var(--radius-lg); background: rgba(255,255,255,0.01);">
+          <span class="material-symbols-outlined" style="font-size: 80px; color: var(--primary); margin-bottom: 20px; animation: pulse 2s infinite;">directions_boat</span>
+          <h2 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 10px; color: var(--text);">Sea Import Management</h2>
+          <p style="color: var(--text-muted); max-width: 480px; font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px;">
+            This module is currently in progress. The Sea Import module will support manifest checks, delivery order releases, customs clearing approvals, and gate passes.
+          </p>
+          <div style="display: flex; gap: 15px;">
+            <button class="btn btn-primary" id="dummy-btn-switch">
+              <span class="material-symbols-outlined">dashboard</span> Back to Selector
+            </button>
+            <button class="btn btn-secondary" disabled>
+              <span class="material-symbols-outlined">construction</span> Under Construction
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logs View (Hidden by default) -->
+      <div class="content-view hidden" id="logs-view">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Office Activity Log</h2>
+            <span class="title-helper">Live stream of document updates and job creations</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-clear-logs-ui">Clear Screen Log</button>
+        </div>
+        <div class="logs-container">
+          <div class="logs-feed" id="logs-feed-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Progress Board View (Hidden by default) -->
+      <div class="content-view hidden" id="admin-board-view">
+        <div class="section-title">
+          <h2>Admin Progress Dashboard</h2>
+          <span class="title-helper">Track document submissions and audits completed by each Desk</span>
+        </div>
+        
+        <div class="admin-desks-grid">
+          <div class="desk-metric-card">
+            <h4>Desk 1 (Invoice)</h4>
+            <p>Submissions: <strong id="desk1-count">0</strong></p>
+            <span class="desk-role">Billing Invoice & Packing List</span>
+          </div>
+          <div class="desk-metric-card">
+            <h4>Desk 2 (Documentation)</h4>
+            <p>Submissions: <strong id="desk2-count">0</strong></p>
+            <span class="desk-role">BL Instructions sheet</span>
+          </div>
+          <div class="desk-metric-card">
+            <h4>Desk 3 (Customs / CHA)</h4>
+            <p>Submissions: <strong id="desk3-count">0</strong></p>
+            <span class="desk-role">Checklist PDF Uploads</span>
+          </div>
+          <div class="desk-metric-card">
+            <h4>Desk 4 (Operations)</h4>
+            <p>Submissions: <strong id="desk4-count">0</strong></p>
+            <span class="desk-role">Physical/Carrier clearances</span>
+          </div>
+        </div>
+
+        <div class="admin-split-layout" style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 30px; margin-top: 30px;">
+          <!-- Left: Real-time Desk Submission Log -->
+          <div class="details-section" style="margin-top: 0;">
+            <h4 class="section-subtitle" style="margin-top: 0;">Real-time Desk Submission Log</h4>
+            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+              <table class="detail-table" id="admin-submissions-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Desk / User</th>
+                    <th>Job Number</th>
+                    <th>Document Type</th>
+                    <th>State Set</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Right: User Management -->
+          <div class="details-section" style="margin-top: 0;">
+            <h4 class="section-subtitle" style="margin-top: 0;">User Account Controls</h4>
+            
+            <!-- User Creation Form -->
+            <form id="admin-add-user-form" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 15px; margin-bottom: 20px; display:flex; flex-direction:column; gap:10px;">
+              <h5 style="margin:0 0 5px 0; color:var(--text); font-size:0.82rem; text-transform:uppercase; letter-spacing:0.5px;">Add New User</h5>
+              <input type="text" id="add-user-username" required placeholder="Username (e.g. desk5)" style="padding: 8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:0.8rem; outline:none; transition: var(--transition);">
+              <input type="password" id="add-user-password" required placeholder="Password" style="padding: 8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:0.8rem; outline:none; transition: var(--transition);">
+              <input type="text" id="add-user-name" required placeholder="Display Name (e.g. Desk 5)" style="padding: 8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:0.8rem; outline:none; transition: var(--transition);">
+              <select id="add-user-role" required style="padding: 8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:0.8rem; outline:none; transition: var(--transition);">
+                <option value="" disabled selected>Select Desk Role</option>
+                <option value="Invoice">Invoice (Desk 1)</option>
+                <option value="Documentation">Documentation (Desk 2)</option>
+                <option value="Customs">Customs (Desk 3)</option>
+                <option value="Operations">Operations (Desk 4)</option>
+                <option value="Admin">Admin (System Admin)</option>
+              </select>
+              <button type="submit" class="btn btn-primary btn-block" style="padding:8px 10px; font-size:0.8rem;">Create Account</button>
+            </form>
+
+            <!-- Current Users List -->
+            <h5 style="margin:0 0 10px 0; color:var(--text); font-size:0.82rem; text-transform:uppercase; letter-spacing:0.5px;">Current Active Users</h5>
+            <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+              <table class="detail-table" id="admin-users-table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th style="width: 50px; text-align: center;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+     <!-- Detail Slide-Out Drawer (Right Side) -->
+    <div class="drawer-overlay" id="drawer-overlay"></div>
+    <section class="details-drawer" id="details-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <div class="drawer-status-badge active" id="drawer-job-status">Active</div>
+          <div class="drawer-status-badge danger hidden" id="drawer-job-flagged" style="background: var(--danger-light); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2);">FLAGGED</div>
+          <h2 id="drawer-job-no">JOB NO: CHX03</h2>
+        </div>
+        <div class="drawer-header-actions">
+          <button class="btn btn-secondary btn-icon" id="drawer-btn-edit" title="Edit Shipment">
+            <span class="material-symbols-outlined">edit</span> Edit
+          </button>
+          <button class="btn btn-danger btn-icon" id="drawer-btn-delete" title="Archive / Delete">
+            <span class="material-symbols-outlined">archive</span> Archive
+          </button>
+          <button class="close-btn" id="drawer-btn-close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Horizontal Flowchart Pipeline (Spans full width of drawer) -->
+      <div class="drawer-flowchart-section">
+        <div class="flowchart-meter-bar" style="padding: 10px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.01);">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="material-symbols-outlined" style="color:var(--primary)">route</span>
+            <span style="font-weight: 600; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Shipment Processing Timeline</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-size:0.85rem; color:var(--text-muted)">Milestones:</span>
+            <strong id="drawer-progress-percent" style="font-size: 0.95rem; color:var(--success)">0%</strong>
+            <div class="meter-bar" style="width: 120px; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; display: inline-block;">
+              <div class="meter-fill" id="drawer-progress-bar" style="width: 0%; height:100%; background:var(--success); transition: width 0.3s;"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="horizontal-flowchart-container" id="drawer-flowchart-container">
+          <!-- Dynamically populated horizontal step pipeline nodes -->
+        </div>
+      </div>
+
+      <div class="drawer-content-split">
+        
+        <!-- Drawer Body Left (Tabs & Forms information) -->
+        <div class="drawer-body-main">
+          <div class="tab-navbar">
+            <button class="tab-link active" data-tab="dt-summary">Overview</button>
+            <button class="tab-link" data-tab="dt-addresses">Addresses</button>
+            <button class="tab-link" data-tab="dt-cargo">Cargo & Containers</button>
+            <button class="tab-link" data-tab="dt-billing">Billing Details</button>
+            <button class="tab-link" data-tab="dt-history">Logs</button>
+          </div>
+
+          <!-- Tab Content: Overview -->
+          <div class="tab-content active" id="dt-summary">
+            <!-- Flagged delay banner/remarks -->
+            <div class="details-section hidden" id="drawer-flagged-section" style="border: 1px solid var(--danger); background: rgba(239, 68, 68, 0.05); border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px; border-left-width: 5px;">
+              <h4 class="section-subtitle" style="color: var(--danger); display: flex; align-items: center; gap: 6px; margin-bottom: 6px; margin-top: 0; padding: 0;">
+                <span class="material-symbols-outlined" style="vertical-align: middle;">flag</span> Delayed Shipment Remarks
+              </h4>
+              <p id="val-flag_remarks" style="font-size: 0.9rem; line-height: 1.4; color: var(--text); font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; margin: 0;"></p>
+            </div>
+
+            <div class="info-grid">
+              <div class="info-box">
+                <span class="info-label">Customer / File Ref</span>
+                <span class="info-val" id="val-file_ref_no">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">Shipping Bill (S.B.) No & Date</span>
+                <span class="info-val" id="val-sb_no_date">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">Invoice No & Date</span>
+                <span class="info-val" id="val-invoice_no_date">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">Buyer's Order No & Date</span>
+                <span class="info-val" id="val-buyer_order_no_date">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">Vessel & Voyage / Flight No</span>
+                <span class="info-val" id="val-vessel_voyage">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">Shipping Line / Carrier</span>
+                <span class="info-val" id="val-carrier">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">Port of Loading</span>
+                <span class="info-val" id="val-port_of_loading">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">Port of Discharge</span>
+                <span class="info-val" id="val-port_of_discharge">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">Final Destination</span>
+                <span class="info-val" id="val-final_destination">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">HS Code</span>
+                <span class="info-val" id="val-hs_code">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">Payment Mode</span>
+                <span class="info-val" id="val-payment_mode">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">ETA / ETD Dates</span>
+                <span class="info-val" id="val-eta_etd">-</span>
+              </div>
+              <div class="info-box" id="drawer-group-mawb">
+                <span class="info-label">MAWB No & Date</span>
+                <span class="info-val" id="val-mawb_no_date">-</span>
+              </div>
+              <div class="info-box" id="drawer-group-hawb">
+                <span class="info-label">HAWB No & Date</span>
+                <span class="info-val" id="val-hawb_no_date">-</span>
+              </div>
+            </div>
+
+            <div class="details-section">
+              <h4 class="section-subtitle">General Shipment Details</h4>
+              <div class="info-grid cols-2">
+                <div class="info-box">
+                  <span class="info-label">Dimensions (CMS)</span>
+                  <span class="info-val" id="val-dimensions">-</span>
+                </div>
+                <div class="info-box">
+                  <span class="info-label">Packing Type / Total Pkgs</span>
+                  <span class="info-val" id="val-total_pkgs">-</span>
+                </div>
+                <div class="info-box" id="drawer-group-chargeable_weight">
+                  <span class="info-label">Chargeable Weight</span>
+                  <span class="info-val" id="val-chargeable_weight">-</span>
+                </div>
+                <div class="info-box">
+                  <span class="info-label">Gross Weight</span>
+                  <span class="info-val" id="val-gross_weight">-</span>
+                </div>
+                <div class="info-box">
+                  <span class="info-label">Net Weight</span>
+                  <span class="info-val" id="val-net_weight">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Content: Addresses -->
+          <div class="tab-content" id="dt-addresses">
+            <div class="address-grid">
+              <div class="address-card">
+                <div class="address-card-header">
+                  <span>Shipper Details</span>
+                  <button class="copy-btn" onclick="copyText('val-shipper')"><span class="material-symbols-outlined">content_copy</span></button>
+                </div>
+                <pre id="val-shipper" class="address-pre">-</pre>
+              </div>
+              <div class="address-card">
+                <div class="address-card-header">
+                  <span>Consignee Details</span>
+                  <button class="copy-btn" onclick="copyText('val-consignee')"><span class="material-symbols-outlined">content_copy</span></button>
+                </div>
+                <pre id="val-consignee" class="address-pre">-</pre>
+              </div>
+              <div class="address-card">
+                <div class="address-card-header">
+                  <span>Notify Party Details</span>
+                  <button class="copy-btn" onclick="copyText('val-notify')"><span class="material-symbols-outlined">content_copy</span></button>
+                </div>
+                <pre id="val-notify" class="address-pre">-</pre>
+              </div>
+              <div class="address-card">
+                <div class="address-card-header">
+                  <span>CHA Address/Details</span>
+                  <button class="copy-btn" onclick="copyText('val-cha')"><span class="material-symbols-outlined">content_copy</span></button>
+                </div>
+                <pre id="val-cha" class="address-pre">-</pre>
+              </div>
+              <div class="address-card">
+                <div class="address-card-header">
+                  <span>Forwarding Agent</span>
+                  <button class="copy-btn" onclick="copyText('val-forwarding_agent')"><span class="material-symbols-outlined">content_copy</span></button>
+                </div>
+                <pre id="val-forwarding_agent" class="address-pre">-</pre>
+              </div>
+              <div class="address-card">
+                <div class="address-card-header">
+                  <span>Also Notify / Buyer Info</span>
+                  <button class="copy-btn" onclick="copyText('val-buyer_if_other')"><span class="material-symbols-outlined">content_copy</span></button>
+                </div>
+                <pre id="val-buyer_if_other" class="address-pre">-</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Content: Cargo & Containers -->
+          <div class="tab-content" id="dt-cargo">
+            <div class="cargo-block">
+              <h4 class="section-subtitle">Goods Description (Manifest / Cargo desc)</h4>
+              <div class="manifest-box" id="val-cargo_desc">-</div>
+
+              <h4 class="section-subtitle">Cargo Items Grid</h4>
+              <div class="table-responsive">
+                <table class="detail-table" id="table-cargo-items">
+                  <thead>
+                    <tr>
+                      <th>Sl</th>
+                      <th>Goods Description</th>
+                      <th>HS Code</th>
+                      <th class="text-right">Qty</th>
+                      <th>Unit</th>
+                      <th class="text-right">Rate</th>
+                      <th class="text-right">Net Wt</th>
+                      <th class="text-right">Gross Wt</th>
+                      <th class="text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Dynamically populated -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="containers-block">
+              <h4 class="section-subtitle">Containers List</h4>
+              <div class="table-responsive">
+                <table class="detail-table" id="table-containers">
+                  <thead>
+                    <tr>
+                      <th>Sl</th>
+                      <th>Container Number</th>
+                      <th>Seal Number</th>
+                      <th>Packages</th>
+                      <th class="text-right">Net Wt (Kgs)</th>
+                      <th class="text-right">Gross Wt (Kgs)</th>
+                      <th class="text-right">CBM</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Dynamically populated -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Content: Billing Details -->
+          <div class="tab-content" id="dt-billing">
+            <div class="billing-header-info">
+              <div class="info-box">
+                <span class="info-label">Exchange Rate</span>
+                <span class="info-val" id="val-exchange_rate">-</span>
+              </div>
+              <div class="info-box">
+                <span class="info-label">Bank / Drawback details</span>
+                <pre class="bank-details-pre" id="val-bank_ac_drawback">-</pre>
+              </div>
+            </div>
+
+            <h4 class="section-subtitle">Charges & Service Fees Grid</h4>
+            <div class="table-responsive">
+              <table class="detail-table" id="table-billing-charges">
+                <thead>
+                  <tr>
+                    <th>Charge Description</th>
+                    <th class="text-right">Amount (INR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="billing-summary-panel">
+              <div class="billing-row">
+                <span>Taxable Value (INR):</span>
+                <span id="val-taxable-val">Rs. 0.00</span>
+              </div>
+              <div class="billing-row">
+                <span>CGST (9%):</span>
+                <span id="val-cgst-val">Rs. 0.00</span>
+              </div>
+              <div class="billing-row">
+                <span>SGST (9%):</span>
+                <span id="val-sgst-val">Rs. 0.00</span>
+              </div>
+              <div class="billing-row grand-total">
+                <span>Grand Total (With GST):</span>
+                <span id="val-grand-total">Rs. 0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Content: History Logs -->
+          <div class="tab-content" id="dt-history">
+            <h4 class="section-subtitle">Shipment Update Logs</h4>
+            <div class="history-timeline" id="drawer-logs-timeline">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Drawer Sidebar Right -->
+        <div class="drawer-body-checklist">
+          <!-- Downloads Card -->
+          <div class="checklist-card downloads-card hidden" id="drawer-downloads-card" style="margin-bottom: 15px;">
+            <h3>Generated Sheets & Files</h3>
+            <p class="checklist-desc" style="margin-bottom: 12px;">Download compiled spreadsheets and checklists</p>
+            <div class="download-links-group" id="drawer-downloads-container" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamically populated download buttons -->
+            </div>
+          </div>
+
+          <!-- Billing Closure Details Card (visible only when job is Closed) -->
+          <div class="checklist-card closure-details-card hidden" id="drawer-closure-card" style="border: 1px solid var(--success-light); background: rgba(16, 185, 129, 0.02);">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+              <span class="material-symbols-outlined" style="color:var(--success); font-size: 18px;">verified</span>
+              <h3 style="margin:0;">Accounts Closed</h3>
+            </div>
+            <p class="checklist-desc" style="margin-bottom: 12px;">Final invoice details saved for this closed shipment</p>
+            <div class="closure-details-content" id="drawer-closure-container" style="display:flex; flex-direction:column; gap:8px;">
+              <!-- Dynamically populated list of billing invoice closure details -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Create/Edit Job Modal (Full Overlay Dialog) -->
+    <div class="modal-backdrop" id="job-modal-backdrop"></div>
+    <div class="job-modal" id="job-modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Create Shipment Job</h2>
+        <button class="close-btn" id="modal-btn-close">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <!-- Autofill checklist PDF panel inside modal -->
+      <div class="autofill-panel">
+        <div class="autofill-content">
+          <span class="material-symbols-outlined autofill-icon">upload_file</span>
+          <div class="autofill-text">
+            <strong>Checklist PDF Importer</strong>
+            <span>Upload a checklist PDF to auto-fill all shipping and container details.</span>
+          </div>
+          <input type="file" id="modal-upload-pdf" accept=".pdf" style="display:none">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-trigger-upload">Select Checklist PDF</button>
+          <span id="autofill-status" class="autofill-status"></span>
+        </div>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div class="modal-tab-navbar">
+        <button class="modal-tab-btn active" data-modtab="mt-core">1. Core & Voyage</button>
+        <button class="modal-tab-btn" data-modtab="mt-addresses">2. Addresses</button>
+        <button class="modal-tab-btn" data-modtab="mt-cargo">3. Cargo Grid</button>
+        <button class="modal-tab-btn" data-modtab="mt-containers">4. Containers Grid</button>
+        <button class="modal-tab-btn" data-modtab="mt-billing">5. Billing Grid</button>
+      </div>
+
+      <form id="job-form">
+        <input type="hidden" id="form-job-id" value="">
+        <input type="hidden" id="form-checklist-pdf-url" value="">
+
+        <!-- Modal Tab 1: Core & Voyage References -->
+        <div class="modal-tab-content active" id="mt-core">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="form-job_no">Job No (Unique) *</label>
+              <input type="text" id="form-job_no" required placeholder="e.g. CHX03">
+            </div>
+            <div class="form-group">
+              <label for="form-file_ref_no">Customer / File Ref</label>
+              <input type="text" id="form-file_ref_no" placeholder="e.g. COTTON HOME - CHX03">
+            </div>
+            <div class="form-group">
+              <label for="form-sb_no_date">Shipping Bill (S.B.) No & Date</label>
+              <input type="text" id="form-sb_no_date" placeholder="e.g. 3416491 DT. 20/05/2026">
+            </div>
+            <div class="form-group" id="form-group-mawb">
+              <label for="form-mawb_no_date">MAWB No & Date</label>
+              <input type="text" id="form-mawb_no_date" placeholder="e.g. 098-12345675 DT. 20/05/2026">
+            </div>
+            <div class="form-group" id="form-group-hawb">
+              <label for="form-hawb_no_date">HAWB No & Date</label>
+              <input type="text" id="form-hawb_no_date" placeholder="e.g. HAWB987654 DT. 20/05/2026">
+            </div>
+            <div class="form-group">
+              <label for="form-invoice_no_date">Invoice No & Date</label>
+              <input type="text" id="form-invoice_no_date" placeholder="e.g. CHX/003 DT. 05/05/2026">
+            </div>
+            <div class="form-group">
+              <label for="form-buyer_order_no_date">Buyer's Order No & Date</label>
+              <input type="text" id="form-buyer_order_no_date" placeholder="e.g. Ord DT. 01/05/2026">
+            </div>
+            <div class="form-group">
+              <label for="form-vessel_voyage">Vessel / Voyage / Flight</label>
+              <input type="text" id="form-vessel_voyage" placeholder="e.g. MONACO V. 042W">
+            </div>
+            <div class="form-group">
+              <label for="form-carrier">Carrier / Shipping Line</label>
+              <input type="text" id="form-carrier" placeholder="e.g. MAERSK LINE">
+            </div>
+            <div class="form-group">
+              <label for="form-port_of_loading">Port of Loading</label>
+              <input type="text" id="form-port_of_loading" placeholder="e.g. CHENNAI / INDIA">
+            </div>
+            <div class="form-group">
+              <label for="form-port_of_discharge">Port of Discharge</label>
+              <input type="text" id="form-port_of_discharge" placeholder="e.g. GENOA">
+            </div>
+            <div class="form-group">
+              <label for="form-final_destination">Final Destination</label>
+              <input type="text" id="form-final_destination" placeholder="e.g. MILAN / ITALY">
+            </div>
+            <div class="form-group">
+              <label for="form-country_of_origin">Country of Origin</label>
+              <input type="text" id="form-country_of_origin" value="INDIA">
+            </div>
+            <div class="form-group">
+              <label for="form-country_of_dest">Country of Final Dest</label>
+              <input type="text" id="form-country_of_dest" placeholder="e.g. ITALY">
+            </div>
+            <div class="form-group" id="form-group-pre_carriage">
+              <label for="form-pre_carriage">Pre-Carriage by</label>
+              <input type="text" id="form-pre_carriage" placeholder="e.g. BY ROAD">
+            </div>
+            <div class="form-group" id="form-group-place_of_receipt">
+              <label for="form-place_of_receipt">Place of Receipt</label>
+              <input type="text" id="form-place_of_receipt" placeholder="e.g. ICD CHENNAI">
+            </div>
+            <div class="form-group">
+              <label for="form-hs_code">HS Code</label>
+              <input type="text" id="form-hs_code" placeholder="e.g. 63026090">
+            </div>
+            <div class="form-group">
+              <label for="form-payment_mode">Payment Mode</label>
+              <input type="text" id="form-payment_mode" placeholder="e.g. PREPAID">
+            </div>
+            <div class="form-group">
+              <label for="form-eta">Estimated Arrival (ETA)</label>
+              <input type="text" id="form-eta" placeholder="e.g. 15.07.2026">
+            </div>
+            <div class="form-group">
+              <label for="form-etd">Estimated Departure (ETD)</label>
+              <input type="text" id="form-etd" placeholder="e.g. 18.06.2026">
+            </div>
+            <div class="form-group" style="display: flex; flex-direction: row; align-items: center; gap: 8px; grid-column: span 1; padding-top: 24px;">
+              <input type="checkbox" id="form-is_flagged" style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
+              <label for="form-is_flagged" style="cursor: pointer; margin-bottom: 0; user-select: none;">Flag Shipment (Delayed)</label>
+            </div>
+            <div class="form-group form-span-2 hidden" id="form-flag-remarks-group">
+              <label for="form-flag_remarks">Remarks / Reason for delay</label>
+              <input type="text" id="form-flag_remarks" placeholder="Explain why this shipment is delayed / pending...">
+            </div>
+          </div>
+
+          <div class="modal-section-title">General Layout Weights & Details</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="form-dimensions">Dimensions (CMS)</label>
+              <input type="text" id="form-dimensions" placeholder="e.g. 28 X 25.5 X 25.5 CMS">
+            </div>
+            <div class="form-group">
+              <label for="form-type_of_packing">Type of Packing</label>
+              <input type="text" id="form-type_of_packing" placeholder="e.g. PP BAGS or CARTONS">
+            </div>
+            <div class="form-group" id="form-group-chargeable_weight">
+              <label for="form-chargeable_weight">Chargeable Weight</label>
+              <input type="text" id="form-chargeable_weight" placeholder="e.g. 850.50 KGS">
+            </div>
+            <div class="form-group">
+              <label for="form-total_pkgs">Total Packages Text</label>
+              <input type="text" id="form-total_pkgs" placeholder="e.g. 568 CTNS">
+            </div>
+            <div class="form-group">
+              <label for="form-gross_weight">Gross Weight</label>
+              <input type="text" id="form-gross_weight" placeholder="e.g. 12450.00 KGS">
+            </div>
+            <div class="form-group">
+              <label for="form-net_weight">Net Weight</label>
+              <input type="text" id="form-net_weight" placeholder="e.g. 11980.00 KGS">
+            </div>
+            <div class="form-group">
+              <label for="form-cbm">CBM (Total Volume)</label>
+              <input type="text" id="form-cbm" placeholder="e.g. 64.000">
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Tab 2: Addresses & Entities -->
+        <div class="modal-tab-content" id="mt-addresses">
+          <div class="form-grid cols-2">
+            <div class="form-group form-span-2">
+              <label for="form-shipper">Shipper Name & Address Details</label>
+              <textarea id="form-shipper" rows="4" placeholder="Enter Shipper address block..."></textarea>
+            </div>
+            <div class="form-group form-span-2">
+              <label for="form-consignee">Consignee Name & Address Details</label>
+              <textarea id="form-consignee" rows="4" placeholder="Enter Consignee address block..."></textarea>
+            </div>
+            <div class="form-group form-span-2">
+              <label for="form-notify">Notify Party Address Details</label>
+              <textarea id="form-notify" rows="3" placeholder="Enter Notify party address block (or SAME AS CONSIGNEE)..."></textarea>
+            </div>
+            <div class="form-group form-span-2">
+              <label for="form-also_notify">Also Notify Party Details</label>
+              <textarea id="form-also_notify" rows="2" placeholder="Also Notify Details..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="form-cha">Customs Broker (CHA) Details</label>
+              <textarea id="form-cha" rows="3" placeholder="CHA details..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="form-forwarding_agent">Forwarding Agent Details</label>
+              <textarea id="form-forwarding_agent" rows="3" placeholder="Forwarder details..."></textarea>
+            </div>
+            <div class="form-group form-span-2">
+              <label for="form-buyer_if_other">Buyer Details (If other than consignee)</label>
+              <textarea id="form-buyer_if_other" rows="2" placeholder="Buyer details..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Tab 3: Cargo Items Grid -->
+        <div class="modal-tab-content" id="mt-cargo">
+          <div class="form-group form-span-2">
+            <label for="form-cargo_desc">General Manifest Description of Goods</label>
+            <textarea id="form-cargo_desc" rows="3" placeholder="Description of goods for the Bill of Lading manifest..."></textarea>
+          </div>
+
+          <div class="modal-grid-header">
+            <h4>Description of Goods Detail Grid</h4>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-cargo-row">+ Add Item Row</button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="edit-grid-table" id="form-cargo-grid">
+              <thead>
+                <tr>
+                  <th style="width: 5%">Sl</th>
+                  <th style="width: 35%">Description of Goods</th>
+                  <th style="width: 12%">HS Code</th>
+                  <th style="width: 8%">Qty</th>
+                  <th style="width: 8%">Unit</th>
+                  <th style="width: 10%">Rate ($)</th>
+                  <th style="width: 10%">Net Wt</th>
+                  <th style="width: 10%">Gross Wt</th>
+                  <th style="width: 2%"></th>
+                </tr>
+              </thead>
+              <tbody id="form-cargo-tbody">
+                <!-- Rows added dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal Tab 4: Containers Grid -->
+        <div class="modal-tab-content" id="mt-containers">
+          <div class="modal-grid-header">
+            <h4>Containers and Packing List Grid</h4>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-container-row">+ Add Container Row</button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="edit-grid-table" id="form-containers-grid">
+              <thead>
+                <tr>
+                  <th style="width: 5%">Sl</th>
+                  <th style="width: 25%">Container Number</th>
+                  <th style="width: 20%">Seal Number</th>
+                  <th style="width: 20%">No. of Pkgs</th>
+                  <th style="width: 10%">Net Wt (Kgs)</th>
+                  <th style="width: 10%">Gross Wt (Kgs)</th>
+                  <th style="width: 8%">CBM</th>
+                  <th style="width: 2%"></th>
+                </tr>
+              </thead>
+              <tbody id="form-containers-tbody">
+                <!-- Rows added dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal Tab 5: Billing & Charges -->
+        <div class="modal-tab-content" id="mt-billing">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="form-exchange_rate">Exchange Rate (INR / USD)</label>
+              <input type="text" id="form-exchange_rate" placeholder="e.g. 83.50">
+            </div>
+            <div class="form-group form-span-2">
+              <label for="form-bank_ac_drawback">Bank Account & Drawback Details</label>
+              <textarea id="form-bank_ac_drawback" rows="2" placeholder="e.g. A/C NO: 9876543210 STATE BANK OF INDIA IFSC: SBIN0000001"></textarea>
+            </div>
+          </div>
+
+          <div class="modal-grid-header">
+            <h4>Charges and Services Grid</h4>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-charge-row">+ Add Charge Row</button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="edit-grid-table" id="form-charges-grid">
+              <thead>
+                <tr>
+                  <th style="width: 70%">Charge Description</th>
+                  <th style="width: 28%">Amount (INR)</th>
+                  <th style="width: 2%"></th>
+                </tr>
+              </thead>
+              <tbody id="form-charges-tbody">
+                <!-- Rows added dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="modal-btn-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="modal-btn-submit">Save Shipment</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Billing Closure Prompt Modal -->
+    <div class="modal-backdrop" id="closure-modal-backdrop"></div>
+    <div class="job-modal" id="closure-modal" style="width: 440px; max-width: 90vw;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 15px;">
+        <h2 style="display:flex; align-items:center; gap:8px;">
+          <span class="material-symbols-outlined" style="color:var(--success)">price_check</span>
+          Accounts Closure Details
+        </h2>
+        <button class="close-btn" id="closure-btn-close">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <form id="closure-form" style="padding: 20px;">
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.4;">
+          Please enter the final invoice details below to complete the workflow. This will officially close the shipment job.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+          <div class="form-group">
+            <label for="closure-bill-no" style="font-size: 0.78rem; font-weight:600; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:6px;">Bill Number *</label>
+            <input type="text" id="closure-bill-no" required placeholder="e.g. INV/2026/044" style="width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); outline: none; transition: var(--transition);">
+          </div>
+          <div class="form-group">
+            <label for="closure-bill-amount" style="font-size: 0.78rem; font-weight:600; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:6px;">Bill Amount (INR) *</label>
+            <input type="number" step="any" id="closure-bill-amount" required placeholder="e.g. 175000.00" style="width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); outline: none; transition: var(--transition);">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="form-group">
+              <label for="closure-sgst" style="font-size: 0.78rem; font-weight:600; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:6px;">SGST (INR) *</label>
+              <input type="number" step="any" id="closure-sgst" required placeholder="e.g. 15750.00" style="width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); outline: none; transition: var(--transition);">
+            </div>
+            <div class="form-group">
+              <label for="closure-cgst" style="font-size: 0.78rem; font-weight:600; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:6px;">CGST (INR) *</label>
+              <input type="number" step="any" id="closure-cgst" required placeholder="e.g. 15750.00" style="width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); outline: none; transition: var(--transition);">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; background: transparent;">
+          <button type="button" class="btn btn-secondary" id="closure-btn-cancel" style="padding: 8px 16px;">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="closure-btn-submit" style="padding: 8px 20px;">Submit & Close Job</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div class="modal-backdrop" id="confirm-modal-backdrop"></div>
+    <div class="job-modal" id="confirm-modal" style="width: 420px; max-width: 90vw;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 15px;">
+        <h2 style="display:flex; align-items:center; gap:8px;">
+          <span class="material-symbols-outlined" style="color:var(--danger)">warning</span>
+          Confirm Action
+        </h2>
+        <button class="close-btn" id="confirm-btn-close">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div style="padding: 20px;">
+        <p id="confirm-modal-message" style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 20px 0;">
+          Are you sure you want to proceed?
+        </p>
+        <div class="modal-footer" style="margin-top: 0; padding-top: 15px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; background: transparent;">
+          <button type="button" class="btn btn-secondary" id="confirm-btn-cancel" style="padding: 8px 16px;">Cancel</button>
+          <button type="button" class="btn btn-danger" id="confirm-btn-submit" style="padding: 8px 20px; background: var(--danger); border-color: var(--danger); color: white;">Yes, Delete</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

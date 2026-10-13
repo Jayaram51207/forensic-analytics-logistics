@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon />
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="EasyQuoteImport\**" />
+    <EmbeddedResource Remove="EasyQuoteImport\**" />
+    <None Remove="EasyQuoteImport\**" />
+    <Page Remove="EasyQuoteImport\**" />
+    <Compile Remove="StuffingReport\**" />
+    <EmbeddedResource Remove="StuffingReport\**" />
+    <None Remove="StuffingReport\**" />
+    <Page Remove="StuffingReport\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+  </ItemGroup>
+
+</Project>

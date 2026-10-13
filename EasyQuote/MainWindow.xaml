@@ -1,0 +1,348 @@
+<Window x:Class="EasyQuote.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="EasyQuote - Professional Shipping Quote Builder" 
+        Height="820" Width="1300"
+        MinWidth="1100" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#F8FAFC">
+    
+    <Window.Resources>
+        <!-- Modern ScrollViewer Styling -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Height" Value="8"/>
+        </Style>
+
+        <!-- Card Border Style -->
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Margin" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="12" Color="#0F172A" Opacity="0.04" ShadowDepth="2" Direction="270"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Section Header Style -->
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
+        <!-- Text Box Style -->
+        <Style x:Key="InputTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <!-- Dynamic Grid Cell TextBox Style -->
+        <Style x:Key="GridTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="4,4"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="1"/>
+        </Style>
+
+        <!-- Modern Button Styles -->
+        <Style x:Key="BaseButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="4"/>
+        </Style>
+
+        <!-- Primary Button (Blue) -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1D4ED8"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Success Button (Green) -->
+        <Style x:Key="SuccessButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="#16A34A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#15803D"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Secondary Button (Slate) -->
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="#475569"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#334155"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Danger Button (Red/Crimson) -->
+        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="#DC2626"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#B91C1C"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- Title Bar -->
+            <RowDefinition Height="65"/>
+            <!-- Content Area -->
+            <RowDefinition Height="*"/>
+            <!-- Footer Status Bar -->
+            <RowDefinition Height="30"/>
+        </Grid.RowDefinitions>
+
+        <!-- Gradient Header -->
+        <Border Grid.Row="0" BorderThickness="0,0,0,1" BorderBrush="#E2E8F0">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#0F172A" Offset="0.0"/>
+                    <GradientStop Color="#1E293B" Offset="1.0"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid Margin="20,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="EasyQuote" FontSize="20" FontWeight="Bold" Foreground="#FFFFFF"/>
+                    <TextBlock Text="Shipping Quotation Creator &amp; Email Exporter" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <Button Grid.Column="1" Style="{StaticResource SuccessButtonStyle}" Click="CopyHtmlBtn_Click" Content="Copy HTML Table for Email" Padding="14,8"/>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1" Margin="8">
+            <Grid.ColumnDefinitions>
+                <!-- Editor (Left) -->
+                <ColumnDefinition Width="3*"/>
+                <!-- Live Preview & Operations (Right) -->
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT SIDE: Editor Panel -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <!-- Client Details Info Card -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Interactive Table Card -->
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Client details card -->
+                <Border Grid.Row="0" Style="{StaticResource CardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <TextBlock Text="Quotation Header Details" Style="{StaticResource SectionHeaderStyle}"/>
+                        
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1.5*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Client Name -->
+                            <StackPanel Grid.Column="0" Margin="0,0,10,10">
+                                <TextBlock Text="Client Name:" Margin="0,0,0,4" Foreground="#64748B" FontSize="11" FontWeight="Medium"/>
+                                <TextBox x:Name="ClientNameTxt" Style="{StaticResource InputTextBoxStyle}" Text="Valued Customer" TextChanged="QuoteDetail_TextChanged"/>
+                            </StackPanel>
+
+                            <!-- Quote Number -->
+                            <StackPanel Grid.Column="1" Margin="0,0,10,10">
+                                <TextBlock Text="Quote Reference:" Margin="0,0,0,4" Foreground="#64748B" FontSize="11" FontWeight="Medium"/>
+                                <TextBox x:Name="QuoteRefTxt" Style="{StaticResource InputTextBoxStyle}" Text="EQ/2026/0602" TextChanged="QuoteDetail_TextChanged"/>
+                            </StackPanel>
+
+                            <!-- Subject -->
+                            <StackPanel Grid.Column="2" Grid.RowSpan="1" Margin="0,0,0,10">
+                                <TextBlock Text="Subject / Description:" Margin="0,0,0,4" Foreground="#64748B" FontSize="11" FontWeight="Medium"/>
+                                <TextBox x:Name="SubjectTxt" Style="{StaticResource InputTextBoxStyle}" Text="Quotation for Export Local Charges" TextChanged="QuoteDetail_TextChanged"/>
+                            </StackPanel>
+
+                            <!-- Date -->
+                            <StackPanel Grid.Column="0" Grid.Row="1" Margin="0,0,10,0">
+                                <TextBlock Text="Quotation Date:" Margin="0,0,0,4" Foreground="#64748B" FontSize="11" FontWeight="Medium"/>
+                                <TextBox x:Name="QuoteDateTxt" Style="{StaticResource InputTextBoxStyle}" Text="02-Jun-2026" TextChanged="QuoteDetail_TextChanged"/>
+                            </StackPanel>
+
+                            <!-- Terms / Validity -->
+                            <StackPanel Grid.Column="1" Grid.Row="1" Margin="0,0,10,0">
+                                <TextBlock Text="Validity Period:" Margin="0,0,0,4" Foreground="#64748B" FontSize="11" FontWeight="Medium"/>
+                                <TextBox x:Name="ValidityTxt" Style="{StaticResource InputTextBoxStyle}" Text="Valid for 15 Days" TextChanged="QuoteDetail_TextChanged"/>
+                            </StackPanel>
+
+                            <!-- Sub-header note -->
+                            <StackPanel Grid.Column="2" Grid.Row="1">
+                                <TextBlock Text="Header Note (Preceding Table):" Margin="0,0,0,4" Foreground="#64748B" FontSize="11" FontWeight="Medium"/>
+                                <TextBox x:Name="HeaderNoteTxt" Style="{StaticResource InputTextBoxStyle}" Text="We are pleased to quote our best rates for your shipment details below:" TextChanged="QuoteDetail_TextChanged"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- Interactive Table Card -->
+                <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Edit Quotation Table Cells" Style="{StaticResource SectionHeaderStyle}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="➕ Add Row" Click="AddRowBtn_Click" Style="{StaticResource SuccessButtonStyle}" FontSize="10" Padding="8,4" Margin="2,0"/>
+                                <Button Content="➕ Add Column" Click="AddColumnBtn_Click" Style="{StaticResource PrimaryButtonStyle}" FontSize="10" Padding="8,4" Margin="2,0"/>
+                                <Button Content="Select All Rows" Click="SelectAllRows_Click" Style="{StaticResource SecondaryButtonStyle}" FontSize="10" Padding="8,4" Margin="2,0"/>
+                                <Button Content="Deselect All Rows" Click="DeselectAllRows_Click" Style="{StaticResource SecondaryButtonStyle}" FontSize="10" Padding="8,4" Margin="2,0"/>
+                            </StackPanel>
+                        </Grid>
+                        
+                        <!-- Mini Legend/Instructions -->
+                        <TextBlock Grid.Row="1" FontSize="11" Foreground="#64748B" Margin="0,0,0,10" TextWrapping="Wrap">
+                            💡 Use checkboxes on columns and rows to include/exclude them from the generated quote. Checkboxes do not affect default cells. Green headers indicate Chennai rates, Blue headers indicate Tuti. rates.
+                        </TextBlock>
+
+                        <!-- Scrollable Table Workspace -->
+                        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                            <Grid x:Name="TableGrid" ShowGridLines="False" Background="#F1F5F9" SnapsToDevicePixels="True"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- RIGHT SIDE: Preview & Operations Panel -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <!-- Preview Title -->
+                    <RowDefinition Height="*"/>
+                    <!-- Control buttons -->
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Preview card -->
+                <Border Style="{StaticResource CardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Live Quote Preview (Email Style)" Style="{StaticResource SectionHeaderStyle}"/>
+                        
+                        <!-- WebBrowser for exact rendering of HTML table -->
+                        <Border Grid.Row="1" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4" Background="White" ClipToBounds="True">
+                            <WebBrowser x:Name="PreviewBrowser"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Actions card -->
+                <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Actions &amp; Export Options" Style="{StaticResource SectionHeaderStyle}"/>
+                        
+                        <!-- Primary copying buttons -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <Button Grid.Column="0" Style="{StaticResource SuccessButtonStyle}" Click="CopyHtmlBtn_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📋 Copy HTML Table"/>
+                                </StackPanel>
+                            </Button>
+                            
+                            <Button Grid.Column="1" Style="{StaticResource SecondaryButtonStyle}" Click="CopyTextBtn_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📄 Copy Plain Text"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <!-- Secondary action buttons -->
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <Button Grid.Column="0" Style="{StaticResource SecondaryButtonStyle}" Click="SaveHtmlFileBtn_Click" Content="💾 Export HTML File"/>
+                            <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" Click="ExportExcelBtn_Click" Content="📊 Export Excel File"/>
+                        </Grid>
+                        
+                        <Button Style="{StaticResource DangerButtonStyle}" Margin="4,6,4,0" Click="ResetBtn_Click" Content="🔄 Reset Defaults"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="2" Background="#0F172A" BorderThickness="0,1,0,0" BorderBrush="#1E293B">
+            <Grid Margin="15,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusTxt" Text="Ready" Foreground="#94A3B8" FontSize="11" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="Created for EasyQuote" Foreground="#64748B" FontSize="11" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
