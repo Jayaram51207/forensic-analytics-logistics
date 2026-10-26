@@ -168,3 +168,21 @@ for (const [name, exe, app, action] of [
     assert.equal(ingest(new EventStore(path.join(dir, 'e')), path.join(outbox, app + '.jsonl')).ingested, 1);
   });
 }
+
+test('EasyQuote quotations: ingested and verified, reported as evidence not tied to a shipment, never used as a contradiction', async () => {
+  const { createDashboard } = await import('../src/dashboard.js');
+  const dir = tmp(), store = new EventStore(dir), file = path.join(dir, 'o.jsonl');
+  for (const app of ['easyquote_export', 'easyquote_import']) {
+    outboxAppend(file, { application: app, action: 'quotation.exported', entity_type: 'quotation', shipment_ref: null, actor_claim: 'synthetic-user', actor_source: 'os_account_claimed',
+      payload: { format: 'clipboard_html', quote_ref: 'Q-SYN-1', client_name: 'Synthetic Client', columns: [{ header: '20FT', enabled: true }], rows: [{ header: 'Ocean freight', enabled: true, values: ['100'], defaults: ['100'], differs_from_default: false }] } });
+  }
+  assert.equal(ingest(store, file).ingested, 2);
+  assert.deepEqual(store.verify().problems, []);
+  const d = createDashboard({ dir, labelsFile: null });
+  await new Promise(r => d.listen(0, '127.0.0.1', r));
+  try {
+    const ov = await (await fetch(`http://127.0.0.1:${d.address().port}/api/overview`)).json();
+    assert.deepEqual(ov.unlinked_external, { easyquote_export: { unlinked: 1, ambiguous: 0 }, easyquote_import: { unlinked: 1, ambiguous: 0 } });
+    assert.equal(ov.cases.length, 0);
+  } finally { d.close(); }
+});
