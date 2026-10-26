@@ -28,7 +28,7 @@ export async function generate({ seed = 1, jobs = 60, out, normalOnly = false, o
   const api = await driver(server.base, server.credentials());
   const pick = rng(seed);
   let types = Object.keys(mix);
-  if (normalOnly) types = types.filter(t => t.startsWith('clean_') || ['early_correction_regenerated', 'nonmaterial_late_edit', 'legit_reopen', 'regen_identical_few', 'source_matches', 'packing_fits', 'xapp_consistent', 'xapp_duplicate_evidence'].includes(t));
+  if (normalOnly) types = types.filter(t => t.startsWith('clean_') || ['early_correction_regenerated', 'nonmaterial_late_edit', 'legit_reopen', 'regen_identical_few', 'source_matches', 'packing_fits', 'xapp_consistent', 'xapp_duplicate_evidence', 'legit_night_shift', 'legit_backfill', 'xapp_rounding_difference', 'xapp_unit_variant'].includes(t));
   const total = types.reduce((s, t) => s + mix[t], 0);
   const choose = () => { let x = pick() * total; for (const t of types) { x -= mix[t]; if (x <= 0) return t; } return types.at(-1); };
   // `only` runs each listed scenario exactly once (used by tests); otherwise scenarios are sampled by weight.
@@ -47,7 +47,7 @@ export async function generate({ seed = 1, jobs = 60, out, normalOnly = false, o
         const label = await SCENARIOS[p.type](ctx);
         labels.push({ scenario_id: `${seed}-${p.i + 1}`, job_no: p.jobNo, type: p.type, ...label });
       } catch (err) {
-        errors.push({ job_no: p.jobNo, type: p.type, error: err.message });
+        errors.push({ job_no: p.jobNo, type: p.type, error: err.message + (err.cause ? ` (${err.cause.code || err.cause.message})` : '') });
       }
     }
   }));

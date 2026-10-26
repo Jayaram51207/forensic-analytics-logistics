@@ -614,7 +614,7 @@ app.get('*', (req, res) => {
 
 // Start listening
 if (!TLS) console.warn('WARNING: plain HTTP - passwords and session cookies are not encrypted on the network. Set SYNC_TLS_CERT and SYNC_TLS_KEY for HTTPS.');
-(TLS ? https.createServer(TLS, app) : app).listen(PORT, '0.0.0.0', () => {
+const httpServer = (TLS ? https.createServer(TLS, app) : app).listen(PORT, '0.0.0.0', () => {
   console.log(`==================================================`);
   console.log(`🚀 Workflow Synchronizer Server running on PORT ${PORT}`);
   console.log(`--------------------------------------------------`);
@@ -636,3 +636,8 @@ if (!TLS) console.warn('WARNING: plain HTTP - passwords and session cookies are 
   }
   console.log(`==================================================`);
 });
+// Idle keep-alive sockets are closed by Node after 5 s by default; a client reusing one at that moment
+// gets ECONNRESET. Desk browsers poll and keep connections open, so keep idle sockets longer.
+httpServer.keepAliveTimeout = 65000;
+httpServer.headersTimeout = 66000;
+

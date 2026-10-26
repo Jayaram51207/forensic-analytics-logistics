@@ -124,7 +124,7 @@ export function analyze(records, config = {}) {
     const evidenceIds = [...new Set(fs_.flatMap(f => f.evidence_event_ids))];
     const artifacts = view.events.flatMap(e => (e.artifacts || []).map(a => ({ event_id: e.event_id, generation_number: e.generation_number, ...a })));
     cases.push({
-      case_id: id, correlation_id: view.correlation_id, job_no: view.job_no, job_nos_seen: [...view.job_nos], entity_id: view.entity_id,
+      case_id: id, correlation_id: view.correlation_id, job_no: view.job_no, job_nos_seen: [...view.job_nos], entity_id: view.entity_id, deleted: !!view.deleted,
       status: history.at(-1)?.disposition || 'requires_review', dispositions: history,
       priority: sc,
       reasons: fs_.filter(f => f.kind === 'anomaly').sort((a, b) => SCORING.severity_weight[b.severity] - SCORING.severity_weight[a.severity]).map(f => f.title),

@@ -35,20 +35,46 @@
   select, input, textarea, button { font:inherit; padding:5px 7px; border:1px solid var(--line); border-radius:5px; background:var(--panel); color:var(--ink); }
   button { cursor:pointer; }
   .warn { color:var(--hi); font-weight:600; }
+  nav button.on { border-color:var(--low); color:var(--low); font-weight:600; }
+  .filters { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .filters input[type=search] { flex:1 1 140px; }
+  .chip { display:inline-block; margin:0 4px 4px 0; padding:1px 8px; border:1px solid var(--line); border-radius:10px; font-size:12px; cursor:pointer; }
+  .chip.on { border-color:var(--low); color:var(--low); }
+  .legend span { display:inline-block; margin-right:12px; }
+  .truth { border:1px dashed var(--med); }
+  .cm td { text-align:right; font-variant-numeric:tabular-nums; }
+  #view-eval { display:block; }
+  .hidden { display:none !important; }
 </style>
 </head>
 <body>
 <header>
   <h1>Forensic Investigation</h1>
+  <nav><button id="tab-cases" class="on">Cases</button> <button id="tab-eval">Evaluation</button></nav>
   <span id="integrity" class="mute">checking evidence integrity…</span>
   <span id="business-rules" class="mute"></span>
   <span class="mute">Findings are potential anomalies for human review. Scores rank the queue; they are not probabilities.</span>
 </header>
-<main>
+<main id="view-cases">
   <section>
-    <div class="panel"><h2>Review queue</h2><div id="cases"></div></div>
+    <div class="panel"><h2>Review queue</h2>
+      <div class="filters">
+        <input type="search" id="f-text" placeholder="job number, case or reason">
+        <select id="f-band"><option value="">all priorities</option><option>high</option><option>medium</option><option>low</option></select>
+        <select id="f-rule"><option value="">all rules</option></select>
+        <label class="mute"><input type="checkbox" id="f-deleted"> deleted jobs</label>
+        <label class="mute"><input type="checkbox" id="f-xap"> with contradictions</label>
+      </div>
+      <div id="queue-count" class="mute"></div>
+      <div id="cases"></div>
+    </div>
+    <div class="panel"><h2>Rules raised (cases)</h2><div id="rule-breakdown"></div></div>
+    <div class="panel"><h2>Evidence not tied to a shipment</h2><div id="unlinked"></div></div>
   </section>
   <section id="detail"><div class="panel mute">Select a case.</div></section>
+</main>
+<main id="view-eval" class="hidden">
+  <section id="evaluation"><div class="panel mute">Loading evaluation…</div></section>
 </main>
 <script>
 // All data from the evidence store is untrusted text: it is only ever placed
@@ -71,12 +97,34 @@ async function loadOverview(keep) {
   const br = overview.business_rules || { unresolved: [] }, bel = document.getElementById('business-rules');
   bel.textContent = br.unresolved.length ? `Business rules not configured: ${br.unresolved.join(', ')}. Results for these are unresolved, and workflow compliance is not verified.` : 'Business rules configured.';
   bel.className = br.unresolved.length ? 'warn' : 'ok';
+  const sel = document.getElementById('f-rule'), cur = sel.value;
+  sel.replaceChildren($('option', { value: '' }, 'all rules'), ...Object.keys(overview.rule_breakdown || {}).sort().map(r => $('option', { value: r }, r)));
+  sel.value = cur;
+  document.getElementById('rule-breakdown').replaceChildren(...Object.entries(overview.rule_breakdown || {}).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
+    $('span', { class: 'chip' + (cur === r ? ' on' : ''), onclick: () => { sel.value = sel.value === r ? '' : r; renderQueue(); loadOverview(); } }, `${r} · ${n}`)),
+    Object.keys(overview.rule_breakdown || {}).length ? null : $('span', { class: 'mute' }, 'No anomaly findings.'));
+  const un = Object.entries(overview.unlinked_external || {});
+  document.getElementById('unlinked').replaceChildren(
+    un.length ? $('table', {}, $('tr', {}, ['application', 'no shipment found', 'matches several'].map(h => $('th', {}, h))), un.map(([app, o]) => $('tr', {}, $('td', {}, app), $('td', {}, o.unlinked), $('td', {}, o.ambiguous))))
+      : $('div', { class: 'mute' }, 'Every external record is linked to one shipment.'),
+    $('div', { class: 'mute' }, `${overview.refused_requests || 0} refused request(s) in the evidence. Records listed here are kept but never used as evidence against a shipment.`));
+  renderQueue(keep);
+}
+
+function renderQueue(keep) {
+  const text = document.getElementById('f-text').value.trim().toLowerCase(), band = document.getElementById('f-band').value, rule = document.getElementById('f-rule').value;
+  const del = document.getElementById('f-deleted').checked, xap = document.getElementById('f-xap').checked;
+  const list = overview.cases.filter(c => (!band || c.band === band) && (!rule || c.rules.includes(rule)) && (!del || c.deleted) && (!xap || c.contradictions > 0)
+    && (!text || [c.job_no, c.case_id, ...c.reasons].join(' ').toLowerCase().includes(text)));
+  document.getElementById('queue-count').textContent = `${list.length} of ${overview.cases.length} case(s) · ${overview.shipments} shipment(s) in evidence`;
   const box = document.getElementById('cases');
-  box.replaceChildren(...overview.cases.map(c => $('div', { class: 'case' + (c.case_id === keep ? ' sel' : ''), onclick: () => openCase(c.case_id) },
+  box.replaceChildren(...list.map(c => $('div', { class: 'case' + (c.case_id === keep ? ' sel' : ''), onclick: () => openCase(c.case_id) },
     $('div', { class: 'row' }, $('strong', {}, c.job_no ?? '(no job number)'), $('span', { class: 'tag ' + c.band }, `${c.priority} ${c.band}`)),
-    $('div', { class: 'mute' }, `${c.case_id} · ${c.status.replaceAll('_', ' ')} · ${c.n_anomaly_findings} finding(s), ${c.n_data_quality_findings} note(s)`),
-    $('div', {}, c.reasons[0] || 'data-quality notes only'))));
-  if (!overview.cases.length) box.append($('div', { class: 'mute' }, 'No cases.'));
+    $('div', { class: 'mute' }, `${c.case_id} · ${c.status.replaceAll('_', ' ')} · ${c.n_anomaly_findings} finding(s), ${c.n_data_quality_findings} note(s)${c.contradictions ? ` · ${c.contradictions} contradiction(s)` : ''}${c.deleted ? ' · DELETED' : ''}`),
+    $('div', {}, c.reasons[0] || 'data-quality notes only'),
+    c.rules.length ? $('div', { class: 'mute mono' }, c.rules.join(' ')) : null,
+    c.ground_truth ? $('div', { class: 'mute' }, `synthetic ground truth: ${c.ground_truth.class} (${c.ground_truth.type})`) : null)));
+  if (!list.length) box.append($('div', { class: 'mute' }, overview.cases.length ? 'No case matches the filters.' : 'No cases.'));
 }
 
 function changes(list) {
@@ -88,7 +136,18 @@ async function openCase(id) {
   document.querySelectorAll('.case').forEach(e => e.classList.remove('sel'));
   const s = d.priority.components;
   const el = document.getElementById('detail');
+  const overwritten = d.timeline.filter(t => t.action === 'job.updated' && t.changes.length);
   el.replaceChildren(
+    $('div', { class: 'panel legend mute' },
+      $('span', {}, $('strong', {}, 'Recorded evidence'), ': hash-chained events and their values'),
+      $('span', {}, $('strong', {}, 'Inferred'), ': findings and contradictions (potential anomalies, not proof)'),
+      $('span', { class: 'warn' }, 'Unresolved'), $('span', {}, ': missing business rules, insufficient evidence, single-source values'),
+      d.ground_truth !== undefined ? $('span', {}, $('strong', {}, 'Synthetic ground truth'), ': scenario label, never used by the analysis') : null),
+    d.ground_truth ? $('div', { class: 'panel truth' }, $('h2', {}, 'Synthetic ground truth (not used by the analysis)'),
+      $('div', {}, `${d.ground_truth.class} · ${d.ground_truth.type} · expected rules: ${d.ground_truth.expected_rules.join(', ') || 'none'}`),
+      $('div', { class: 'mute' }, d.ground_truth.explanation),
+      (() => { const got = [...new Set(d.findings.filter(f => f.kind === 'anomaly').map(f => f.rule_id))].sort(), want = [...d.ground_truth.expected_rules].sort();
+        return $('div', { class: JSON.stringify(got) === JSON.stringify(want) ? 'ok' : 'warn' }, `raised: ${got.join(', ') || 'none'} — ${JSON.stringify(got) === JSON.stringify(want) ? 'matches the label' : 'differs from the label'}`); })()) : null,
     $('div', { class: 'panel' },
       $('h2', {}, 'Case'),
       $('div', { class: 'row' }, $('strong', {}, `${d.case_id} — job ${d.job_no}`), $('span', { class: 'tag ' + d.priority.band }, `priority ${d.priority.value} (${d.priority.band})`)),
@@ -103,6 +162,11 @@ async function openCase(id) {
         $('div', { class: 'mute mono' }, 'evidence: ' + f.evidence_event_ids.join(', '))))),
     d.limitations.length ? $('div', { class: 'panel' }, $('h2', {}, 'Uncertainty and limitations'), $('ul', {}, d.limitations.map(l => $('li', {}, l)))) : null,
     ...(d.provenance ? provenancePanels(d.provenance) : []),
+    $('div', { class: 'panel' }, $('h2', {}, `Overwritten values (${overwritten.length} edit(s))${d.state_from_evidence && d.timeline.some(t => t.action === 'job.deleted') ? ' · job DELETED from the application; reconstructed from evidence' : ''}`),
+      overwritten.length ? $('table', {}, $('tr', {}, ['time', 'actor', 'old → new'].map(h => $('th', {}, h))),
+        overwritten.map(t => $('tr', { class: t.cited_by_finding ? 'cited' : '' }, $('td', {}, t.event_time.replace('T', ' ').replace('.000Z', '')), $('td', {}, t.actor || '—'), $('td', {}, changes(t.changes)))))
+        : $('div', { class: 'mute' }, 'No captured edit changed a value.'),
+      $('div', { class: 'mute' }, 'Earlier values survive only in the evidence store; the application keeps the latest value.')),
     $('div', { class: 'panel' }, $('h2', {}, 'Document generations'),
       $('table', {}, $('tr', {}, ['#', 'time', 'outcome', 'input hash', 'outputs (path · sha256 · content fingerprint)'].map(h => $('th', {}, h))),
         d.generations.map((g, i) => $('tr', {},
@@ -173,6 +237,68 @@ async function saveDisposition(id) {
   if (!res.ok) { document.getElementById('saved').textContent = 'Not saved: ' + body.error; return; }
   await loadOverview(id);
   openCase(id);
+}
+
+// ---- filters and tabs
+for (const id of ['f-text', 'f-band', 'f-rule', 'f-deleted', 'f-xap']) document.getElementById(id).addEventListener('input', () => renderQueue());
+const tab = name => {
+  document.getElementById('view-cases').classList.toggle('hidden', name !== 'cases');
+  document.getElementById('view-eval').classList.toggle('hidden', name !== 'eval');
+  document.getElementById('tab-cases').classList.toggle('on', name === 'cases');
+  document.getElementById('tab-eval').classList.toggle('on', name === 'eval');
+  if (name === 'eval') loadEvaluation();
+};
+document.getElementById('tab-cases').addEventListener('click', () => tab('cases'));
+document.getElementById('tab-eval').addEventListener('click', () => tab('eval'));
+
+// ---- evaluation (synthetic data; results of evaluation/summarize.js)
+const f3 = v => (v === null || v === undefined ? 'n/a' : Number(v).toFixed(3));
+const frac = (a, b) => (b ? `${a}/${b} (${(100 * a / b).toFixed(1)}%)` : 'n/a');
+async function loadEvaluation() {
+  const box = document.getElementById('evaluation');
+  const res = await fetch('/api/evaluation');
+  const e = await res.json();
+  if (!res.ok) { box.replaceChildren($('div', { class: 'panel warn' }, e.error)); return; }
+  const V = Object.keys(e.variants);
+  const cm = (k, p) => $('div', { class: 'panel' }, $('h2', {}, `${k} · ${e.variants[k]}`),
+    $('table', { class: 'cm' }, $('tr', {}, $('th', {}, ''), $('th', {}, 'flagged'), $('th', {}, 'not flagged')),
+      $('tr', {}, $('th', {}, 'anomaly (label)'), $('td', {}, p.tp), $('td', {}, p.fn)),
+      $('tr', {}, $('th', {}, 'negative (label)'), $('td', {}, p.fp), $('td', {}, p.tn))),
+    $('div', { class: 'mute' }, `precision ${f3(p.precision)} · recall ${f3(p.recall)} · F1 ${f3(p.f1)} · FPR ${f3(p.false_positive_rate)}`));
+  const inv = e.investigation;
+  box.replaceChildren(
+    $('div', { class: 'panel warn' }, `SYNTHETIC DATA ONLY. Rules, scenarios and labels share one author; these figures show the implementation matches its specification, not real-world accuracy. Code ${String(e.run.code_commit).slice(0, 7)}, evaluated ${e.run.evaluated_at}, held-out datasets: ${e.held_out.join(', ')}.`),
+    $('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px' }, V.map(k => cm(k, e.pooled[k]))),
+    $('div', { class: 'panel' }, $('h2', {}, 'Rules, framework and Isolation Forest (pooled)'),
+      $('table', {}, $('tr', {}, ['variant', 'precision', 'recall', 'F1', 'FPR'].map(h => $('th', {}, h))),
+        V.map(k => $('tr', {}, $('td', {}, `${k} ${e.variants[k]}`), ...['precision', 'recall', 'f1', 'false_positive_rate'].map(m => $('td', {}, f3(e.pooled[k][m]))))),
+        Object.entries(e.ml).flatMap(([name, m]) => [['Isolation Forest only', 'ml_only'], ['A + Isolation Forest', 'rules_or_ml'], ['D + Isolation Forest', 'full_or_ml']].map(([label, key]) =>
+          $('tr', {}, $('td', {}, `${label} (${name})`), ...['precision', 'recall', 'f1', 'false_positive_rate'].map(x => $('td', {}, `${f3(m[key][x].mean)} ±${f3(m[key][x].sd)}`)))))),
+      $('div', { class: 'mute' }, 'Isolation Forest: mean ± sd over model seeds.')),
+    $('div', { class: 'panel' }, $('h2', {}, 'Per seed'),
+      $('table', {}, $('tr', {}, $('th', {}, 'variant'), e.held_out.map(d => $('th', {}, d))),
+        V.map(k => $('tr', {}, $('td', {}, k), e.per_seed[k].map(s => $('td', {}, `R ${f3(s.recall)} · P ${f3(s.precision)} · FPR ${f3(s.false_positive_rate)}`)))))),
+    $('div', { class: 'panel' }, $('h2', {}, 'By category (recall for anomaly categories, flag rate for negatives)'),
+      $('table', {}, $('tr', {}, $('th', {}, 'category'), $('th', {}, 'n'), V.map(k => $('th', {}, k))),
+        Object.entries(e.by_category).sort().map(([c, x]) => $('tr', {}, $('td', {}, c), $('td', {}, x.n), V.map(k => $('td', { class: ['normal', 'hard_negative', 'data_quality'].includes(c) ? (x.flagged[k] ? 'warn' : '') : (x.flagged[k] < x.n ? 'warn' : 'ok') }, f3(x.flagged[k] / x.n))))))),
+    $('div', { class: 'panel' }, $('h2', {}, 'Per scenario type'),
+      $('table', {}, $('tr', {}, $('th', {}, 'scenario'), $('th', {}, 'class'), $('th', {}, 'n'), V.map(k => $('th', {}, `${k} flagged`)), $('th', {}, 'D exact rules')),
+        Object.entries(e.by_type).sort((a, b) => a[1].class.localeCompare(b[1].class) || a[0].localeCompare(b[0])).map(([t, x]) => $('tr', {}, $('td', {}, t), $('td', {}, x.class), $('td', {}, x.n),
+          V.map(k => $('td', { class: x.class === 'anomaly' ? (x.flagged[k] < x.n ? 'warn' : '') : (x.flagged[k] ? 'warn' : '') }, x.flagged[k])), $('td', {}, `${x.exact_D}/${x.n}`))))),
+    $('div', { class: 'panel' }, $('h2', {}, 'False alarms (negative jobs flagged)'),
+      V.map(k => $('div', {}, `${k}: ${e.false_alarms[k].length}`, e.false_alarms[k].length ? $('div', { class: 'mute' }, e.false_alarms[k].slice(0, 20).map(x => `${x.dataset}/${x.job_no} ${x.type} [${x.fired.join(',')}]`).join('; ')) : null))),
+    $('div', { class: 'panel' }, $('h2', {}, 'Investigation quality (provenance and contradictions)'),
+      $('table', {}, $('tr', {}, ['measure', 'C provenance', 'X no lineage', 'D full'].map(h => $('th', {}, h))),
+        [['conflicting field identified', i => frac(i.conflicts.identified, i.conflicts.expected)],
+         ['lineage expectations met', i => frac(i.lineage_expectations.met, i.lineage_expectations.expected)],
+         ['copies counted as independent', i => frac(i.restraint.multi_record_agreement_counted_as_independent, i.restraint.multi_record_agreement_fields)],
+         ['external records linked correctly', i => frac(i.linkage.correctly_linked, i.linkage.expected_linked)],
+         ['unattributable left unlinked', i => frac(i.linkage.correctly_unlinked, i.linkage.expected_unlinked)],
+         ['ambiguous marked ambiguous', i => frac(i.linkage.correctly_ambiguous, i.linkage.expected_ambiguous)],
+         ['wrong attributions', i => String(i.linkage.wrongly_attributed)],
+         ['findings citing existing events', i => frac(i.provenance.findings_traceable, i.provenance.findings)]]
+          .map(([label, fn]) => $('tr', {}, $('td', {}, label), ['C', 'X', 'D'].map(k => $('td', {}, fn(inv[k])))))),
+      $('div', { class: 'mute' }, 'Lineage changes what the investigator is told (single source vs. independent agreement), not whether a job is flagged.')));
 }
 
 loadOverview();

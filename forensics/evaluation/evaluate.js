@@ -48,7 +48,7 @@ const FAMILY = Object.fromEntries(RULES.map(r => [r.id, r.family]));
 /** Category of a labelled job, from its label only (never from what fired). */
 export function categoryOf(l) {
   if (l.class !== 'anomaly') return l.class;
-  if (!l.expected_rules.length) return l.params.detection_gap ? 'access_control_gap' : l.type === 'unusual_timing' ? 'timing_no_rule' : 'needs_independent_source';
+  if (!l.expected_rules.length) return 'needs_independent_source';
   if (l.expected_rules.some(r => r.startsWith('XAP-'))) return 'cross_application';
   return FAMILY[l.expected_rules[0]] || 'other';
 }

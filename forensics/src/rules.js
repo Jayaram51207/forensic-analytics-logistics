@@ -38,6 +38,9 @@ export const DEFAULT_CONFIG = {
   reversal_threshold: 3,
   bulk_na_fraction: 0.4,
   check_container_check_digit: true,
+  // ASSUMPTION (domain, not a business rule): stuffing, gate pass, let-export and vessel departure lie
+  // between "Cargo Movement" and "Sailing Completed", so live recording of both takes hours at least.
+  min_cargo_to_sailing_minutes: 120,
   disabled_rules: []
 };
 
@@ -425,6 +428,38 @@ export const RULES = [
         }));
       }
       return out;
+    }
+  },
+  {
+    id: 'ACT-002', version: '1.0', family: 'access_control', severity: 'medium',
+    purpose: 'A privileged operation on this job was attempted by an account not allowed to perform it, and refused.',
+    run(view) {
+      if (!view.refused?.length) return [];
+      const who = [...new Set(view.refused.map(e => e.actor?.display_name || e.actor?.username || 'unknown'))];
+      return [finding(view, this, {
+        severity: this.severity,
+        title: `${view.refused.length} refused request(s) on this job`,
+        explanation: `The server refused ${view.refused.map(e => `${e.payload.method} ${e.payload.path} (${e.payload.reason})`).slice(0, 3).join('; ')} from ${who.join(', ')}. Nothing was changed. The standard interface hides these actions from accounts without the right, so the request was probably built by hand; it may also be a misunderstanding of permissions.`,
+        evidence_event_ids: ids(view.refused), details: { attempts: view.refused.length, actors: who }
+      })];
+    }
+  },
+  {
+    id: 'TIM-001', version: '1.0', family: 'timing', severity: 'medium',
+    purpose: 'Physical milestones recorded faster than the shipment could physically have moved.',
+    run(view, cfg) {
+      const at = name => view.status_changes.filter(c => c.name === name && c.new === 'Completed').at(-1)?.event;
+      const cargo = at('Cargo Movement'), sail = at('Sailing Completed');
+      if (!cargo || !sail) return [];
+      const minutes = (Date.parse(sail.server_timestamp) - Date.parse(cargo.server_timestamp)) / 60000;
+      if (minutes < 0 || minutes >= cfg.min_cargo_to_sailing_minutes) return [];
+      return [finding(view, this, {
+        severity: this.severity,
+        title: `Cargo movement and sailing recorded ${Math.round(minutes)} minute(s) apart`,
+        explanation: `"Cargo Movement" was completed at ${cargo.server_timestamp} and "Sailing Completed" at ${sail.server_timestamp}. Stuffing, gate pass, let-export and departure lie between them, so this was not recorded as it happened. It is also what entering a finished shipment after the fact looks like; check whether the job was back-entered.`,
+        evidence_event_ids: ids(cargo, sail), details: { minutes: +minutes.toFixed(1) },
+        assumptions: [`Live recording of these two milestones takes at least ${cfg.min_cargo_to_sailing_minutes} minutes (min_cargo_to_sailing_minutes; a domain assumption, not a confirmed business rule).`]
+      })];
     }
   },
   {

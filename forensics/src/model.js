@@ -21,14 +21,14 @@ function applyStatusChange(state, e) {
  */
 export function buildViews(records) {
   const views = new Map();
-  const context = { users: new Set(), external: [], uploads: new Map(), storeGaps: [] };
+  const context = { users: new Set(), external: [], uploads: new Map(), storeGaps: [], rejected: [] };
   const get = r => {
     if (!views.has(r.correlation_id)) {
       views.set(r.correlation_id, {
         correlation_id: r.correlation_id, entity_id: r.entity_id, job_no: r.job_no, job_nos: new Set(),
         events: [], state: null, last_state_hash: null, origin: null, created: null, deleted: null,
         updates: [], generations: [], status_changes: [], closures: [], reopenings: [],
-        source_links: [], external_links: [], gaps: []
+        source_links: [], external_links: [], gaps: [], refused: []
       });
     }
     return views.get(r.correlation_id);
@@ -38,6 +38,7 @@ export function buildViews(records) {
     if (r.action === 'system.started') for (const u of r.payload.users || []) context.users.add(u.name);
     if (r.action === 'user.created') context.users.add(r.payload.name);
     if (r.action === 'forensic.capture_gap') context.storeGaps.push(r);
+    if (r.action === 'auth.request_rejected') context.rejected.push(r);
     if (r.entity_type === 'upload') {
       const u = context.uploads.get(r.entity_id) || { events: [] };
       u.events.push(r);
@@ -115,6 +116,15 @@ export function buildViews(records) {
     }
     if (v.origin === 'baseline') v.gaps.push({ type: 'history_before_baseline_unknown', event_id: v.created.event_id, sequence: v.created.sequence, detail: 'job existed before capture began; no evidence about its creation or earlier edits' });
     if (!v.origin) v.gaps.push({ type: 'no_origin_event', detail: 'events exist for this job but no creation or baseline event was captured' });
+  }
+
+  // Refused requests carry no correlation id; the job id in the path ties them to the job that
+  // held that id at the time (ids can be reused after a deletion).
+  for (const r of context.rejected) {
+    const id = /^\/api\/jobs\/(\d+)/.exec(r.payload?.path || '')?.[1];
+    if (!id) continue;
+    const v = [...views.values()].find(x => String(x.entity_id) === id && x.created && x.created.sequence < r.sequence && !(x.deleted && x.deleted.sequence < r.sequence));
+    if (v) v.refused.push(r);
   }
 
   linkExternal(views, context);
@@ -204,12 +214,13 @@ export function reconstruct(view, context, { order = 'event_time', clockSkewMinu
   const uploadsFor = id => [...(context?.uploads.values() || [])].find(u => u.events.some(e => e.event_id === id))?.events || [];
   const sources = view.source_links.flatMap(l => uploadsFor(l.upload_event_id))
     .map(e => ({ ...timelineEntry(e), summary: e.action === 'source.uploaded' ? `Source document uploaded: ${e.payload.original_name}` : e.action === 'source.parsed' ? 'Source document parsed (regex extraction, unverified)' : 'Source document could not be parsed', link: 'checklist_pdf_url submitted with the job' }));
+  const refused = (view.refused || []).map(e => ({ ...timelineEntry(e), summary: `REFUSED ${e.payload.method} ${e.payload.path}: ${e.payload.reason} (nothing was changed)` }));
   const external = view.external_links.map(l => ({ ...timelineEntry(l.event), summary: `${l.event.application}: ${l.event.action}`, link: `${l.method}, confidence ${l.confidence}${l.ambiguous ? ' (AMBIGUOUS: matches several jobs)' : ''}` }));
   return {
     correlation_id: view.correlation_id, job_no: view.job_no, job_nos_seen: [...view.job_nos], entity_id: view.entity_id,
     origin: view.origin, deleted: !!view.deleted,
     current_state_from_evidence: view.state,
-    timeline: orderTimeline([...own, ...sources, ...external], order, clockSkewMinutes),
+    timeline: orderTimeline([...own, ...sources, ...refused, ...external], order, clockSkewMinutes),
     gaps: view.gaps,
     ordering: order,
     note: order === 'event_time'

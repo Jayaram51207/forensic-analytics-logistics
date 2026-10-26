@@ -252,3 +252,46 @@ test('investigation dashboard: empty, malformed and populated evidence; provenan
 
   assert.deepEqual(jsErrors, []);
 });
+
+test('dashboard analysis on demo shipments: filters, ground truth, unlinked evidence, evaluation tab', { skip, timeout: 600000 }, async t => {
+  const { runDemo } = await import('../e2e/demo.js');
+  const d = await runDemo();
+  const { page, jsErrors } = await openBrowser(t);
+  const dash = createDashboard({ dir: path.join(d.dir, 'evidence') });
+  await new Promise(r => dash.listen(0, '127.0.0.1', r));
+  t.after(() => dash.close());
+  await page.goto(`http://127.0.0.1:${dash.address().port}`);
+  await page.waitForSelector('#cases .case');
+  const total = await page.$$eval('#cases .case', e => e.length);
+  assert.match(await page.textContent('#unlinked'), /biil_unified/, 'unattributable record listed as not tied to a shipment');
+  assert.match(await page.textContent('#rule-breakdown'), /ACT-002 · 1/);
+
+  await page.selectOption('#f-rule', 'ACT-002');
+  assert.equal(await page.$$eval('#cases .case', e => e.length), 1, 'rule filter');
+  await page.click('#cases .case');
+  await page.waitForFunction(() => document.getElementById('detail').textContent.includes('Synthetic ground truth'));
+  const detail = await page.textContent('#detail');
+  assert.match(detail, /unauthorized_delete_attempt/);
+  assert.match(detail, /matches the label/);
+  assert.match(detail, /REFUSED DELETE/, 'refusal shown in the timeline');
+
+  await page.selectOption('#f-rule', '');
+  await page.check('#f-xap');
+  const withXap = await page.$$eval('#cases .case', e => e.length);
+  assert.ok(withXap > 0 && withXap < total, 'contradiction filter narrows the queue');
+  await page.uncheck('#f-xap');
+  await page.fill('#f-text', 'no-such-job');
+  assert.match(await page.textContent('#cases'), /No case matches/);
+  await page.fill('#f-text', '');
+
+  await page.click('#tab-eval');
+  await page.waitForFunction(() => document.getElementById('evaluation').textContent.includes('anomaly (label)'));
+  const ev = await page.textContent('#evaluation');
+  assert.match(ev, /SYNTHETIC DATA ONLY/);
+  assert.match(ev, /Isolation Forest only/);
+  assert.match(ev, /Per scenario type/);
+  assert.ok(await page.isHidden('#view-cases'));
+  await page.click('#tab-cases');
+  assert.ok(await page.isHidden('#view-eval'));
+  assert.deepEqual(jsErrors, []);
+});

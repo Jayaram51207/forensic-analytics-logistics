@@ -36,7 +36,8 @@ test('each scenario yields its expected findings and nothing else', { skip, time
       if (label.class === 'anomaly') {
         assert.deepEqual(anomalyRules, [...label.expected_rules].sort(), show);
       } else {
-        assert.deepEqual(anomalyRules, [], `no anomaly finding expected for ${label.class}: ${show}`);
+        // A documented known false positive must be exactly that rule, so the limitation stays visible.
+        assert.deepEqual(anomalyRules, label.params.known_false_positive ? [label.params.known_false_positive] : [], `anomaly findings for ${label.class}: ${show}`);
         if (label.class === 'data_quality') assert.deepEqual(dqRules, [...label.expected_rules].sort(), show);
       }
       for (const f of c?.findings || []) {

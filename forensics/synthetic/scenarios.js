@@ -223,9 +223,8 @@ export const SCENARIOS = {
       const r = await s.api.tryRemove(s.id, DESKS[c.r.int(0, 3)], s.tick(5, 60));
       if (r.status !== 403) throw new Error(`desk deletion was not refused: HTTP ${r.status}`);
     } } });
-    // The refusal is in the evidence (auth.request_rejected) but no rule turns refused requests into
-    // findings. Labelled anomalous with no expected rule: a known detection gap, not a design limit.
-    return lbl('anomaly', [], 'A desk user tried to delete an active job; the server refused (admin-only deletion). The job then completed normally.', { detection_gap: 'refused privileged requests are recorded but not analysed' });
+    // Until research-validation 251e9e7 no rule read refused requests (expected_rules was []); ACT-002 now does.
+    return lbl('anomaly', ['ACT-002'], 'A desk user tried to delete an active job; the server refused (admin-only deletion). The job then completed normally.');
   },
   spoofed_actor: async c => {
     const fake = c.r.pick(['Admin Override', 'desk9', 'Supervisor']);
@@ -350,7 +349,29 @@ export const SCENARIOS = {
   unusual_timing: async c => {
     c.start = new Date(Date.UTC(c.start.getUTCFullYear(), c.start.getUTCMonth(), c.start.getUTCDate(), 20, 40));
     await lifecycle(c, { gap: () => c.r.int(0, 2), na: [] });
-    return lbl('anomaly', [], 'Entire workflow completed in minutes late at night. No rule covers timing; only behavioural analysis can notice it.');
+    return lbl('anomaly', ['TIM-001'], 'Entire workflow completed in minutes late at night, including physical milestones that take hours.');
+  },
+  legit_night_shift: async c => {
+    // Off-hours work at a normal pace (a night shift or another time zone): late is not the same as implausible.
+    c.start = new Date(Date.UTC(c.start.getUTCFullYear(), c.start.getUTCMonth(), c.start.getUTCDate(), 17, c.r.int(0, 59)));
+    await lifecycle(c, { gap: () => c.r.int(40, 120) });
+    return lbl('hard_negative', [], 'Job worked through at night at a normal pace.');
+  },
+  legit_backfill: async c => {
+    // A finished shipment entered after the fact during office hours. Indistinguishable from fabricated
+    // pace by timing alone: TIM-001 is expected to flag it, which is a known false positive.
+    await lifecycle(c, { gap: () => c.r.int(0, 3), na: [] });
+    return lbl('hard_negative', [], 'Completed shipment back-entered in one sitting during office hours.', { known_false_positive: 'TIM-001' });
+  },
+  xapp_rounding_difference: async c => {
+    let rec;
+    await lifecycle(c, { at: { [MID]: async s => { rec = c.outbox(biilRecord(c.r, s.info, later(s), { fields: { gross_weight: `${(parseFloat(s.info.gross_weight) + c.r.pick([-0.4, 0.3, 0.5])).toFixed(1)} KGS` } })); } } });
+    return lbl('hard_negative', [], 'B.I.I.L. states the gross weight with a rounding difference below one kilogram.', { external: [ext(rec, true)] });
+  },
+  xapp_unit_variant: async c => {
+    let rec;
+    await lifecycle(c, { at: { [MID]: async s => { rec = c.outbox(biilRecord(c.r, s.info, later(s), { fields: { gross_weight: `${(parseFloat(s.info.gross_weight) / 1000).toFixed(3)} MT` } })); } } });
+    return lbl('hard_negative', [], 'B.I.I.L. states the same gross weight in metric tonnes instead of kilograms.', { external: [ext(rec, true)] });
   },
   consistent_falsification: async c => {
     await lifecycle(c, { info: i => scaleWeights(i, 0.7) });
@@ -379,9 +400,9 @@ export const MIX = {
   early_correction_regenerated: 6, nonmaterial_late_edit: 5, legit_reopen: 5, regen_identical_few: 4, deleted_draft: 3, source_matches: 4, packing_fits: 4,
   stale_documents: 2, late_material_edit: 2, weight_mismatch: 2, package_mismatch: 1.5, billing_inconsistency: 2, closing_changed_on_reclose: 1.5,
   premature_closure: 2, excess_reversals: 1.5, bulk_na: 1.5, regen_changed_excess: 1.5, regen_identical_excess: 1, placeholder_charges: 1.5,
-  job_renamed: 1, deleted_after_close: 1.5, unauthorized_delete_attempt: 1.5, spoofed_actor: 1.5, source_mismatch: 2, unplaced_cargo: 2, unusual_timing: 2, consistent_falsification: 2,
+  job_renamed: 1, deleted_after_close: 1.5, unauthorized_delete_attempt: 1.5, spoofed_actor: 1.5, source_mismatch: 2, unplaced_cargo: 2, unusual_timing: 2, consistent_falsification: 2, legit_night_shift: 3, legit_backfill: 1.5,
   bad_container_check_digit: 1.5, missing_identifiers: 1.5, malformed_source: 1,
   xapp_consistent: 6, xapp_duplicate_evidence: 2, xapp_unlinked_record: 2, xapp_ambiguous_link: 2,
   xapp_weight_conflict: 2, xapp_package_conflict: 2, xapp_container_conflict: 1.5, xapp_charge_conflict: 2, xapp_identifier_mismatch: 1.5,
-  xapp_post_issue_divergence: 2, xapp_document_backed_conflict: 2, xapp_late_activity: 1.5, common_source_falsification: 2
+  xapp_post_issue_divergence: 2, xapp_document_backed_conflict: 2, xapp_late_activity: 1.5, common_source_falsification: 2, xapp_rounding_difference: 2, xapp_unit_variant: 1.5
 };
