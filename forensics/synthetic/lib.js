@@ -206,6 +206,8 @@ export async function driver(base, credentials) {
     update: (id, info, actor, t) => send('PUT', `/api/jobs/${id}`, { info, creator: actor }, t, {}, actor),
     step: (id, stepId, status, actor, t, closingDetails) => must(send('PUT', `/api/jobs/${id}/workflow/${stepId}`, { status, user: actor, closingDetails }, t, {}, actor), 'workflow step'),
     remove: (id, actor, t) => must(send('DELETE', `/api/jobs/${id}`, null, t, { 'X-Claimed-User': actor }, actor), 'delete'),
+    // A deletion the server is expected to refuse; returns the response instead of aborting.
+    tryRemove: (id, actor, t) => send('DELETE', `/api/jobs/${id}`, null, t, { 'X-Claimed-User': actor }, actor),
     upload: async (buf, name, t) => {
       const form = new FormData();
       form.append('checklist', new Blob([buf], { type: 'application/pdf' }), name);

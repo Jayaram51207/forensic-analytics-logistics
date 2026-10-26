@@ -23,7 +23,10 @@ export const PROVENANCE_CONFIG = {
   packing_weight_tolerance: { abs: 50, rel: 0.05 },
   clock_skew_minutes: 10,            // desktop tools use their own clock; closer than this, order is not asserted
   enabled_comparisons: ['gross_weight', 'net_weight', 'packages', 'invoice_no', 'shipping_bill_no', 'container_nos', 'taxable_total', 'job_no', 'tax_treatment', 'timing'],
-  tax_scheme: null                   // from config/business_rules.json; null = unresolved
+  tax_scheme: null,                  // from config/business_rules.json; null = unresolved
+  // Ablation only (evaluation/evaluate.js): false gives every recorded value its own root, so copies
+  // look like independent records and shared ancestry is never seen. Contradictions are still computed.
+  lineage: true
 };
 
 export const CLASSIFICATIONS = {
@@ -128,7 +131,7 @@ function fieldHistory(view) {
 export function buildProvenance(view, context, config = {}, integrity = null) {
   const cfg = { ...PROVENANCE_CONFIG, ...config };
   const items = [];                                   // evidence items, source and derived
-  const add = it => { it.evidence_id = 'EV-' + sha256(canonical([it.kind, it.event_id, it.field ?? null, it.parents ?? []])).slice(0, 12); items.push(it); return it; };
+  const add = it => { it.evidence_id = 'EV-' + sha256(canonical([it.kind, it.event_id, it.field ?? null, it.parents ?? []])).slice(0, 12); if (!cfg.lineage) it.root = `item:${it.evidence_id}`; items.push(it); return it; };
   const actorOf = e => ({ display_name: e.actor?.display_name ?? null, source: e.actor?.source ?? 'not_supplied', verified: !!e.actor?.verified });
   const integrityOf = e => integrity ? (integrity.problems.some(p => p.event_id === e.event_id || p.sequence === e.sequence) ? 'FAILED verification' : integrity.ok ? 'verified in hash chain' : 'chain has problems elsewhere') : 'not checked in this run';
   const base = (e, extra) => ({ application: e.application, event_id: e.event_id, source_record_id: e.payload?.source?.source_event_id ?? e.event_id, event_time: eventTime(e), time_basis: timeBasis(e), ingested_at: e.server_timestamp, actor: actorOf(e), record_integrity: integrityOf(e), ...extra });

@@ -15,8 +15,8 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'fanchor-'));
 const evt = n => ({ application: 'test', action: 'thing.happened', entity_type: 'job', entity_id: String(n), job_no: `J${n}`, payload: { n } });
 const types = v => v.problems.map(p => p.type);
 
-async function witness(dir = tmp(), token = crypto.randomBytes(24).toString('hex')) {
-  const server = createAnchorServer({ dir, token });
+async function witness(dir = tmp(), token = crypto.randomBytes(24).toString('hex'), allowedStores = null) {
+  const server = createAnchorServer({ dir, token, allowedStores });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${server.address().port}/anchor`;
   return { server, dir, token, url, remote: { url, token, storeId: 'site-a' }, close: () => new Promise(r => server.close(r)) };
@@ -128,5 +128,33 @@ test('witness rejects missing or wrong credentials and malformed input', async (
     assert.equal((await post(JSON.stringify({ store_id: 'site-a', sequence: 1, integrity_hash: 'a'.repeat(64) }))).status, 200);
     assert.equal((await post(JSON.stringify({ store_id: 'site-a', sequence: 1, integrity_hash: 'b'.repeat(64) }))).status, 409);
     assert.throws(() => createAnchorServer({ dir: tmp(), token: 'short' }), /at least 24/);
+  } finally { await w.close(); }
+});
+
+test('store allowlist: a compromised host cannot open a fresh store id to anchor a forged chain', async () => {
+  const w = await witness(tmp(), undefined, ['site-a']);
+  try {
+    const s = await anchoredStore(w);
+    rewrite(s, recs => { recs[1].payload.n = 5; });
+    const fresh = new EventStore(s.dir, { remote: { ...w.remote, storeId: 'site-a-v2' } });
+    const st = await fresh.flushRemote();
+    assert.match(st.last_error, /403/);
+    assert.ok(types(await fresh.verifyRemote()).includes('remote_anchor_unreachable'), 'verifying against the fresh id fails loudly');
+    assert.ok(types(await s.verifyRemote()).includes('anchor_mismatch'), 'the real store id still exposes the rewrite');
+  } finally { await w.close(); }
+});
+
+test('witness offers no way to change or delete history, and replays change nothing', async () => {
+  const w = await witness();
+  try {
+    const s = await anchoredStore(w, 3);
+    const auth = { Authorization: `Bearer ${w.token}` };
+    for (const method of ['PUT', 'DELETE', 'PATCH']) assert.equal((await fetch(w.url + '?store_id=site-a', { method, headers: auth })).status, 405, method);
+    assert.equal((await fetch(w.url.replace('/anchor', '/anchor/site-a'), { method: 'DELETE', headers: auth })).status, 404);
+    const before = fs.readFileSync(path.join(w.dir, 'site-a.jsonl'), 'utf8');
+    const r1 = s.readAll().records[0].record;
+    const res = await fetch(w.url, { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ store_id: 'site-a', sequence: 1, integrity_hash: r1.integrity_hash }) });
+    assert.equal(res.status, 200);
+    assert.equal(fs.readFileSync(path.join(w.dir, 'site-a.jsonl'), 'utf8'), before, 'replayed entry not written again');
   } finally { await w.close(); }
 });

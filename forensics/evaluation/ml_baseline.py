@@ -24,6 +24,7 @@ import statistics
 import sys
 
 import numpy as np
+import sklearn
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
@@ -74,7 +75,8 @@ def main():
     result = {'features': cols, 'train': {'dataset': os.path.basename(args.train), 'rows': len(train_rows)},
               'protocol': 'unsupervised_mixed_fit' if args.unsupervised else 'normal_only_fit', 'quantile': args.quantile,
               'constant_features_in_fit_set': [c for i, c in enumerate(cols) if Xtr[:, i].std() == 0],
-              'model_seeds': args.model_seeds, 'tests': []}
+              'model_seeds': args.model_seeds, 'tests': [],
+              'environment': {'python': sys.version.split()[0], 'sklearn': sklearn.__version__, 'numpy': np.__version__}}
 
     for path in args.test:
         rows, cols2, X = load(path)

@@ -29,6 +29,7 @@ const [cmd, arg] = positional;
 const dir = path.resolve(opt('dir') || process.env.FORENSIC_DIR || path.join(here, 'data'));
 const store = new EventStore(dir);
 const businessRules = loadBusinessRules(opt('rules') ? path.resolve(opt('rules')) : undefined);
+const rulesNote = () => console.log(businessRules.unresolved.length ? `Business rules NOT configured: ${businessRules.unresolved.join(', ')}. Results for these are unresolved; workflow compliance is not verified.` : `Business rules configured from ${businessRules.source}.`);
 const records = () => store.readAll().records.map(x => x.record);
 const print = v => console.log(JSON.stringify(v, null, 2));
 
@@ -67,6 +68,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       const a = analyze(records(), { business_rules: businessRules });
       for (const c of a.cases) console.log(`${c.case_id}  ${String(c.priority.value).padStart(3)} ${c.priority.band.padEnd(13)} ${c.status.padEnd(18)} ${String(c.job_no).padEnd(16)} ${c.reasons[0] || `${c.n_data_quality_findings} data-quality note(s)`}`);
       console.log(`${a.cases.length} case(s). Scores order the review queue; they are not probabilities.`);
+      rulesNote();
       break;
     }
     case 'case': {
@@ -77,6 +79,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       console.log('\nTimeline:');
       for (const t of d.timeline) console.log(`  ${String(t.sequence).padStart(6)} ${t.time} ${t.cited_by_finding ? '*' : ' '} ${(t.actor || '-').padEnd(26)} ${t.summary}`);
       if (d.limitations.length) console.log('\nLimitations:\n  - ' + d.limitations.join('\n  - '));
+      rulesNote();
       break;
     }
     case 'timeline': {

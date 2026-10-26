@@ -14,6 +14,7 @@ import { rng, driver } from './lib.js';
 import { SCENARIOS, MIX } from './scenarios.js';
 import { EventStore } from '../src/store.js';
 import { outboxAppend, ingest } from '../src/ingest.js';
+import { execSync } from 'child_process';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -57,7 +58,8 @@ export async function generate({ seed = 1, jobs = 60, out, normalOnly = false, o
   fs.writeFileSync(path.join(dir, 'labels.json'), JSON.stringify(labels, null, 1));
   const counts = {};
   for (const l of labels) counts[l.type] = (counts[l.type] || 0) + 1;
-  const manifest = { seed, jobs: plan.length, normal_only: normalOnly, generated_at: new Date().toISOString(), synthetic: true, scenario_counts: counts, class_counts: Object.fromEntries(['normal', 'hard_negative', 'anomaly', 'data_quality'].map(c => [c, labels.filter(l => l.class === c).length])), external_records_ingested: ingested, errors, note: 'All data is synthetic. Event timestamps are simulated (clock_source = "simulated").' };
+  const commit = (() => { try { return execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim() + (execSync('git status --porcelain -- . ":!datasets" ":!evaluation/results"', { cwd: ROOT, encoding: 'utf8' }).trim() ? '+uncommitted' : ''); } catch { return null; } })();
+  const manifest = { seed, code_commit: commit, jobs: plan.length, normal_only: normalOnly, generated_at: new Date().toISOString(), synthetic: true, scenario_counts: counts, class_counts: Object.fromEntries(['normal', 'hard_negative', 'anomaly', 'data_quality'].map(c => [c, labels.filter(l => l.class === c).length])), external_records_ingested: ingested, errors, note: 'All data is synthetic. Event timestamps are simulated (clock_source = "simulated").' };
   fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 1));
   return { dir, labels, manifest };
 }

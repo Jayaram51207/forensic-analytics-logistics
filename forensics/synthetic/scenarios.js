@@ -218,6 +218,15 @@ export const SCENARIOS = {
     await lifecycle(c, { afterClose: async s => { await s.api.remove(s.id, 'System Admin', s.tick(30, 300)); } });
     return lbl('anomaly', ['DEL-001'], 'Closed job deleted from the operational system together with its history.');
   },
+  unauthorized_delete_attempt: async c => {
+    await lifecycle(c, { at: { [MID]: async s => {
+      const r = await s.api.tryRemove(s.id, DESKS[c.r.int(0, 3)], s.tick(5, 60));
+      if (r.status !== 403) throw new Error(`desk deletion was not refused: HTTP ${r.status}`);
+    } } });
+    // The refusal is in the evidence (auth.request_rejected) but no rule turns refused requests into
+    // findings. Labelled anomalous with no expected rule: a known detection gap, not a design limit.
+    return lbl('anomaly', [], 'A desk user tried to delete an active job; the server refused (admin-only deletion). The job then completed normally.', { detection_gap: 'refused privileged requests are recorded but not analysed' });
+  },
   spoofed_actor: async c => {
     const fake = c.r.pick(['Admin Override', 'desk9', 'Supervisor']);
     await lifecycle(c, { actor: step => (['Sailing Completed', 'Accounts Processing Done', 'Job Closed'].includes(step) ? fake : undefined) });
@@ -370,7 +379,7 @@ export const MIX = {
   early_correction_regenerated: 6, nonmaterial_late_edit: 5, legit_reopen: 5, regen_identical_few: 4, deleted_draft: 3, source_matches: 4, packing_fits: 4,
   stale_documents: 2, late_material_edit: 2, weight_mismatch: 2, package_mismatch: 1.5, billing_inconsistency: 2, closing_changed_on_reclose: 1.5,
   premature_closure: 2, excess_reversals: 1.5, bulk_na: 1.5, regen_changed_excess: 1.5, regen_identical_excess: 1, placeholder_charges: 1.5,
-  job_renamed: 1, deleted_after_close: 1.5, spoofed_actor: 1.5, source_mismatch: 2, unplaced_cargo: 2, unusual_timing: 2, consistent_falsification: 2,
+  job_renamed: 1, deleted_after_close: 1.5, unauthorized_delete_attempt: 1.5, spoofed_actor: 1.5, source_mismatch: 2, unplaced_cargo: 2, unusual_timing: 2, consistent_falsification: 2,
   bad_container_check_digit: 1.5, missing_identifiers: 1.5, malformed_source: 1,
   xapp_consistent: 6, xapp_duplicate_evidence: 2, xapp_unlinked_record: 2, xapp_ambiguous_link: 2,
   xapp_weight_conflict: 2, xapp_package_conflict: 2, xapp_container_conflict: 1.5, xapp_charge_conflict: 2, xapp_identifier_mismatch: 1.5,

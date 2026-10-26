@@ -40,7 +40,7 @@ export async function startSync({ dir = fs.mkdtempSync(path.join(os.tmpdir(), 'f
   let log = '';
   proc.stdout.on('data', d => { log += d; });
   proc.stderr.on('data', d => { log += d; });
-  const base = `http://127.0.0.1:${port}`;
+  const base = `${env.SYNC_TLS_CERT ? 'https' : 'http'}://127.0.0.1:${port}`;
   for (let i = 0; ; i++) {
     try { await fetch(base + '/api/jobs'); break; } catch {
       if (i > 100 || proc.exitCode !== null) throw new Error('synchroniser did not start:\n' + log);

@@ -7,6 +7,7 @@ import multer from 'multer';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import https from 'https';
 import {
   getAllJobs,
   getJobById,
@@ -30,6 +31,11 @@ import { createCapture, sha256File } from '../forensics/src/capture.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+// HTTPS when SYNC_TLS_CERT and SYNC_TLS_KEY name PEM files. Without them passwords and session
+// cookies cross the network in clear text: acceptable only on a trusted single-office LAN.
+const TLS = process.env.SYNC_TLS_CERT && process.env.SYNC_TLS_KEY
+  ? { cert: fs.readFileSync(process.env.SYNC_TLS_CERT), key: fs.readFileSync(process.env.SYNC_TLS_KEY) } : null;
+const COOKIE_FLAGS = `HttpOnly; SameSite=Strict; Path=/${TLS ? '; Secure' : ''}`;
 
 app.use(cors());
 app.use(express.json());
@@ -59,7 +65,7 @@ const forensic = process.env.FORENSIC_DISABLED === '1' ? null : createCapture({
 });
 if (forensic && forensic.failMode === 'open') console.warn('WARNING: FORENSIC_FAIL_MODE=open - destructive operations will proceed even when their evidence cannot be written. Recorded in system.started.');
 if (startupInfo.accounts === 'no_accounts') console.warn('No user accounts exist. Start once with SYNC_ADMIN_PASSWORD set (12+ characters) to create the administrator.');
-if (forensic) forensic.startup({ ...startupInfo, auth_required: AUTH_REQUIRED, delete_requires_admin: process.env.SYNC_DELETE_REQUIRES_ADMIN !== '0' });
+if (forensic) forensic.startup({ ...startupInfo, auth_required: AUTH_REQUIRED, tls: !!TLS, delete_requires_admin: process.env.SYNC_DELETE_REQUIRES_ADMIN !== '0' });
 
 // Setup multer for checklist uploads
 const storage = multer.diskStorage({
@@ -256,7 +262,7 @@ function noteFailure(req, username) {
 function startSession(res, user) {
   const token = crypto.randomBytes(32).toString('hex');
   sessions.set(token, { username: user.username, name: user.name, role: user.role, must_change_password: !!user.must_change_password, created_at: Date.now(), last_seen: Date.now() });
-  res.setHeader('Set-Cookie', `sync_sid=${token}; HttpOnly; SameSite=Strict; Path=/`);
+  res.setHeader('Set-Cookie', `sync_sid=${token}; ${COOKIE_FLAGS}`);
   return token;
 }
 function endSessionsOf(username, exceptToken = null) {
@@ -321,7 +327,7 @@ app.post('/api/logout', (req, res) => {
     sessions.delete(req.session.token);
     if (forensic) forensic.logout(req);
   }
-  res.setHeader('Set-Cookie', 'sync_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+  res.setHeader('Set-Cookie', `sync_sid=; ${COOKIE_FLAGS}; Max-Age=0`);
   res.json({ success: true });
 });
 
@@ -607,11 +613,12 @@ app.get('*', (req, res) => {
 });
 
 // Start listening
-app.listen(PORT, '0.0.0.0', () => {
+if (!TLS) console.warn('WARNING: plain HTTP - passwords and session cookies are not encrypted on the network. Set SYNC_TLS_CERT and SYNC_TLS_KEY for HTTPS.');
+(TLS ? https.createServer(TLS, app) : app).listen(PORT, '0.0.0.0', () => {
   console.log(`==================================================`);
   console.log(`🚀 Workflow Synchronizer Server running on PORT ${PORT}`);
   console.log(`--------------------------------------------------`);
-  console.log(`Local machine URL: http://localhost:${PORT}`);
+  console.log(`Local machine URL: ${TLS ? 'https' : 'http'}://localhost:${PORT}`);
   
   // Find local LAN IP addresses
   const interfaces = os.networkInterfaces();
@@ -619,7 +626,7 @@ app.listen(PORT, '0.0.0.0', () => {
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
       if (iface.family === 'IPv4' && !iface.internal) {
-        console.log(`Local LAN Office URL: http://${iface.address}:${PORT}`);
+        console.log(`Local LAN Office URL: ${TLS ? 'https' : 'http'}://${iface.address}:${PORT}`);
         foundIP = true;
       }
     }
