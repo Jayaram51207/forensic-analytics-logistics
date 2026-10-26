@@ -39,12 +39,21 @@ Implemented in `Workflow syncroniser/server.js`.
 Remaining weaknesses:
 - Throttling is in memory; a restart clears it. There is no permanent lockout (deliberately: it would let anyone lock out the admin).
 - No multi-factor authentication. No password-reset by e-mail; an administrator resets.
-- No HTTPS. The cookie is not `Secure`; on the LAN it can be read by anyone who can sniff traffic.
+- HTTPS is optional (`SYNC_TLS_CERT`, `SYNC_TLS_KEY`; cookie then `Secure`; tested). **Default is plain HTTP**: passwords and session cookies cross the network unencrypted, and the server prints a warning at start-up. Plain HTTP is acceptable only on a trusted single-office LAN; this prototype makes no claim of production network security.
 - CORS is open (`cors()` with defaults). Cross-origin pages cannot send the cookie (no credentials, `SameSite=Strict`), but should be restricted anyway.
 - Authorisation is two-level only (signed in / Admin). Any signed-in user may edit any job, as the original UI allowed. Deletion is admin-only by default (DECISIONS Q6).
 - `SYNC_AUTH=off` exists for compatibility. With it, everything in the first row of §1 is possible again.
 
 Desktop tools record the Windows account name as an unverified claim. They have no login.
+
+### Remaining gaps assessed (2026-10-27)
+
+| Item | Decision | Reason |
+|---|---|---|
+| HTTPS | **Implemented as an option**, off by default | Desks reach the server over the LAN, so passwords cross the network. The certificate must come from the operator (internal CA or self-signed, trusted on each desk PC); none is shipped. |
+| Multi-factor authentication | Not implemented | Threat model: a small office LAN with named desk accounts, no internet exposure. The evidence store records the session identity either way; MFA would strengthen attribution but is outside this research scope. Needed before any internet-facing deployment. |
+| Admin password reset | API only (`POST /api/users/<username>/password`), **no UI** | It is admin-only, ends the user's sessions, forces a change at next sign-in and is recorded as `user.password_reset` (tested). A button was not added; the API is not presented as a UI workflow. |
+| EasyQuote quotation analysis | Deferred | Quotations are captured (`quotation.exported`: quote ref, client name, free-text tariff rows) but carry no shipment reference, and jobs carry no quotation reference. Linking would rest on fuzzy client-name matching below the link-confidence floor, and tariff rows are rates, not job charges. Needs a quotation reference on the job first (IMPLEMENTATION_STATUS next steps). |
 
 ## 3. Evidence integrity
 

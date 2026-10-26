@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last updated: 2026-10-26 (branch `final-hardening`). Labels: **done** (implemented and tested), **partial**, **not done**, **blocked** (needs a decision or access).
+Last updated: 2026-10-27 (branch `research-validation`). Labels: **done** (implemented and tested), **partial**, **not done**, **blocked** (needs a decision or access).
 
 ## Recovery point
 
@@ -33,13 +33,25 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 | F. Regression | done | below |
 | G. Documentation | done | RUNTIME_SETUP, SECURITY_AND_LIMITATIONS, TESTING_GUIDE, SYNTHETIC_DATASET, EXTERNAL_ANCHOR (new), this file; `docs/patches/` regenerated: 19 diffs, all reverse-apply cleanly against `original-suite` |
 
+## Research validation round (branch `research-validation`, from `final-hardening` `e932963`)
+
+| Task | Status | Evidence |
+|---|---|---|
+| A. External witness | code reviewed; one gap found and fixed (fresh store id: `--stores` allowlist); `cli.js anchor` added for catch-up; 12 witness tests pass. **Two-machine test NOT RUN** (no second machine) | EXTERNAL_ANCHOR.md §2, §5 (procedure), §6 (empty template) |
+| B. Final datasets and evaluation | done: train-101, seed-1..3 regenerated at `ad2d28f`, evaluated at `251e9e7`; ablation A/C/X/D; Isolation Forest two protocols | FINAL_EVALUATION_REPORT.md; `evaluation/results/final_summary.*`; old results in `evaluation/results/historical-forensic-v2/` |
+| C. Publication readiness | **NOT SAFE TO DISTRIBUTE**: history holds unverified documents; the `git archive` copy still holds third-party e-mails in generator defaults and developer user names in docs/patches | DATA_AND_REPOSITORY_AUDIT.md §7–§8 (remediation proposal, not carried out) |
+| D. Business rules | all still `null`; CLI now states the unconfigured status; CLI and dashboard tested to agree; invalid files refused by both | DECISIONS_AND_OPEN_REQUIREMENTS.md "Re-check"; `test/business_rules.test.js` |
+| E. Engineering gaps | HTTPS implemented as an option (`SYNC_TLS_CERT`/`KEY`, `Secure` cookie, warning on plain HTTP; tested). MFA not added (scope, threat model). Admin reset stays API-only. EasyQuote analysis deferred (no shipment reference) | SECURITY_AND_LIMITATIONS §2 |
+
 ## Verification status
 
 | Check | Result | When |
 |---|---|---|
-| `node --test` in `forensics/` | 174 tests: 170 passed, 0 failed, 4 skipped (the opt-in desktop-window tests) | 2026-10-26 |
-| Same with `FORENSIC_GUI_TESTS=1` | 174 tests: 174 passed, 0 failed, 0 skipped (includes the 4 real-window tests and 18 browser tests) | 2026-10-26 |
-| `node e2e/run_e2e.js` | 28 of 28 steps (document generation in `forensics/.venv`, remote witness in a second process) | 2026-10-26 |
+| `node --test` in `forensics/` | 182 tests: 178 passed, 0 failed, 4 skipped (the opt-in desktop-window tests) | 2026-10-27 |
+| Same with `FORENSIC_GUI_TESTS=1` | 182 tests: 182 passed, 0 failed, 0 skipped (includes the 4 real-window tests and 18 browser tests) | 2026-10-27 |
+| `node e2e/run_e2e.js` | 28 of 28 steps (document generation in `forensics/.venv`, remote witness in a second process) | 2026-10-27 |
+| Final evaluation | pooled over 3 held-out seeds: rules recall 0.654, full framework recall 0.903, precision 1.000 and FPR 0.000 for both; Isolation Forest alone recall 0.040–0.128 with FPR 0.06–0.11 | 2026-10-27 |
+| `final-hardening` 174 tests: 170 passed, 4 skipped; GUI 174/174; e2e 28/28 | earlier round | 2026-10-26 |
 | Baseline at `forensic-v2` | 131 tests: 127 passed, 4 skipped; e2e 26/26 | 2026-10-14 |
 | Three WPF projects build | 0 warnings, 0 errors | phase 2 of the first round; binaries reused |
 | Visualizer bundle builds | yes (`npm run build`) | after the bridge-ready change |
@@ -91,9 +103,9 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 
 ## Not done
 
-- HTTPS, multi-factor authentication, finer-grained authorisation, an admin-reset button in the UI.
+- HTTPS on by default (it is optional), multi-factor authentication, finer-grained authorisation, an admin-reset button in the UI.
 - Physical cross-machine anchor test (procedure ready: EXTERNAL_ANCHOR.md §3); trusted timestamps; backup automation; retention policy.
-- Regenerating `datasets/` and `evaluation/results/` after this round (deletion scenarios now act as the administrator; the scenario test confirms every scenario still yields its expected findings, but the published numbers are from `forensic-v2`).
+- A rule for refused privileged requests (5 `unauthorized_delete_attempt` jobs missed by every variant) and for timing (6 `unusual_timing` jobs missed).
 - Removing unverified documents from git history (owner's decision; irreversible for clones).
 - Analysis of EasyQuote quotations (free text, no shipment reference).
 - Capture of B.I.I.L. upload/parse steps separately; adapter in its PyInstaller build.
@@ -106,7 +118,8 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 
 1. Get answers to Q1–Q4 and confirm Q5–Q7 (DECISIONS_AND_OPEN_REQUIREMENTS.md); fill in `config/business_rules.json`.
 2. On any existing installation, reset or delete the old seeded accounts.
-3. Run the remote witness on another machine (EXTERNAL_ANCHOR.md §3, steps 1–10), record the result, and schedule backups.
-4. Run the parser against a small set of cleared, real checklists and measure extraction accuracy; SRC-001 and all document-backed contradictions depend on it.
-5. Add a shipment-reference field to EasyQuote and B.I.I.L. exports so links do not depend on typed job numbers and container numbers.
-6. Have someone other than the author write anomaly scenarios, and evaluate on those.
+3. Run the two-machine witness test (EXTERNAL_ANCHOR.md §5, steps 1–11), fill in §6, and schedule backups.
+4. Data owner: decide on the 33 distinct documents and the generator defaults; then follow DATA_AND_REPOSITORY_AUDIT.md §8 if a distribution is wanted.
+5. Run the parser against a small set of cleared, real checklists and measure extraction accuracy; SRC-001 and all document-backed contradictions depend on it.
+6. Add a shipment-reference field to EasyQuote and B.I.I.L. exports so links do not depend on typed job numbers and container numbers.
+7. Have someone other than the author write anomaly scenarios, and evaluate on those.

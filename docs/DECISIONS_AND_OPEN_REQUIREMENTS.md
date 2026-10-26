@@ -77,3 +77,21 @@ and dashboard with an error; a typo never silently means "unset".
   enforces it. A full snapshot is kept in `job.delete_requested` (tests: sync, auth, browser, e2e).
 - **Override:** `SYNC_DELETE_REQUIRES_ADMIN=0` restores the original behaviour; recorded in `system.started`.
 - **Consequence:** desk users must ask an administrator to delete a job.
+
+## Re-check (2026-10-27)
+
+No new repository evidence or authoritative document resolves Q1–Q4. No approval was received for Q5 or Q6.
+The shipped `forensics/config/business_rules.json` still sets every rule to `null`.
+
+How the unresolved state is shown and tested (`test/business_rules.test.js`, `test/units.test.js`):
+
+| Situation | CLI (`cli.js cases`, `cli.js case`) | Dashboard | Tested |
+|---|---|---|---|
+| File missing | "Business rules NOT configured: required_before_close, tax_scheme, closing_bill_basis…" | warning banner, same list | yes |
+| All values `null` | same as missing | same | yes |
+| Valid values | "Business rules configured from <file>"; findings cite the file | banner says configured | yes |
+| Values changed | new values used on the next run; dashboard re-reads on every request | same | yes |
+| Invalid JSON or unknown value | refuses to run (exit ≠ 0, "invalid business rules") | HTTP 500 with the same message | yes |
+| CLI vs dashboard | same cases, same priorities, same unresolved list in all four valid states | | yes |
+
+No silent fallback: an invalid file is never treated as unset, and an unset rule is never presented as verified.

@@ -62,6 +62,7 @@ node server.js                         # http://localhost:3000, capture on, sess
 | `SYNC_LOGIN_MAX_FAILURES` | 5 | Failed logins per IP address and per username within 15 minutes before 429 |
 | `SYNC_BCRYPT_COST` | 12 | bcrypt cost (minimum 10) |
 | `SYNC_DELETE_REQUIRES_ADMIN` | on | `0` lets any signed-in user delete jobs (original behaviour); recorded in `system.started` |
+| `SYNC_TLS_CERT`, `SYNC_TLS_KEY` | unset | PEM certificate and key: serve HTTPS and mark the session cookie `Secure`. Unset: plain HTTP with a start-up warning |
 | `SYNC_PYTHON` | see above | Interpreter for `compiler.py` |
 | `SYNC_AUTH` | required | `off` restores unauthenticated access (actors become unverified claims; a warning is printed) |
 | `SYNC_DB_PATH`, `SYNC_UPLOADS_DIR`, `SYNC_DOWNLOADS_DIR` | application folders | Point a test instance at disposable folders |

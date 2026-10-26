@@ -1,14 +1,17 @@
 # Data and Repository Audit
 
-Date: 2026-10-25/26, branch `final-hardening` (from `forensic-v2`, commit `1a7e03b`).
+Date: 2026-10-25/26, branch `final-hardening` (from `forensic-v2`, commit `1a7e03b`); distribution re-audit 2026-10-27 on `research-validation` (§7).
 Scope: every tracked file, all five commits in local history, and the default values in source code.
 Method: automated text extraction (openpyxl, xlrd, pdfplumber in `forensics/.venv`) of every tracked
 spreadsheet and PDF, pattern search for identifiers, and `git log -p` / `git grep` over all revisions.
 Content was read on this machine only. Nothing was sent to an external service.
 
-**Conclusion: the repository is NOT safe to publish as it stands.** It may be kept and used locally.
-A distribution copy made with `git archive` leaves the unverified documents out (see §5), but the
-full history still contains them, so the repository itself must not be pushed to a public remote.
+## Decision: NOT SAFE TO DISTRIBUTE
+
+- **Repository (with history): NOT SAFE TO PUBLISH.** History holds 65 unverified documents with likely-real GSTINs/PANs.
+- **Source archive (`git archive`): NOT SAFE TO DISTRIBUTE either** (found 2026-10-27, §7). It contains no documents, but source defaults still hold third-party e-mail addresses and a company name, and the documentation quotes developer user names.
+- Changes only on the data owner's authorisation, or after the reviewed clean-distribution procedure in §8.
+- Archive exclusions do **not** remove anything from Git history.
 
 ## 1. What was inspected
 
@@ -68,8 +71,8 @@ deleting a file does not remove it from history anyway.
 ## 5. Safe distribution guidance
 
 1. Do not push this repository, or any clone of it, to a public or shared remote. History holds F1–F3.
-2. To share the code: `git archive --format=zip -o forensic.zip final-hardening`. Check the archive lists
-   no `.pdf`/`.xls*` files. The recipient must supply their own templates for document generation to run.
+2. `git archive` leaves the 65 documents out (verified, §7) but is not yet clean; do not share it until §8 is done.
+   The recipient would also need their own templates for document generation to run.
 3. If a clean public repository is ever needed: create a new repository from that archive (fresh
    history) after the owner has reviewed F4 (hard-coded defaults).
 4. The owner of the business data must decide whether any of the documents may be shared (DECISIONS Q1).
@@ -83,3 +86,39 @@ deleting a file does not remove it from history anyway.
   addresses) is counted only through company-name suffixes; a manual review by the data owner is still needed.
 - Evidence stores (`forensics/data/`) hold full job records when the system is used with real data.
   They are ignored by git but must be handled like `db.json`.
+
+## 7. Distribution re-audit (2026-10-27, commit `ad2d28f`; repeated at `251e9e7` with identical findings: 206 tracked, 141 archived, 65 excluded documents)
+
+Method: `git archive --format=zip HEAD` into a scratch folder, list its files, compare with `git ls-files`,
+pattern-scan every archived text file (GSTIN, PAN, e-mail, Indian mobile number, `PVT LTD` names,
+Windows user paths, private keys, AWS keys, long secret literals). Nothing published or pushed.
+
+| Check | Result |
+|---|---|
+| Tracked files | 205 |
+| Files in the archive | 140 |
+| Excluded by `.gitattributes` | 65 = exactly the 65 `.pdf`/`.xls`/`.xlsx`/`.xlt`/`.xltx` sample documents; no source, test or documentation file is excluded |
+| Archive contents by area | `forensics/src` 12, `forensics/test` 14, `forensics/evaluation` 6, `forensics/config` 1, `docs` 36, `Workflow syncroniser` 14, `B,I,I,L` 5, `EasyQuote` 16, `3D_stuffing_visualizer` 18 (plus root files) |
+| GSTIN / PAN patterns in the archive | none |
+| Private keys, AWS keys, real secrets | none. Three literal passwords exist in tests; each is a value a test sets inside its own disposable instance |
+| **E-mail addresses** | **`amy@sierac.cn`, `bm@creativepackaging.in` in the defaults of `unified_generator.py` and `document_generator.py` (both copies): third-party contacts, provenance unverified** |
+| Company name | `LEADKING AIR SERVICES PVT. LTD` in the same defaults (the operator's own name; publication still needs the owner) |
+| Phone number | `9876543210` (a common placeholder) in the same files and `public/index.html` |
+| Private paths | `c:\Users\vkmsd` quoted in `FORENSIC_REVERSE_ENGINEERING_REPORT.md`, this document and four files in `docs/patches/` (removed lines); `C:\Users\Jayaram` in the reverse-engineering report |
+| New commits since `forensic-v2` | add no documents, identifiers or keys; `vkmsd` appears only as removed lines in patches and in audit text |
+| `.gitignore` | verified with `git check-ignore`: `forensics/data/`, `forensics/datasets/`, `.env`, `*.pem`, `anchor-witness/`, `test_credentials.json`, `db.json` |
+| Live data | `Workflow syncroniser/db.json` unchanged (last modified 23 July); `forensics/data/` does not exist |
+
+## 8. Remediation proposal (local only; not carried out)
+
+Creates a separate clean repository and leaves this one, its tags and its history untouched.
+
+1. Data owner decides on each of the 33 distinct documents (keep out / replace with a synthetic template / cleared).
+2. In a fresh export (`git archive HEAD | extract to C:\clean-forensic`):
+   replace the defaults in `unified_generator.py` / `document_generator.py` with placeholder values (`example.com` addresses, "Example Exporter Pvt Ltd");
+   remove the user-path quotations from `FORENSIC_REVERSE_ENGINEERING_REPORT.md`, this audit and `docs/patches/*` (or drop `docs/patches/` from the distribution);
+   add synthetic templates generated by `forensics/synthetic` where document generation must work.
+3. Re-run the §7 scan on the clean folder; it must report nothing in the bold rows.
+4. `git init` there, one commit, no link to this history. Run `node --test` in it.
+5. Owner reviews the result before anything is shared. Rotate nothing: no live secret was found.
+Rewriting this repository's history (`git filter-repo`) is not proposed: it breaks existing clones and recovery tags.

@@ -20,7 +20,7 @@ node e2e/run_e2e.js            # 28-step end-to-end run on a disposable synchron
 
 Every integration test starts its own synchroniser on a random port, with database, uploads, downloads and evidence in a temp folder, and signs in through the real login route. The live `db.json` and `forensics/data` are never opened.
 
-Last full run (2026-10-26, branch `final-hardening`): with `FORENSIC_GUI_TESTS=1`, **174 tests, 174 passed, 0 failed, 0 skipped**. Without it: 174 tests: 170 passed, 0 failed, 4 skipped (the opt-in desktop-window tests). End-to-end run: 28 of 28. (Baseline at `forensic-v2`: 131 tests, 127 passed, 4 skipped. The new tests are listed below; no earlier test was removed. Earlier tests were changed where behaviour changed on purpose: deletion is now admin-only, and logins use generated passwords.)
+Last full run (2026-10-27, branch `research-validation`): **182 tests, 178 passed, 0 failed, 4 skipped** (opt-in desktop-window tests); with `FORENSIC_GUI_TESTS=1`: **182/182 passed**. End-to-end run: 28 of 28. New this round: `test/tls.integration.test.js` (2), `test/business_rules.test.js` (2), 3 more witness tests (allowlist, no-modify/replay, `cli.js anchor`), and the `unauthorized_delete_attempt` scenario. (Previous round: 174 tests; baseline `forensic-v2`: 131.)
 
 ## Test files
 

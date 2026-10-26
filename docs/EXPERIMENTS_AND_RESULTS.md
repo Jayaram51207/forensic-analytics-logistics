@@ -1,5 +1,7 @@
 # Experiments and Results
 
+> **HISTORICAL (tag `forensic-v2`, 2026-10-13/14).** The final results, regenerated on 2026-10-27 against the final implementation (commit `251e9e7`, 45 scenario types, ablation variants A/C/X/D, admin-only deletion), are in **[FINAL_EVALUATION_REPORT.md](FINAL_EVALUATION_REPORT.md)**. The result files this page describes were moved unchanged to `forensics/evaluation/results/historical-forensic-v2/`; the commands in §9 are those of that version (the current `evaluate.js` writes a different result format). The numbers below must not be quoted as final.
+
 Every number below was produced by the commands in §9 on 2026-10-13/14 and is stored in `forensics/evaluation/results/`. All data is synthetic. **Nothing here estimates performance on real shipments, real fraud prevalence, or savings.**
 
 Results of the first evaluation (before sessions and cross-application analysis) are in git at tag `forensic-v1`.
