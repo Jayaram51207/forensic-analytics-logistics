@@ -50,6 +50,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       process.exitCode = v.ok ? 0 : 2;
       break;
     }
+    case 'anchor': {
+      // Send every record the remote witness does not hold yet (catch-up without waiting for an append).
+      if (!store.remote) { console.error('FORENSIC_ANCHOR_URL is not set'); process.exitCode = 1; break; }
+      const st = await store.flushRemote();
+      console.log(st.last_error ? `remote anchor NOT updated: ${st.last_error}` : `remote anchor holds records up to sequence ${st.witnessed_through}`);
+      process.exitCode = st.last_error ? 2 : 0;
+      break;
+    }
     case 'head': {
       const v = store.verify();
       console.log(`${v.last_sequence}:${v.last_hash}`);

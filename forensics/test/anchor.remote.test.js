@@ -158,3 +158,20 @@ test('witness offers no way to change or delete history, and replays change noth
     assert.equal(fs.readFileSync(path.join(w.dir, 'site-a.jsonl'), 'utf8'), before, 'replayed entry not written again');
   } finally { await w.close(); }
 });
+
+test('cli.js anchor catches the witness up without a new append', async () => {
+  const w = await witness();
+  try {
+    const s = new EventStore(tmp(), { remote: null, anchorFile: null });
+    for (let i = 1; i <= 4; i++) s.append(evt(i));
+    const { execFile } = await import('child_process');
+    const run = (...a) => new Promise(res => execFile(process.execPath, [path.join(import.meta.dirname, '..', 'cli.js'), ...a, '--dir', s.dir], { env }, (err, stdout, stderr) => res({ status: err ? err.code : 0, stdout, stderr })));
+    const env = { ...process.env, FORENSIC_ANCHOR_URL: w.url, FORENSIC_ANCHOR_TOKEN: w.token, FORENSIC_ANCHOR_STORE_ID: 'site-a' };
+    const r = await run('anchor');
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /up to sequence 4/);
+    const v = await run('verify');
+    assert.equal(v.status, 0, v.stdout);
+    assert.match(v.stdout, /remote anchor: 4 record/);
+  } finally { await w.close(); }
+});
