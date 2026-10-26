@@ -24,7 +24,7 @@ export async function generate({ seed = 1, jobs = 60, out, normalOnly = false, o
   const outbox = path.join(dir, 'outbox', 'desktop_tools.jsonl');
   // Output copies are not archived for datasets: hashes are kept, the bulky files are not.
   const server = await startSync({ dir, env: { FORENSIC_ALLOW_SIM_TIME: '1', FORENSIC_ARCHIVE: archive ? '1' : '0' } });
-  const api = await driver(server.base);
+  const api = await driver(server.base, server.credentials());
   const pick = rng(seed);
   let types = Object.keys(mix);
   if (normalOnly) types = types.filter(t => t.startsWith('clean_') || ['early_correction_regenerated', 'nonmaterial_late_edit', 'legit_reopen', 'regen_identical_few', 'source_matches', 'packing_fits', 'xapp_consistent', 'xapp_duplicate_evidence'].includes(t));

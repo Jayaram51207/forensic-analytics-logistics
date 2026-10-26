@@ -2,7 +2,7 @@ import os
 import sys
 import tkinter as tk
 
-sys.path.append(r"c:\Users\vkmsd\OneDrive\Desktop\B,I,I,L")
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from unified_generator import UnifiedGeneratorApp
 import pdf_parser
 
@@ -10,7 +10,7 @@ def test_cotton_generation():
     app = UnifiedGeneratorApp()
     app.withdraw()
     
-    templates_dir = r"c:\Users\vkmsd\OneDrive\Desktop\B,I,I,L\Templates"
+    templates_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Templates")
     checklist_path = os.path.join(templates_dir, "Checklist_CHX03_568 CTNS_3416491 20052026_MRKU2367848.pdf")
     
     print("Parsing checklist:", checklist_path)
@@ -24,7 +24,7 @@ def test_cotton_generation():
     print("bl_template_var:", app.bl_template_var.get())
     
     # Let's call the generation code from generate_all
-    dest_dir = r"c:\Users\vkmsd\OneDrive\Desktop\B,I,I,L\Generated"
+    dest_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Generated")
     os.makedirs(dest_dir, exist_ok=True)
     
     # Calculate inv and filenames exactly as in generate_all

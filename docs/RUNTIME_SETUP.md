@@ -55,11 +55,20 @@ node server.js                         # http://localhost:3000, capture on, sess
 | Variable | Default | Effect |
 |---|---|---|
 | `PORT` | 3000 | |
+| `SYNC_ADMIN_PASSWORD` | unset | One-time bootstrap: creates `admin` when `db.json` has no accounts (§4) |
+| `SYNC_ADMIN_USERNAME` | `admin` | Name of the bootstrapped administrator |
+| `SYNC_SESSION_IDLE_MINUTES` | 720 | Idle expiry |
+| `SYNC_SESSION_MAX_HOURS` | 24 | Absolute session lifetime, regardless of activity |
+| `SYNC_LOGIN_MAX_FAILURES` | 5 | Failed logins per IP address and per username within 15 minutes before 429 |
+| `SYNC_BCRYPT_COST` | 12 | bcrypt cost (minimum 10) |
+| `SYNC_DELETE_REQUIRES_ADMIN` | on | `0` lets any signed-in user delete jobs (original behaviour); recorded in `system.started` |
 | `SYNC_PYTHON` | see above | Interpreter for `compiler.py` |
 | `SYNC_AUTH` | required | `off` restores unauthenticated access (actors become unverified claims; a warning is printed) |
 | `SYNC_DB_PATH`, `SYNC_UPLOADS_DIR`, `SYNC_DOWNLOADS_DIR` | application folders | Point a test instance at disposable folders |
 | `FORENSIC_DIR` | `forensics/data` | Evidence store |
 | `FORENSIC_ANCHOR_FILE` | unset | External witness log. Put it where the application host's users cannot write |
+| `FORENSIC_ANCHOR_URL`, `FORENSIC_ANCHOR_TOKEN`, `FORENSIC_ANCHOR_STORE_ID` | unset | Remote witness on another machine (docs/EXTERNAL_ANCHOR.md) |
+| `FORENSIC_BUSINESS_RULES` | `forensics/config/business_rules.json` | Business rules for the analysis (docs/DECISIONS_AND_OPEN_REQUIREMENTS.md) |
 | `FORENSIC_FAIL_MODE` | `closed` | `open` never refuses an operation for lack of evidence |
 | `FORENSIC_ARCHIVE` | on | `0` keeps output hashes without copies |
 | `FORENSIC_DISABLED` | unset | `1` turns capture off |
@@ -81,10 +90,33 @@ node src/dashboard.js                  # http://127.0.0.1:3100
 
 ## 4. Signing in
 
-Accounts are those in `db.json`. The seeded ones (`desk1`–`desk4`, `admin`) have the username as password; **change that before real use** (admin: create new accounts and delete the seeded ones; there is no change-password screen).
+No account is created automatically. On a new installation (no `db.json`, or one with no users):
+
+```
+set SYNC_ADMIN_PASSWORD=<a strong password of your choice>
+node server.js          # prints "Administrator account 'admin' created from SYNC_ADMIN_PASSWORD"
+set SYNC_ADMIN_PASSWORD=
+```
+
+Without the variable the server starts with no accounts and prints how to create one; nobody can sign in.
+The variable is only read when there are no accounts; remove it after the first start. The administrator
+must change the password at first sign-in, then creates desk accounts in the Admin tab. Each new account
+must also change its password at first sign-in.
+
+Password rules (checked on the server): 12–200 characters, must not contain the username, not a common
+password, at least 5 different characters. Stored as bcrypt (cost 12) of a SHA-256 pre-hash; never logged.
+
+- **Change password:** "Change password" button beside "Logout". Needs the current password. All of that
+  user's sessions end; the browser that changed it receives a new one.
+- **Forgotten password:** an administrator calls `POST /api/users/<username>/password` with `{"new_password": "..."}` (API only; there is no button for it yet);
+  the user's sessions end and they must choose a new password at next sign-in.
+- **Existing installations** that still have the old seeded accounts (password = username): those accounts
+  can sign in only as far as the forced password-change screen. Reset or delete them.
+- Login attempts are limited (`SYNC_LOGIN_MAX_FAILURES`, default 5 per 15 minutes per IP and per username).
+  Error messages do not say whether the username exists.
 
 - Login sets an `HttpOnly; SameSite=Strict` cookie. Scripts may send `Authorization: Bearer <token>` using the `token` returned by `/api/login`.
-- Sessions are held in memory: a server restart signs everyone out. Idle sessions expire after 12 hours.
+- Sessions are held in memory: a server restart signs everyone out. Idle sessions expire after 12 hours, and every session after 24 hours.
 - Every `/api` route except `/api/login` needs a session. Admin routes need the `Admin` role of the signed-in account.
 - The cookie is not marked `Secure` because the application is served over plain HTTP on a LAN. On an untrusted network, put it behind HTTPS.
 
@@ -118,7 +150,7 @@ Known rough edge: `POST /api/users` writes the user first and the evidence secon
 ## 6. Protecting the evidence
 
 - Back up `forensics/data/` (`events.jsonl`, `events.head.json`, `artifacts/`) on a schedule.
-- Set `FORENSIC_ANCHOR_FILE` to a location with different write permissions, or run `node cli.js head` regularly and keep its one-line output elsewhere (paper is fine); check later with `node cli.js verify --expect <seq>:<hash>`.
+- Run a remote witness on another machine (`FORENSIC_ANCHOR_URL`; procedure in docs/EXTERNAL_ANCHOR.md), or set `FORENSIC_ANCHOR_FILE` to a location with different write permissions, or run `node cli.js head` regularly and keep its one-line output elsewhere (paper is fine); check later with `node cli.js verify --expect <seq>:<hash>`.
 - Without either, someone who can write to the evidence folder can rewrite the whole chain undetected. `cli.js verify` prints a warning in that case.
 
 Recovering from a damaged store: do not edit `events.jsonl`. Keep the damaged file, restore the last good backup beside it, run `verify` on both, and record which events exist only in the damaged copy.
@@ -130,7 +162,7 @@ cd forensics
 node e2e/run_e2e.js
 ```
 
-Starts a disposable synchroniser with sessions and an external anchor, then: refused anonymous request, login, checklist upload and parse, job creation with document generation, download, edits, repeated identical saves, step change and reversal, restart, closure, reconciliation, deletion, chain and anchor verification, archived-file hash check, dashboard case and timeline, reviewer assessment. 26 steps; exits non-zero on any failure. Last run: 26 of 26.
+Starts a disposable synchroniser with sessions, an anchor file and a remote witness (in another process on the same machine), then: refused anonymous request, login, checklist upload and parse, job creation with document generation, download, edits, repeated identical saves, step change and reversal, restart, closure, reconciliation, refused desk deletion, administrator deletion, chain and anchor verification, archived-file hash check, dashboard case and timeline, reviewer assessment, remote witness check. 28 steps; exits non-zero on any failure. Last run (2026-10-26): 28 of 28.
 
 Real application windows (opens them on screen; briefly replaces the clipboard):
 

@@ -76,15 +76,18 @@ test('job lifecycle produces structured, verifiable evidence that survives delet
   assert.equal(s.db().jobs[0].closing_bill_amount, '', 'operational record really was blanked');
 
   // delete
-  assert.equal((await s.call('DELETE', `/api/jobs/${id}`, null, { 'X-Claimed-User': 'System Admin' })).status, 200);
+  assert.equal((await s.call('DELETE', `/api/jobs/${id}`, null, { 'X-Claimed-User': 'System Admin' })).status, 403, 'desk users may not delete');
+  const admin = await s.as('admin');
+  assert.equal((await admin('DELETE', `/api/jobs/${id}`)).status, 200);
   assert.equal(s.db().jobs.length, 0);
   assert.equal(s.db().history_logs.length, 0, 'operational history is gone');
   ev = events(s);
   const delReq = ev.find(e => e.action === 'job.delete_requested');
   assert.equal(delReq.payload.snapshot.job_no, 'SYN-TEST-001');
   assert.ok(delReq.payload.operational_logs.length >= 4, 'operational log copied into evidence before deletion');
-  assert.equal(delReq.actor.display_name, 'Desk 1 (Invoice)');
-  assert.equal(delReq.actor.claimed_display_name, 'System Admin');
+  assert.equal(delReq.actor.display_name, 'System Admin');
+  assert.equal(delReq.actor.role, 'Admin');
+  assert.ok(ev.some(e => e.action === 'auth.request_rejected' && e.payload.path === `/api/jobs/${id}` && e.actor.username === 'desk1'), 'refused desk deletion recorded');
   assert.ok(ev.find(e => e.action === 'job.deleted').sequence > delReq.sequence);
   assert.ok(ev.filter(e => e.correlation_id === corr).length >= 10, 'whole lifecycle shares one correlation id');
 
@@ -95,7 +98,7 @@ test('a reused database id gets a new correlation id', async t => {
   const s = await startSync();
   t.after(() => s.stop());
   const a = await s.call('POST', '/api/jobs', { info: sampleInfo({ job_no: 'A' }), creator: 'x' });
-  await s.call('DELETE', `/api/jobs/${a.json.id}`);
+  await (await s.as('admin'))('DELETE', `/api/jobs/${a.json.id}`);
   const b = await s.call('POST', '/api/jobs', { info: sampleInfo({ job_no: 'B' }), creator: 'x' });
   assert.equal(a.json.id, b.json.id, 'the synchroniser reuses ids');
   const [first, second] = events(s).filter(e => e.action === 'job.created');
@@ -180,7 +183,8 @@ test('fail-closed: destructive operations are refused when evidence cannot be wr
   fs.renameSync(file, file + '.bak');
   fs.mkdirSync(file); // every append now fails
 
-  assert.equal((await s.call('DELETE', `/api/jobs/${r.json.id}`)).status, 503);
+  const admin = await s.as('admin');
+  assert.equal((await admin('DELETE', `/api/jobs/${r.json.id}`)).status, 503);
   assert.equal(s.db().jobs.length, 1, 'job not deleted without a preserved snapshot');
   assert.equal((await s.call('PUT', `/api/jobs/${r.json.id}`, { info: sampleInfo({ gross_weight: '1 KGS' }), creator: 'x' })).status, 503);
   assert.equal(s.db().jobs[0].gross_weight, '20200 KGS', 'job not overwritten');
@@ -191,7 +195,7 @@ test('fail-closed: destructive operations are refused when evidence cannot be wr
 
   fs.rmdirSync(file);
   fs.renameSync(file + '.bak', file);
-  assert.equal((await s.call('DELETE', `/api/jobs/${r.json.id}`)).status, 200);
+  assert.equal((await admin('DELETE', `/api/jobs/${r.json.id}`)).status, 200);
   const ev = events(s);
   assert.ok(ev.some(e => e.action === 'forensic.capture_gap' && e.payload.lost_events >= 4), 'the outage itself is recorded once the store is back');
   assert.ok(fs.readFileSync(path.join(s.evidenceDir, 'capture_failures.log'), 'utf8').includes('job.delete_requested'));

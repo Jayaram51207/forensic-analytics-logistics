@@ -1,5 +1,5 @@
 diff --git a/Workflow syncroniser/server.js b/Workflow syncroniser/server.js
-index 215c4ae..dd83995 100644
+index 215c4ae..cc9a35e 100644
 --- a/Workflow syncroniser/server.js	
 +++ b/Workflow syncroniser/server.js	
 @@ -1,3 +1,4 @@
@@ -15,22 +15,26 @@ index 215c4ae..dd83995 100644
  import {
    getAllJobs,
    getJobById,
-@@ -18,8 +20,10 @@ import {
+@@ -18,8 +20,12 @@ import {
    verifyUser,
    getAllUsers,
    createUser,
 -  deleteUser
 +  deleteUser,
++  changePassword,
++  setPassword,
 +  startupInfo
  } from './db.js';
 +import { createCapture, sha256File } from '../forensics/src/capture.js';
  
  const __dirname = path.dirname(fileURLToPath(import.meta.url));
  const app = express();
-@@ -29,10 +33,32 @@ app.use(cors());
+@@ -29,10 +35,36 @@ app.use(cors());
  app.use(express.json());
  app.use(express.static(path.join(__dirname, 'public')));
  
++const AUTH_REQUIRED = process.env.SYNC_AUTH !== 'off';
++
 +// Runtime folders are configurable so tests and synthetic runs never touch live data.
 +// Python for compiler.py: SYNC_PYTHON, else the project environment (forensics/setup_env.cmd), else PATH.
 +const VENV_PYTHON = path.join(__dirname, '..', 'forensics', '.venv', 'Scripts', 'python.exe');
@@ -51,7 +55,9 @@ index 215c4ae..dd83995 100644
 +    parser_sha256: sha256File(path.join(__dirname, 'pdf_parser.py'))
 +  }
 +});
-+if (forensic) forensic.startup(startupInfo);
++if (forensic && forensic.failMode === 'open') console.warn('WARNING: FORENSIC_FAIL_MODE=open - destructive operations will proceed even when their evidence cannot be written. Recorded in system.started.');
++if (startupInfo.accounts === 'no_accounts') console.warn('No user accounts exist. Start once with SYNC_ADMIN_PASSWORD set (12+ characters) to create the administrator.');
++if (forensic) forensic.startup({ ...startupInfo, auth_required: AUTH_REQUIRED, delete_requires_admin: process.env.SYNC_DELETE_REQUIRES_ADMIN !== '0' });
 +
  // Setup multer for checklist uploads
  const storage = multer.diskStorage({
@@ -61,7 +67,7 @@ index 215c4ae..dd83995 100644
    },
    filename: (req, file, cb) => {
      const ext = path.extname(file.originalname);
-@@ -41,8 +67,49 @@ const storage = multer.diskStorage({
+@@ -41,8 +73,55 @@ const storage = multer.diskStorage({
  });
  const upload = multer({ storage });
  
@@ -69,8 +75,8 @@ index 215c4ae..dd83995 100644
 +// Identity and privileges come from a server-side session created at login.
 +// Names sent by the client (creator, user, adminUsername) are no longer trusted.
 +// SYNC_AUTH=off restores the original unauthenticated behaviour (not recommended).
-+const AUTH_REQUIRED = process.env.SYNC_AUTH !== 'off';
-+const SESSION_IDLE_MS = 12 * 60 * 60 * 1000;
++const SESSION_IDLE_MS = (parseFloat(process.env.SYNC_SESSION_IDLE_MINUTES || '720') || 720) * 60 * 1000;
++const SESSION_MAX_MS = (parseFloat(process.env.SYNC_SESSION_MAX_HOURS || '24') || 24) * 60 * 60 * 1000;
 +const sessions = new Map(); // token -> { username, name, role, created_at, last_seen }  (in memory: a restart signs everyone out)
 +if (!AUTH_REQUIRED) console.warn('WARNING: SYNC_AUTH=off - API requests are not authenticated and actor names are unverified.');
 +
@@ -80,7 +86,7 @@ index 215c4ae..dd83995 100644
 +  const token = (cookie || bearer || [])[1];
 +  const session = token && sessions.get(token);
 +  if (!session) return null;
-+  if (Date.now() - session.last_seen > SESSION_IDLE_MS) {
++  if (Date.now() - session.last_seen > SESSION_IDLE_MS || Date.now() - session.created_at > SESSION_MAX_MS) {
 +    sessions.delete(token);
 +    return null;
 +  }
@@ -91,7 +97,13 @@ index 215c4ae..dd83995 100644
 +app.use('/api', (req, res, next) => {
 +  if (!AUTH_REQUIRED || req.path === '/login') return next();
 +  req.session = sessionFrom(req);
-+  if (req.session) return next();
++  if (req.session) {
++    // An administrator-set or policy-failing password must be replaced before anything else.
++    if (req.session.must_change_password && !['/session', '/password', '/logout'].includes(req.path)) {
++      return res.status(403).json({ error: 'Password change required', must_change_password: true });
++    }
++    return next();
++  }
 +  if (forensic && req.method !== 'GET') forensic.rejected(req, 'no valid session');
 +  res.status(401).json({ error: 'Authentication required' });
 +});
@@ -111,7 +123,7 @@ index 215c4ae..dd83995 100644
    const adminUsername = req.query.adminUsername || req.body.adminUsername || req.headers['x-admin-username'];
    if (adminUsername === 'admin') {
      next();
-@@ -97,7 +164,7 @@ function broadcast(event, data) {
+@@ -97,7 +176,7 @@ function broadcast(event, data) {
  // Spawns Python process to parse checklist PDF
  function parseChecklistPDF(filePath) {
    return new Promise((resolve, reject) => {
@@ -120,7 +132,7 @@ index 215c4ae..dd83995 100644
      let output = '';
      let errorOutput = '';
  
-@@ -126,8 +193,7 @@ function parseChecklistPDF(filePath) {
+@@ -126,8 +205,7 @@ function parseChecklistPDF(filePath) {
  // Spawns Python process to compile Excel spreadsheets
  function runExcelCompiler(jobPayload) {
    return new Promise((resolve, reject) => {
@@ -130,31 +142,91 @@ index 215c4ae..dd83995 100644
      let output = '';
      let errorOutput = '';
  
-@@ -165,24 +231,43 @@ app.post('/api/login', (req, res) => {
+@@ -158,31 +236,101 @@ function runExcelCompiler(jobPayload) {
+ }
+ 
+ // Login authentication
++// Login throttling: failed attempts per client address and per username, kept in memory.
++const LOGIN_WINDOW_MS = 15 * 60 * 1000;
++const LOGIN_MAX_FAILURES = parseInt(process.env.SYNC_LOGIN_MAX_FAILURES || '5', 10);
++const loginFailures = new Map(); // key -> [timestamps]
++function recentFailures(key) {
++  const now = Date.now();
++  const list = (loginFailures.get(key) || []).filter(t => now - t < LOGIN_WINDOW_MS);
++  loginFailures.set(key, list);
++  return list;
++}
++function throttled(req, username) {
++  return [`ip:${req.ip}`, `user:${String(username).toLowerCase()}`].some(k => recentFailures(k).length >= LOGIN_MAX_FAILURES);
++}
++function noteFailure(req, username) {
++  for (const k of [`ip:${req.ip}`, `user:${String(username).toLowerCase()}`]) recentFailures(k).push(Date.now());
++}
++
++function startSession(res, user) {
++  const token = crypto.randomBytes(32).toString('hex');
++  sessions.set(token, { username: user.username, name: user.name, role: user.role, must_change_password: !!user.must_change_password, created_at: Date.now(), last_seen: Date.now() });
++  res.setHeader('Set-Cookie', `sync_sid=${token}; HttpOnly; SameSite=Strict; Path=/`);
++  return token;
++}
++function endSessionsOf(username, exceptToken = null) {
++  for (const [t, s] of sessions) if (s.username.toLowerCase() === String(username).toLowerCase() && t !== exceptToken) sessions.delete(t);
++}
++
++// Login authentication. One message for every failure, so it does not reveal which accounts exist.
+ app.post('/api/login', (req, res) => {
+-  const { username, password } = req.body;
+-  if (!username || !password) {
++  const { username, password } = req.body || {};
++  if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password || username.length > 200 || password.length > 200) {
+     return res.status(400).json({ error: 'Username and password are required' });
    }
++  if (throttled(req, username)) {
++    if (forensic) forensic.rejected(req, 'login throttled');
++    return res.status(429).json({ error: 'Too many failed attempts. Try again later.' });
++  }
  
    const user = verifyUser(username, password);
 +  if (forensic) forensic.login(req, username, user);
    if (user) {
-+    const token = crypto.randomBytes(32).toString('hex');
-+    sessions.set(token, { username: user.username, name: user.name, role: user.role, created_at: Date.now(), last_seen: Date.now() });
-+    res.setHeader('Set-Cookie', `sync_sid=${token}; HttpOnly; SameSite=Strict; Path=/`);
++    loginFailures.delete(`user:${username.toLowerCase()}`);
++    const token = startSession(res, user);
      return res.json({
        success: true,
        username: user.username,
        name: user.name,
 -      role: user.role
 +      role: user.role,
++      must_change_password: user.must_change_password,
 +      token
      });
    }
  
++  noteFailure(req, username);
    res.status(401).json({ error: 'Invalid username or password' });
  });
  
++// The signed-in user changes their own password. All their other sessions end.
++app.post('/api/password', (req, res) => {
++  if (!req.session) return res.status(401).json({ error: 'Authentication required' });
++  const { current_password, new_password } = req.body || {};
++  if (throttled(req, req.session.username)) return res.status(429).json({ error: 'Too many failed attempts. Try again later.' });
++  try {
++    changePassword(req.session.username, current_password, new_password);
++  } catch (err) {
++    if (/Current password/.test(err.message)) noteFailure(req, req.session.username);
++    if (forensic) forensic.userChanged(req, 'user.password_change_failed', req.session.username, { reason: err.message });
++    return res.status(err.status || 400).json({ error: err.message });
++  }
++  endSessionsOf(req.session.username);
++  const token = startSession(res, { ...req.session, must_change_password: false });
++  if (forensic) forensic.userChanged(req, 'user.password_changed', req.session.username, { other_sessions_ended: true });
++  res.json({ success: true, token });
++});
++
 +app.get('/api/session', (req, res) => {
 +  if (!req.session) return res.status(401).json({ error: 'Authentication required' });
-+  res.json({ username: req.session.username, name: req.session.name, role: req.session.role });
++  res.json({ username: req.session.username, name: req.session.name, role: req.session.role, must_change_password: !!req.session.must_change_password });
 +});
 +
 +app.post('/api/logout', (req, res) => {
@@ -176,7 +248,7 @@ index 215c4ae..dd83995 100644
    }
  });
  
-@@ -193,19 +278,23 @@ app.post('/api/users', requireAdmin, (req, res) => {
+@@ -193,19 +341,35 @@ app.post('/api/users', requireAdmin, (req, res) => {
    }
    try {
      createUser({ username, password, name, role });
@@ -184,6 +256,17 @@ index 215c4ae..dd83995 100644
      res.status(201).json({ success: true });
    } catch (err) {
 -    res.status(400).json({ error: err.message });
++    res.status(err.status || 400).json({ error: err.message });
++  }
++});
++
++app.post('/api/users/:username/password', requireAdmin, (req, res) => {
++  try {
++    setPassword(req.params.username, (req.body || {}).new_password);
++    endSessionsOf(req.params.username);
++    if (forensic) forensic.userChanged(req, 'user.password_reset', req.params.username, { must_change_password: true });
++    res.json({ success: true });
++  } catch (err) {
 +    res.status(err.status || 400).json({ error: err.message });
    }
  });
@@ -194,6 +277,7 @@ index 215c4ae..dd83995 100644
 +    const removed = getAllUsers().find(u => u.username.toLowerCase() === username.trim().toLowerCase());
 +    if (forensic && removed) forensic.userChanged(req, 'user.delete_requested', username, { removed });
      deleteUser(username);
++    endSessionsOf(username);
 +    if (forensic) forensic.userChanged(req, 'user.deleted', username, { removed });
      res.json({ success: true });
    } catch (err) {
@@ -202,7 +286,7 @@ index 215c4ae..dd83995 100644
    }
  });
  
-@@ -215,15 +304,20 @@ app.post('/api/parse-checklist', upload.single('checklist'), async (req, res) =>
+@@ -215,15 +379,20 @@ app.post('/api/parse-checklist', upload.single('checklist'), async (req, res) =>
      return res.status(400).json({ error: 'No checklist file uploaded' });
    }
  
@@ -224,7 +308,7 @@ index 215c4ae..dd83995 100644
    }
  });
  
-@@ -232,20 +326,25 @@ app.get('/api/jobs', (req, res) => {
+@@ -232,20 +401,25 @@ app.get('/api/jobs', (req, res) => {
    try {
      res.json(getAllJobs());
    } catch (err) {
@@ -253,7 +337,7 @@ index 215c4ae..dd83995 100644
        if (compileResult.success) {
          info.download_urls = mapCompileResult(info, compileResult);
        }
-@@ -256,6 +355,14 @@ app.post('/api/jobs', async (req, res) => {
+@@ -256,6 +430,14 @@ app.post('/api/jobs', async (req, res) => {
  
      const jobId = createJob({ info, creator });
      const newJob = getJobById(jobId);
@@ -268,7 +352,7 @@ index 215c4ae..dd83995 100644
  
      // Broadcast creation
      broadcast('job_created', newJob);
-@@ -266,7 +373,7 @@ app.post('/api/jobs', async (req, res) => {
+@@ -266,7 +448,7 @@ app.post('/api/jobs', async (req, res) => {
      if (err.message.includes('UNIQUE constraint failed') || err.message.includes('unique')) {
        res.status(400).json({ error: `Job number already exists.` });
      } else {
@@ -277,7 +361,7 @@ index 215c4ae..dd83995 100644
      }
    }
  });
-@@ -274,11 +381,18 @@ app.post('/api/jobs', async (req, res) => {
+@@ -274,11 +456,18 @@ app.post('/api/jobs', async (req, res) => {
  app.put('/api/jobs/:id', async (req, res) => {
    try {
      const id = parseInt(req.params.id);
@@ -298,7 +382,7 @@ index 215c4ae..dd83995 100644
        if (compileResult.success) {
          info.download_urls = mapCompileResult(info, compileResult);
        }
-@@ -287,6 +401,7 @@ app.put('/api/jobs/:id', async (req, res) => {
+@@ -287,6 +476,7 @@ app.put('/api/jobs/:id', async (req, res) => {
      }
  
      const updatedJob = updateJob(id, { info, creator });
@@ -306,7 +390,7 @@ index 215c4ae..dd83995 100644
  
      // Broadcast update
      broadcast('job_updated', updatedJob);
-@@ -294,7 +409,7 @@ app.put('/api/jobs/:id', async (req, res) => {
+@@ -294,25 +484,32 @@ app.put('/api/jobs/:id', async (req, res) => {
  
      res.json(updatedJob);
    } catch (err) {
@@ -315,7 +399,13 @@ index 215c4ae..dd83995 100644
    }
  });
  
-@@ -304,15 +419,19 @@ app.delete('/api/jobs/:id', (req, res) => {
+-app.delete('/api/jobs/:id', (req, res) => {
++// Deleting a job: Admin role by default (DECISIONS_AND_OPEN_REQUIREMENTS.md, question 6).
++// SYNC_DELETE_REQUIRES_ADMIN=0 lets any signed-in user delete, as the original UI did.
++const requireDeleteRole = process.env.SYNC_DELETE_REQUIRES_ADMIN === '0' ? (req, res, next) => next() : requireAdmin;
++app.delete('/api/jobs/:id', requireDeleteRole, (req, res) => {
+   try {
+     const id = parseInt(req.params.id);
      const job = getJobById(id);
      if (!job) return res.status(404).json({ error: 'Job not found' });
  
@@ -337,7 +427,7 @@ index 215c4ae..dd83995 100644
    }
  });
  
-@@ -320,13 +439,20 @@ app.put('/api/jobs/:id/documents/:docId', (req, res) => {
+@@ -320,13 +517,20 @@ app.put('/api/jobs/:id/documents/:docId', (req, res) => {
    try {
      const jobId = parseInt(req.params.id);
      const docId = parseInt(req.params.docId);
@@ -359,7 +449,7 @@ index 215c4ae..dd83995 100644
  
      // Broadcast document status toggle
      broadcast('document_toggled', {
-@@ -345,7 +471,7 @@ app.put('/api/jobs/:id/documents/:docId', (req, res) => {
+@@ -345,7 +549,7 @@ app.put('/api/jobs/:id/documents/:docId', (req, res) => {
  
      res.json(result.job);
    } catch (err) {
@@ -368,7 +458,7 @@ index 215c4ae..dd83995 100644
    }
  });
  
-@@ -353,13 +479,20 @@ app.put('/api/jobs/:id/workflow/:stepId', (req, res) => {
+@@ -353,13 +557,20 @@ app.put('/api/jobs/:id/workflow/:stepId', (req, res) => {
    try {
      const jobId = parseInt(req.params.id);
      const stepId = parseInt(req.params.stepId);
@@ -390,7 +480,7 @@ index 215c4ae..dd83995 100644
  
      // Broadcast workflow status toggle
      broadcast('workflow_toggled', {
-@@ -378,7 +511,7 @@ app.put('/api/jobs/:id/workflow/:stepId', (req, res) => {
+@@ -378,7 +589,7 @@ app.put('/api/jobs/:id/workflow/:stepId', (req, res) => {
  
      res.json(result.job);
    } catch (err) {
@@ -399,7 +489,7 @@ index 215c4ae..dd83995 100644
    }
  });
  
-@@ -386,7 +519,7 @@ app.get('/api/logs', requireAdmin, (req, res) => {
+@@ -386,7 +597,7 @@ app.get('/api/logs', requireAdmin, (req, res) => {
    try {
      res.json(getAllHistoryLogs());
    } catch (err) {

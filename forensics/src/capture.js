@@ -91,7 +91,8 @@ export function createCapture({
       try { fs.appendFileSync(failureLog, JSON.stringify(note) + '\n'); } catch { /* same disk may be failing */ }
       pendingGap = pendingGap ? { ...pendingGap, lost_events: pendingGap.lost_events + 1, last: note } : { lost_events: 1, first: note, last: note };
       if (required && failMode === 'closed') {
-        throw err instanceof ForensicWriteError ? err : new ForensicWriteError(err.message, err);
+        // Shown to the user: say plainly that nothing was saved and why.
+        throw new ForensicWriteError(`Change refused: the forensic evidence store could not record it, so nothing was saved. Ask an administrator to check the evidence store. (${err.message})`, err);
       }
       return null;
     }

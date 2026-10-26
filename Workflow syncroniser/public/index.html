@@ -39,7 +39,7 @@
           <label for="login-password">Password</label>
           <input type="password" id="login-password" required placeholder="Enter password...">
         </div>
-        <div id="login-error" class="login-error-msg hidden">Invalid password. Passwords match usernames.</div>
+        <div id="login-error" class="login-error-msg hidden">Invalid username or password.</div>
         <button type="submit" class="btn btn-primary btn-block">Sign In</button>
       </form>
     </div>
@@ -143,6 +143,7 @@
           <span class="material-symbols-outlined">account_circle</span>
           <div class="profile-info">
             <span id="current-user-name">Desk Name</span>
+            <button class="logout-link" id="btn-change-password" type="button">Change password</button>
             <button class="logout-link" id="btn-logout">Logout</button>
           </div>
         </div>
@@ -1088,5 +1089,26 @@
   </div>
 
   <script src="js/app.js"></script>
+  <!-- Outside #app-container so it can be shown before a workspace is chosen -->
+    <!-- Password change (also shown automatically when the server requires it) -->
+    <div class="modal-backdrop" id="password-modal-backdrop" style="z-index: 1000;"></div>
+    <div class="job-modal" id="password-modal" style="width: 420px; max-width: 90vw; z-index: 1001;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 15px;">
+        <h2>Change password</h2>
+        <button class="close-btn" id="password-btn-close" type="button"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <form id="password-form" style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+        <p id="password-required-note" class="hidden" style="font-size: 0.82rem; color: var(--danger);">Your password must be changed before you can continue.</p>
+        <label>Current password <input type="password" id="pw-current" required autocomplete="current-password" style="width:100%; padding:8px;"></label>
+        <label>New password (at least 12 characters, not containing your username) <input type="password" id="pw-new" required minlength="12" autocomplete="new-password" style="width:100%; padding:8px;"></label>
+        <label>Repeat new password <input type="password" id="pw-repeat" required minlength="12" autocomplete="new-password" style="width:100%; padding:8px;"></label>
+        <div id="password-error" class="login-error-msg hidden"></div>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-secondary" id="password-btn-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="password-btn-submit">Change password</button>
+        </div>
+      </form>
+    </div>
+
 </body>
 </html>

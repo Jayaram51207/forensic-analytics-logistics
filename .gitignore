@@ -50,3 +50,12 @@ forensics/datasets/
 
 # Project Python environment
 forensics/.venv/
+
+# Secrets and local configuration (never commit)
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/test_credentials.json
+# Remote anchor witness data belongs on the witness machine
+**/anchor-witness/

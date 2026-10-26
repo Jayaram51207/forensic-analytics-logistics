@@ -2,7 +2,11 @@
 
 ## Requirements
 
-See RUNTIME_SETUP.md §2. In short: Node.js 20+, `npm install` in `Workflow syncroniser/`, and `forensics\setup_env.cmd` once to create the Python environment. The tests find `forensics\.venv` by themselves; `SYNC_PYTHON` overrides it.
+See RUNTIME_SETUP.md §2. In short: Node.js 20+, `npm install` in `Workflow syncroniser/`, `npm install` in `forensics/` (installs `playwright-core` for the browser tests; no browser is downloaded), and `forensics\setup_env.cmd` once to create the Python environment. The tests find `forensics\.venv` by themselves; `SYNC_PYTHON` overrides it.
+
+Browser tests drive the installed Microsoft Edge (or Chrome) headless through `playwright-core`. They are skipped with a reason if neither is installed, if `playwright-core` is missing, or with `FORENSIC_BROWSER_TESTS=0`. Edge is preferred, then Chrome; `FORENSIC_BROWSER_SHOTS=<folder>` saves screenshots. The page may not reach the internet: every non-local request is blocked.
+
+Test credentials are random for every test instance and live only in that instance's temp folder (`test_credentials.json`). No shared or predictable password exists.
 
 Tests that need a missing component are **skipped with a stated reason**, never counted as passed.
 
@@ -10,24 +14,27 @@ Tests that need a missing component are **skipped with a stated reason**, never 
 
 ```
 cd forensics
-node --test                    # 131 tests; 4 GUI tests skipped unless opted in
-node e2e/run_e2e.js            # 26-step end-to-end run on a disposable synchroniser
+node --test                    # 4 desktop-window tests skipped unless FORENSIC_GUI_TESTS=1
+node e2e/run_e2e.js            # 28-step end-to-end run on a disposable synchroniser
 ```
 
 Every integration test starts its own synchroniser on a random port, with database, uploads, downloads and evidence in a temp folder, and signs in through the real login route. The live `db.json` and `forensics/data` are never opened.
 
-Last full run (2026-10-14): **131 tests, 127 passed, 0 failed, 4 skipped** (the opt-in GUI tests). With `FORENSIC_GUI_TESTS=1` those 4 also ran and passed. End-to-end run: 26 of 26.
+Last full run (2026-10-26, branch `final-hardening`): with `FORENSIC_GUI_TESTS=1`, **174 tests, 174 passed, 0 failed, 0 skipped**. Without it: 174 tests: 170 passed, 0 failed, 4 skipped (the opt-in desktop-window tests). End-to-end run: 28 of 28. (Baseline at `forensic-v2`: 131 tests, 127 passed, 4 skipped. The new tests are listed below; no earlier test was removed. Earlier tests were changed where behaviour changed on purpose: deletion is now admin-only, and logins use generated passwords.)
 
 ## Test files
 
 | File | Tests | Scope |
 |---|---|---|
 | `test/store.test.js` | 26 | Canonical JSON, append, hash links, every tampering case, truncation, torn writes at end and mid-file, write failure, head-anchor failure, altered head anchor, query filters, four concurrent writer processes, **full-rewrite limitation**, external anchor, expected-head check, unwitnessed records |
-| `test/units.test.js` | 17 | Normalisation, ISO 6346, diff and state hash, packing reason codes, ingest basics, views and gaps, rules on hand-built streams, configuration, scoring, ambiguous links, dispositions, dashboard API and rendering safety |
-| `test/sync.integration.test.js` | 9 | Real HTTP: lifecycle, id reuse, generation success and failure, login and users, upload, fail-closed, fail-open, baseline and restart, capture disabled |
+| `test/units.test.js` | 21 | Business-rule configuration (validation, FIN-001 basis and tax scheme, XAP-TAX resolved by configuration, WFL-001 "not verified"); normalisation, ISO 6346, diff and state hash, packing reason codes, ingest basics, views and gaps, rules on hand-built streams, configuration, scoring, ambiguous links, dispositions, dashboard API and rendering safety |
+| `test/sync.integration.test.js` | 9 | Real HTTP: lifecycle (desk deletion refused, admin deletion), id reuse, generation success and failure, login and users, upload, fail-closed, fail-open, baseline and restart, capture disabled |
 | `test/auth.integration.test.js` | 6 | Every route refuses anonymous requests; forged and expired tokens; admin from session role, not `adminUsername`; actor spoofing recorded and flagged; sessions end on restart; `SYNC_AUTH=off` |
 | `test/scenarios.integration.test.js` | 56 | All 44 scenarios through the real synchroniser: expected findings and nothing else; citations exist; lineage, classification and linkage expectations; common-source falsification; duplicate evidence; post-issue divergence; event time vs ingestion time; deleted job; reconciliation clean and tampered |
 | `test/adapters.test.js` | 3 | Python outbox; visualizer bridge → chain → finding; real B.I.I.L. `generate_all()` |
+| `test/credentials.integration.test.js` | 12 | No default accounts; weak bootstrap refused; only hashes stored, nothing leaked to logs or evidence; malformed credentials; enumeration resistance; throttling; forced first change; change with right and wrong current password; sessions ended by change, reset, deletion; idle and absolute expiry; legacy weak passwords forced to change; admin-only deletion and its override; fail-open announced |
+| `test/browser.test.js` | 18 | **Real synchroniser UI in Edge:** invalid login, sign-in, upload and autofill, job creation with document generation, edit, workflow tick, desk delete refused, evidence-store failure dialog, password change, session ended elsewhere, forced change after admin reset, admin delete and logout, no console errors. **Dashboard:** empty store and unconfigured business rules banner, case with contradiction and provenance panels, malformed evidence, markup safety |
+| `test/anchor.remote.test.js` | 9 | Remote witness (same machine): hashes only leave the host; full rewrite after altered, deleted, reordered, truncated records; rewritten local anchor file; refused re-anchoring; witness outage and catch-up; token and input checks |
 | `test/pipeline.test.js` | 13 (4 opt-in) | Missing file, invalid lines, duplicate delivery, retry after failure, incomplete line, artifact hash states, B.I.I.L. and stuffing-report evidence reaching analysis and case view, weak links never becoming contradictions, configuration and switches; **real windows** of the visualizer and the three WPF programs |
 
 ## Where each required case is tested
@@ -37,7 +44,11 @@ Last full run (2026-10-14): **131 tests, 127 passed, 0 failed, 4 skipped** (the 
 | Tampered record | store: "detects modified event contents", "…hash was recomputed" |
 | Reordered events | store: "detects reordered records" |
 | Missing events | store: "detects a deleted line", "interrupted write in the middle…" |
-| Altered anchors | store: "altered head anchor is detected", "external anchor detects a full rewrite" |
+| Altered anchors | store: "altered head anchor is detected", "external anchor detects a full rewrite"; anchor.remote: "…rewrote the local anchor file" |
+| Remote anchor | anchor.remote (all); e2e step 28 |
+| Credentials and sessions | credentials (all); browser: password change, session ended elsewhere, forced change |
+| Browser UI | browser (all) |
+| Business rules | units: "business rules: …" (4 tests); browser: dashboard empty state |
 | Interrupted writes | store: "incomplete final record…", "interrupted write in the middle…" |
 | Concurrent writes | store: "concurrent writers in separate processes…" |
 | Chain and anchor rewritten together | store: "LIMITATION: a full rewrite…", "external anchor detects…", "a head recorded elsewhere…" |
@@ -71,7 +82,6 @@ These open windows on the desktop, so they are off by default.
 
 | Path | Why | Risk |
 |---|---|---|
-| Synchroniser browser UI (login screen, session expiry handling, event stream after sign-in, logout) | No browser automation was used; only the API was driven | The `app.js` changes for sessions are untested in a browser |
 | EasyQuote "Export Excel" and "Save HTML" | Need a save-file dialog | Same `RecordExport()` call as the tested clipboard path, plus a file hash |
 | Visualizer "Export PDF" (`packing.report_saved`) | Needs a native save dialog | Untested code in `app.py Api.save_pdf` |
 | Visualizer in a plain browser | No bridge exists there | By design nothing is captured |
@@ -82,7 +92,9 @@ These open windows on the desktop, so they are off by default.
 | Real checklists, invoices and packing lists | Not used | Parser accuracy on real documents unknown |
 | More than one synchroniser process; more than ~12,000 events | Not tried | Analysis loads the whole event file |
 | Disk-full and power loss | Simulated by an unwritable path and torn lines only | — |
-| External anchor on a real separate host | Tested with a second local folder | Protection depends entirely on where it is put |
+| External anchor on a real separate host | Witness tested in another process and folder on the same PC only; procedure in EXTERNAL_ANCHOR.md §3 | Protection depends entirely on where it is put. **Pending** |
+| Synchroniser UI in Firefox/Safari, on small screens, with a real idle timeout of 12 h | Edge headless only; expiry tested with shortened times | Low |
+| Admin tab user management in the browser | Driven through the API in tests | Low |
 
 ## Manual checks
 

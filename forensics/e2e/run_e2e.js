@@ -14,11 +14,19 @@ import { checklistPdf } from '../synthetic/lib.js';
 import { EventStore, sha256 } from '../src/store.js';
 import { reconcile } from '../src/model.js';
 import { createDashboard } from '../src/dashboard.js';
+import { createAnchorServer } from '../src/anchor_server.js';
+import crypto from 'crypto';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fe2e-'));
 const anchor = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fe2e-anchor-')), 'witness.jsonl');
-const env = { FORENSIC_ANCHOR_FILE: anchor };
-process.env.FORENSIC_ANCHOR_FILE = anchor; // the dashboard in this process writes reviewer decisions to the same chain
+// Remote witness: runs in this process; the synchroniser (a child process) reaches it over HTTP.
+// Same machine, so this checks the protocol, not a separate trust domain (docs/EXTERNAL_ANCHOR.md).
+const witnessDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fe2e-witness-'));
+const witnessToken = crypto.randomBytes(24).toString('hex');
+const witness = createAnchorServer({ dir: witnessDir, token: witnessToken });
+await new Promise(r => witness.listen(0, '127.0.0.1', r));
+const env = { FORENSIC_ANCHOR_FILE: anchor, FORENSIC_ANCHOR_URL: `http://127.0.0.1:${witness.address().port}/anchor`, FORENSIC_ANCHOR_TOKEN: witnessToken, FORENSIC_ANCHOR_STORE_ID: 'e2e' };
+Object.assign(process.env, env); // the dashboard in this process writes reviewer decisions to the same chain
 const ME = 'Desk 1 (Invoice)';
 let failed = 0, n = 0;
 const step = (name, ok, detail = '') => { n++; if (!ok) failed++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${String(n).padStart(2)}. ${name}${detail ? '  [' + detail + ']' : ''}`); };
@@ -31,7 +39,7 @@ console.log(`Disposable instance: ${dir}\nPython for document generation: ${PYTH
 let s = await startSync({ dir, env });
 step('synchroniser starts; system.started recorded', count('system.started') === 1);
 step('unauthenticated API request refused', (await s.anon('GET', '/api/jobs')).status === 401);
-step('login creates a session', (await s.anon('POST', '/api/login', { username: 'desk1', password: 'desk1' })).status === 200);
+step('login creates a session', (await s.anon('POST', '/api/login', { username: 'desk1', password: s.password('desk1') })).status === 200);
 
 // upload + parse a synthetic checklist
 const info = sampleInfo({ job_no: 'E2E-0001' });
@@ -84,7 +92,8 @@ step('evidence agrees with db.json', reconcile(s.db(), events()).ok, JSON.string
 
 // second job, then delete the first
 await s.call('POST', '/api/jobs', { info: sampleInfo({ job_no: 'E2E-0002' }), creator: ME });
-step('job deleted', (await s.call('DELETE', `/api/jobs/${id}`)).status === 200);
+step('desk user may not delete', (await s.call('DELETE', `/api/jobs/${id}`)).status === 403);
+step('job deleted by administrator', (await (await s.as('admin'))('DELETE', `/api/jobs/${id}`)).status === 200);
 step('operational history gone, evidence snapshot kept', !s.db().history_logs.some(l => l.job_id === id) && events().find(e => e.action === 'job.delete_requested').payload.snapshot.job_no === 'E2E-0001');
 
 // integrity
@@ -105,6 +114,11 @@ step('reviewer disposition recorded into the chain', c ? (await fetch(`${dbase}/
 dash.close();
 await s.stop();
 step('final chain verification', store().verify().ok);
+const fin = store();
+await fin.flushRemote();
+const vr = await fin.verifyRemote();
+step('remote witness (other process, same machine) holds every record', vr.ok && vr.remote.witnessed === vr.count, `${vr.remote.witnessed}/${vr.count}; ${vr.problems.map(p => p.type).join(',')}`);
+witness.close();
 
 console.log(`\n${n - failed}/${n} steps passed. Events captured: ${events().length}.`);
 process.exit(failed ? 1 : 0);

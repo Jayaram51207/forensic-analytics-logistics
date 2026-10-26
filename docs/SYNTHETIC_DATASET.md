@@ -38,7 +38,7 @@ Requests carry `X-Forensic-Sim-Time`; the server honours it only when started wi
 
 Checklist PDFs for upload scenarios are built by `checklistPdf()`: a one-page text PDF with the labels `pdf_parser.parse_checklist` looks for.
 
-Every actor is a real signed-in session of one of the five seeded accounts. A "spoofed" actor is a request sent from Desk 4's session with another name in the body.
+Every actor is a real signed-in session of one of five accounts (admin bootstrapped from a random `SYNC_ADMIN_PASSWORD`, desk1–desk4 created through the admin API with random passwords, changed at first sign-in). Deletion scenarios delete as the administrator. A "spoofed" actor is a request sent from Desk 4's session with another name in the body.
 
 ### Where records of the other applications come from
 

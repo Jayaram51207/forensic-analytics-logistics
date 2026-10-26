@@ -134,7 +134,7 @@ class LogisticsApp(tk.Tk):
         self.gen_awb = tk.BooleanVar(value=True)
         
         self.export_path_var = tk.StringVar()
-        default_export = r"c:\Users\vkmsd\OneDrive\Desktop\B,I,I,L\Generated"
+        default_export = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Generated")
         self.export_path_var.set(default_export)
         
         self.init_variables()

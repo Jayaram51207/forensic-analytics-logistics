@@ -41,6 +41,7 @@
 <header>
   <h1>Forensic Investigation</h1>
   <span id="integrity" class="mute">checking evidence integrity…</span>
+  <span id="business-rules" class="mute"></span>
   <span class="mute">Findings are potential anomalies for human review. Scores rank the queue; they are not probabilities.</span>
 </header>
 <main>
@@ -67,6 +68,9 @@ async function loadOverview(keep) {
   const i = overview.integrity, el = document.getElementById('integrity');
   el.textContent = i.ok ? `Evidence chain verified: ${i.count} events, head ${short(i.last_hash)}` : `INTEGRITY PROBLEMS (${i.problems.length}): ${i.problems.slice(0, 3).map(p => p.type).join(', ')}`;
   el.className = i.ok ? 'ok' : 'warn';
+  const br = overview.business_rules || { unresolved: [] }, bel = document.getElementById('business-rules');
+  bel.textContent = br.unresolved.length ? `Business rules not configured: ${br.unresolved.join(', ')}. Results for these are unresolved, and workflow compliance is not verified.` : 'Business rules configured.';
+  bel.className = br.unresolved.length ? 'warn' : 'ok';
   const box = document.getElementById('cases');
   box.replaceChildren(...overview.cases.map(c => $('div', { class: 'case' + (c.case_id === keep ? ' sel' : ''), onclick: () => openCase(c.case_id) },
     $('div', { class: 'row' }, $('strong', {}, c.job_no ?? '(no job number)'), $('span', { class: 'tag ' + c.band }, `${c.priority} ${c.band}`)),
@@ -98,7 +102,7 @@ async function openCase(id) {
         f.assessment && f.assessment.weakens.length ? $('p', { class: 'mute' }, 'Weakens: ' + f.assessment.weakens.join(' ')) : (f.assumptions.length ? $('p', { class: 'mute' }, 'Assumptions: ' + f.assumptions.join(' ')) : null),
         $('div', { class: 'mute mono' }, 'evidence: ' + f.evidence_event_ids.join(', '))))),
     d.limitations.length ? $('div', { class: 'panel' }, $('h2', {}, 'Uncertainty and limitations'), $('ul', {}, d.limitations.map(l => $('li', {}, l)))) : null,
-    d.provenance ? provenancePanels(d.provenance) : null,
+    ...(d.provenance ? provenancePanels(d.provenance) : []),
     $('div', { class: 'panel' }, $('h2', {}, 'Document generations'),
       $('table', {}, $('tr', {}, ['#', 'time', 'outcome', 'input hash', 'outputs (path · sha256 · content fingerprint)'].map(h => $('th', {}, h))),
         d.generations.map((g, i) => $('tr', {},

@@ -41,7 +41,7 @@ test('forged or expired tokens are refused', async t => {
   assert.equal(res.status, 401);
   assert.equal((await fetch(s.base + '/api/jobs', { headers: { Authorization: 'Bearer not-a-token' } })).status, 401);
   // a real token works as cookie or bearer, and stops working after logout
-  const login = await s.anon('POST', '/api/login', { username: 'desk2', password: 'desk2' });
+  const login = await s.anon('POST', '/api/login', { username: 'desk2', password: s.password('desk2') });
   const token = login.json.token;
   assert.match(login.headers.get('set-cookie'), /HttpOnly; SameSite=Strict/);
   assert.equal((await fetch(s.base + '/api/session', { headers: { Authorization: `Bearer ${token}` } })).status, 200);
@@ -74,9 +74,9 @@ test('actor spoofing: the session identity is recorded and the attempt is flagge
   const desk2 = await s.as('desk2');
   const job = (await desk2('POST', '/api/jobs', { info: sampleInfo(), creator: 'System Admin' })).json;
   await desk2('PUT', `/api/jobs/${job.id}/workflow/${job.workflow_steps[1].id}`, { status: 'Completed', user: 'Desk 4 (Operations)' });
-  await desk2('DELETE', `/api/jobs/${job.id}`, null, { 'X-Claimed-User': 'System Admin' });
+  assert.equal((await desk2('DELETE', `/api/jobs/${job.id}`, null, { 'X-Claimed-User': 'System Admin' })).status, 403, 'not an administrator');
   const ev = events(s).filter(e => e.entity_type === 'job' && e.actor.source !== 'system');
-  assert.ok(ev.length >= 6);
+  assert.ok(ev.length >= 4);
   assert.ok(ev.every(e => e.actor.display_name === 'Desk 2 (Documentation)' && e.actor.username === 'desk2' && e.actor.verified === true));
   assert.equal(ev.find(e => e.action === 'job.created').actor.claimed_display_name, 'System Admin');
   assert.equal(ev.find(e => e.action === 'job.created').payload.stored.workflow_steps.find(w => w.name === 'Job Created').status, 'Completed');
@@ -95,6 +95,7 @@ test('actor spoofing: the session identity is recorded and the attempt is flagge
 test('sessions do not survive a restart', async t => {
   const first = await startSync();
   const cookie = await first.cookieFor('desk1');
+  assert.equal((await fetch(first.base + '/api/jobs', { headers: { Cookie: cookie } })).status, 200);
   await first.stop();
   const second = await startSync({ dir: first.dir });
   t.after(() => second.stop());

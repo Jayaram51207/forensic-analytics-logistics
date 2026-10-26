@@ -4,6 +4,7 @@
 // Rationale, tolerances and known false positives: docs/DETECTION_RULES.md.
 import { sha256, canonical } from './store.js';
 import { normalizeJob, withinTolerance, normId, parseWeight, parsePackages, parseNumberDate } from './normalize.js';
+import { UNCONFIGURED } from './business_rules.js';
 
 export const DEFAULT_CONFIG = {
   // Fields that compiler.py writes into the generated workbooks (read from the source).
@@ -18,10 +19,13 @@ export const DEFAULT_CONFIG = {
   weight_tolerance: { abs: 1, rel: 0.005 },
   money_tolerance: { abs: 1, rel: 0.001 },
   // The repository contains two tax implementations. Neither is confirmed as authoritative, so both are accepted.
+  // config/business_rules.json tax_scheme narrows this to one; closing_bill_basis narrows the accepted totals.
   tax_schemes: [
-    { name: 'compiler.py (9% CGST + 9% SGST on every charge)', rate: () => 0.09 },
-    { name: 'unified_generator.py (2.5% + 2.5% on ocean freight, 9% + 9% otherwise)', rate: d => /^(o\/f|of[ -]|of$)|ocean freight/i.test(d.trim()) ? 0.025 : 0.09 }
+    { id: 'flat_9_9', name: 'compiler.py (9% CGST + 9% SGST on every charge)', rate: () => 0.09 },
+    { id: 'ocean_freight_2_5', name: 'unified_generator.py (2.5% + 2.5% on ocean freight, 9% + 9% otherwise)', rate: d => /^(o\/f|of[ -]|of$)|ocean freight/i.test(d.trim()) ? 0.025 : 0.09 }
   ],
+  closing_bill_basis: null,
+  business_rules: UNCONFIGURED,
   tds_rate: 0.02,
   // Charges that public/js/app.js inserts automatically after a checklist is parsed (handleChecklistUpload).
   placeholder_charge_sets: [
@@ -47,7 +51,7 @@ function finding(view, rule, f) {
   return base;
 }
 
-function schemeTotals(cfg, charges) {
+export function schemeTotals(cfg, charges) {
   const taxable = charges.reduce((s, c) => s + c.amount.value, 0);
   return cfg.tax_schemes.map(s => {
     const half = charges.reduce((t, c) => t + Math.round(c.amount.value * s.rate(c.description) * 100) / 100, 0);
@@ -181,14 +185,19 @@ export const RULES = [
           continue;
         }
         const schemes = schemeTotals(cfg, n.charges);
-        const candidates = schemes.flatMap(s => [['taxable total', s.taxable, s.scheme], ['grand total incl. GST', s.grand_total, s.scheme], ['payable after TDS', s.payable_after_tds, s.scheme]]);
+        const bases = { taxable_total: 'taxable total', grand_total: 'grand total incl. GST', after_tds: 'payable after TDS' };
+        const candidates = schemes.flatMap(s => [['taxable total', s.taxable, s.scheme], ['grand total incl. GST', s.grand_total, s.scheme], ['payable after TDS', s.payable_after_tds, s.scheme]])
+          .filter(([basis]) => !cfg.closing_bill_basis || basis === bases[cfg.closing_bill_basis]);
+        const br = cfg.business_rules || UNCONFIGURED;
+        const basisNote = br.closing_bill_basis ? `Closing bill basis "${br.closing_bill_basis}" from ${br.source}.` : 'Which total the closing bill should equal is UNRESOLVED (closing_bill_basis not configured); taxable total, grand total and amount after TDS are all accepted.';
+        const taxNote = br.tax_scheme ? `Tax scheme "${br.tax_scheme}" from ${br.source}.` : 'Which tax implementation is authoritative is UNRESOLVED (tax_scheme not configured); both implementations found in the repository are accepted.';
         const hit = candidates.find(([, v]) => withinTolerance(n.closing.amount.value, v, cfg.money_tolerance));
         if (!hit) {
           out.push(finding(view, this, {
             severity: 'high', title: 'Closing bill amount is not explained by the stored charges',
-            explanation: `Closing bill amount ${n.closing.amount.value} matches none of the totals derivable from the ${n.charges.length} stored charge(s) (taxable ${schemes[0].taxable}; grand totals ${schemes.map(s => s.grand_total.toFixed(2)).join(' / ')} under the two tax implementations found in the repository).`,
+            explanation: `Closing bill amount ${n.closing.amount.value} matches none of the accepted totals derivable from the ${n.charges.length} stored charge(s) (taxable ${schemes[0].taxable}; grand totals ${schemes.map(s => s.grand_total.toFixed(2)).join(' / ')} under ${schemes.length === 1 ? 'the configured tax scheme' : 'the two tax implementations found in the repository'}).`,
             evidence_event_ids: ev, details: { closing_amount: n.closing.amount.value, candidates: candidates.map(([basis, value, scheme]) => ({ basis, value: +value.toFixed(2), scheme })) },
-            assumptions: ['Which total the closing bill should equal, and which tax implementation is authoritative, are unresolved; any of them is accepted.']
+            assumptions: [basisNote, taxNote]
           }));
         }
         if (n.closing.sgst.ok && n.closing.cgst.ok) {
@@ -196,9 +205,9 @@ export const RULES = [
           if (!taxOk) {
             out.push(finding(view, this, {
               severity: 'medium', title: 'Closing SGST/CGST is not explained by the stored charges',
-              explanation: `Closing SGST ${n.closing.sgst.value} / CGST ${n.closing.cgst.value} match neither tax implementation applied to the stored charges (expected ${schemes.map(s => s.sgst.toFixed(2)).join(' or ')} each).`,
+              explanation: `Closing SGST ${n.closing.sgst.value} / CGST ${n.closing.cgst.value} ${schemes.length === 1 ? 'do not match the configured tax scheme' : 'match neither tax implementation'} applied to the stored charges (expected ${schemes.map(s => s.sgst.toFixed(2)).join(' or ')} each).`,
               evidence_event_ids: ev, details: { sgst: n.closing.sgst.value, cgst: n.closing.cgst.value, expected: schemes.map(s => ({ scheme: s.scheme, each: +s.sgst.toFixed(2) })) },
-              assumptions: ['Tax rates are taken from the two implementations in the repository; neither is confirmed as the business rule.']
+              assumptions: [taxNote]
             }));
           }
         }
@@ -231,7 +240,9 @@ export const RULES = [
           explanation: `At closure, ${pending.length} of ${c.state.workflow_steps.length} steps were Pending (not completed and not marked N/A): ${pending.slice(0, 6).map(s => `"${s.name}"`).join(', ')}${pending.length > 6 ? ', ...' : ''}.`,
           evidence_event_ids: ids(c.event, view.events.find(e => e.event_id === c.event.payload.triggered_by_event_id)),
           details: { pending_steps: pending.map(s => s.name) },
-          assumptions: ['Which steps are mandatory before closure is configurable (required_before_close); the application itself enforces no order.']
+          assumptions: [(cfg.business_rules || UNCONFIGURED).required_before_close
+            ? `Mandatory steps from ${cfg.business_rules.source} (required_before_close).`
+            : 'Mandatory steps before closure are UNRESOLVED (required_before_close not configured): every pending step is reported, and workflow compliance is NOT verified. The application itself enforces no order.']
         }));
       }
       return out;

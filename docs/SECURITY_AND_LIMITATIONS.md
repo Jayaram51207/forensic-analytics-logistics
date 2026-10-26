@@ -11,8 +11,10 @@ Labels: **T** = covered by an automated test; **D** = by design, untested; **N**
 | Unauthenticated user on the LAN | Sends HTTP requests to the synchroniser | Refused with 401 on every `/api` route except login; refused writes are recorded (T) |
 | Signed-in desk user | Uses the API directly, naming another user in the request | The session identity is recorded as actor and stored in the operational record; the other name is kept as a claim and raised as finding ACT-001 (T) |
 | Signed-in desk user | Claims admin through `adminUsername` | Refused with 403; recorded (T) |
-| Signed-in user | Edits, closes, reopens, deletes jobs through the application | Allowed (the application permits it). Old state, snapshot and actor preserved; rules and contradiction analysis may flag it (T) |
-| Anyone with the seeded passwords | Signs in as that account | **Not prevented.** Seeded accounts use the username as password |
+| Signed-in user | Edits, closes, reopens jobs through the application | Allowed (the application permits it). Old state and actor preserved; rules and contradiction analysis may flag it (T) |
+| Signed-in desk user | Deletes a job | Refused with 403 and recorded; only administrators may delete (T). Snapshot kept when an admin deletes (T) |
+| Password guesser | Repeated logins | 429 after 5 failures per IP / per username in 15 minutes (T); no default accounts exist (T) |
+| Someone who learns a password | Signs in as that account | Not prevented. A password change or admin reset ends every session of that account (T) |
 | Someone who shares a signed-in browser | Acts as that user | Not distinguishable |
 | User with write access to `db.json` | Edits data behind the API | No event is produced. `cli.js reconcile` reports the state difference afterwards; it cannot say who (T) |
 | User with write access to the evidence folder | Edits one record | Detected by `verify` (T) |
@@ -26,7 +28,8 @@ Labels: **T** = covered by an automated test; **D** = by design, untested; **N**
 
 Implemented in `Workflow syncroniser/server.js`.
 
-- Server-side sessions: 256-bit random token, `HttpOnly; SameSite=Strict` cookie or bearer header, held in memory, 12-hour idle expiry, ended by logout or restart.
+- Server-side sessions: 256-bit random token, `HttpOnly; SameSite=Strict` cookie or bearer header, held in memory, 12-hour idle and 24-hour absolute expiry, ended by logout, restart, password change, admin reset or account deletion (T).
+- Passwords: bcrypt (cost 12) over SHA-256, server-side policy, forced change at first sign-in and for stored passwords that fail the policy; never logged or returned (T). The first administrator comes from `SYNC_ADMIN_PASSWORD`; without it no account exists (T).
 - Identity and role come from the session. `creator`, `user`, `adminUsername` and `X-Claimed-User` are ignored for authorisation and for the operational record.
 - Evidence records `actor = { display_name, username, role, source: "session", verified: true }`, plus `claimed_display_name` when the request named someone else.
 - `auth.login_succeeded`, `auth.login_failed`, `auth.logout`, `auth.request_rejected` are recorded. Passwords, password hashes and session tokens are not (T).
@@ -34,11 +37,11 @@ Implemented in `Workflow syncroniser/server.js`.
 **What "verified" means:** the request carried a session created by a successful password check for that account. It does not mean the person at the keyboard is that person.
 
 Remaining weaknesses:
-- Seeded passwords equal usernames, and there is no password-change screen. Not changed: it needs a decision and a UI.
-- No login throttling or lockout.
+- Throttling is in memory; a restart clears it. There is no permanent lockout (deliberately: it would let anyone lock out the admin).
+- No multi-factor authentication. No password-reset by e-mail; an administrator resets.
 - No HTTPS. The cookie is not `Secure`; on the LAN it can be read by anyone who can sniff traffic.
 - CORS is open (`cors()` with defaults). Cross-origin pages cannot send the cookie (no credentials, `SameSite=Strict`), but should be restricted anyway.
-- Authorisation is two-level only (signed in / Admin). Any signed-in user may edit or delete any job, as the original UI allowed. Whether deletion should be admin-only is a business decision that was not made here.
+- Authorisation is two-level only (signed in / Admin). Any signed-in user may edit any job, as the original UI allowed. Deletion is admin-only by default (DECISIONS Q6).
 - `SYNC_AUTH=off` exists for compatibility. With it, everything in the first row of §1 is possible again.
 
 Desktop tools record the Windows account name as an unverified claim. They have no login.
@@ -61,8 +64,10 @@ Desktop tools record the Windows account name as an unverified claim. They have 
 | Full rewrite detected with `FORENSIC_ANCHOR_FILE` or `verify --expect` | T |
 | Records not seen by the external anchor are listed | T |
 | Anchor unreachable: appends continue, failure counted and reported | T |
+| Remote witness detects full rewrite, deletion, reordering, truncation, rewritten local anchor file, re-anchoring attempt | T (same machine only; cross-machine test pending, docs/EXTERNAL_ANCHOR.md) |
+| Remote witness down: gap reported, catch-up after recovery | T |
 
-**The local hash chain is tamper-evident against partial edits. It is not tamper-proof and does not protect against someone who can rewrite the folder.** The external anchor moves that boundary to "someone who can rewrite both places". It is a plain witness log, not itself chained, and offers nothing if it is stored where the same user can write. No trusted timestamping service is used.
+**The local hash chain is tamper-evident against partial edits. It is not tamper-proof and does not protect against someone who can rewrite the folder.** The external anchor moves that boundary to "someone who can rewrite both places". The anchor file is a plain witness log and offers nothing if it is stored where the same user can write. The remote witness (`src/anchor_server.js`) refuses to change what it has witnessed; it protects only if it runs on a host the evidence-host users cannot control. No trusted timestamping service is used.
 
 Other limits:
 - Timestamps come from the host clock; desktop-tool times from another, unsynchronised clock. Both are kept and labelled.
@@ -91,7 +96,7 @@ A value that was false when first entered, and copied consistently afterwards, p
 
 ### Possible real data already in the repository
 
-Template and sample files under `B,I,I,L/Templates/`, `Workflow syncroniser/Templates/`, `Workflow syncroniser/air/`, and defaults hard-coded in `unified_generator.py` and the EasyQuote programs, carry what look like real company names, addresses, container numbers and tariffs. This work did not open the sample checklists, invoices or client-specific templates; used only the generic templates as layout; generated every synthetic value; and ran B.I.I.L. and the WPF programs with their built-in defaults, writing only to temporary folders. These files are now in **local** git history. Whether they may be used or published is for their owner to say.
+Audited in docs/DATA_AND_REPOSITORY_AUDIT.md. The 65 tracked sample/template documents carry company names, e-mail addresses and GSTIN/PAN-format identifiers (GSTIN check digits valid), so they are treated as potentially real. They are excluded from `git archive` copies but remain in **local** git history: the repository must not be pushed to a public remote. Whether they may be used or published is for their owner to say (DECISIONS Q1).
 
 ## 6. Dashboard
 

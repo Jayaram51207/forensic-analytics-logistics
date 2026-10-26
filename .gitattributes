@@ -1,0 +1,16 @@
+# Excluded from `git archive` (distribution copies). These documents contain
+# GSTIN/PAN-format identifiers, company names and e-mail addresses whose
+# provenance is unverified; see docs/DATA_AND_REPOSITORY_AUDIT.md. They stay
+# in the local repository for the applications that need them.
+"B,I,I,L/Templates/**" export-ignore
+"Workflow syncroniser/BIIL/Templates/**" export-ignore
+"Workflow syncroniser/Templates/**" export-ignore
+"Workflow syncroniser/air/**" export-ignore
+"B,I,I,L/*.xls" export-ignore
+"B,I,I,L/*.xlsx" export-ignore
+"B,I,I,L/*.xlt" export-ignore
+"B,I,I,L/*.xltx" export-ignore
+"Workflow syncroniser/BIIL/*.xls" export-ignore
+"Workflow syncroniser/BIIL/*.xlsx" export-ignore
+"Workflow syncroniser/BIIL/*.xlt" export-ignore
+"Workflow syncroniser/BIIL/*.xltx" export-ignore

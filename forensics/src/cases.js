@@ -4,6 +4,7 @@
 import { EventStore } from './store.js';
 import { buildViews, reconstruct } from './model.js';
 import { runRules, DEFAULT_CONFIG } from './rules.js';
+import { UNCONFIGURED } from './business_rules.js';
 import { normalizeJob } from './normalize.js';
 import { buildProvenance, contradictionFindings, assessFinding } from './provenance.js';
 
@@ -88,6 +89,15 @@ export function features(view) {
  */
 export function analyze(records, config = {}) {
   const { views, context } = buildViews(records);
+  // config.business_rules = loadBusinessRules() output; absent means every business rule is unresolved.
+  const br = config.business_rules || UNCONFIGURED;
+  config = {
+    ...(br.required_before_close ? { required_before_close: br.required_before_close } : {}),
+    ...(br.tax_scheme ? { tax_schemes: DEFAULT_CONFIG.tax_schemes.filter(s => s.id === br.tax_scheme) } : {}),
+    ...(br.closing_bill_basis ? { closing_bill_basis: br.closing_bill_basis } : {}),
+    ...config, business_rules: br,
+    provenance_config: { ...config.provenance_config, tax_scheme: br.tax_scheme, business_rules_source: br.source }
+  };
   const findings = runRules(views, context, config);
   const provenance = new Map();
   if (config.provenance !== false) {
@@ -132,7 +142,7 @@ export function analyze(records, config = {}) {
         ...(view.events.some(e => e.actor?.source === 'client_claimed') ? ['Actor names are claims sent by the client and are not authenticated.'] : []),
         ...[...new Set(fs_.flatMap(f => f.assumptions))]
       ],
-      rule_config: { required_before_close: (config.required_before_close ?? DEFAULT_CONFIG.required_before_close), lock_steps: config.lock_steps ?? DEFAULT_CONFIG.lock_steps }
+      rule_config: { required_before_close: (config.required_before_close ?? DEFAULT_CONFIG.required_before_close), lock_steps: config.lock_steps ?? DEFAULT_CONFIG.lock_steps, unresolved_business_rules: br.unresolved }
     });
   }
   cases.sort((a, b) => b.priority.value - a.priority.value || a.case_id.localeCompare(b.case_id));
@@ -147,7 +157,7 @@ export function caseDetail(analysis, id) {
   const cited = new Set(c.supporting_event_ids);
   const prov = analysis.provenance?.get(c.correlation_id) || null;
   const findings = prov ? c.findings.map(f => ({ ...f, assessment: assessFinding(f, view, prov) })) : c.findings;
-  return { ...c, findings, provenance: prov && { ...prov, contradictions: analysis.config?.contradictions === false ? [] : prov.contradictions }, timeline_ordering: rec.ordering, timeline_note: rec.note, timeline: rec.timeline.map(t => ({ ...t, cited_by_finding: cited.has(t.event_id) })), gaps: rec.gaps, state_from_evidence: rec.current_state_from_evidence, generations: view.generations.map(g => ({ number: g.number, outcome: g.outcome, input_sha256: g.input_sha256, at: g.requested.server_timestamp, artifacts: g.result?.artifacts || [], error: g.result?.payload.error })) };
+  return { ...c, findings, provenance: prov && { ...c.provenance, ...prov, contradictions: analysis.config?.contradictions === false ? [] : prov.contradictions }, timeline_ordering: rec.ordering, timeline_note: rec.note, timeline: rec.timeline.map(t => ({ ...t, cited_by_finding: cited.has(t.event_id) })), gaps: rec.gaps, state_from_evidence: rec.current_state_from_evidence, generations: view.generations.map(g => ({ number: g.number, outcome: g.outcome, input_sha256: g.input_sha256, at: g.requested.server_timestamp, artifacts: g.result?.artifacts || [], error: g.result?.payload.error })) };
 }
 
 /** Reviewer decisions are themselves evidence: appended to the same chain, never edited. */

@@ -215,7 +215,7 @@ export const SCENARIOS = {
     return lbl('anomaly', ['IDN-001'], 'Job number changed after documents were issued under the original number.');
   },
   deleted_after_close: async c => {
-    await lifecycle(c, { afterClose: async s => { await s.api.remove(s.id, DESKS[3], s.tick(30, 300)); } });
+    await lifecycle(c, { afterClose: async s => { await s.api.remove(s.id, 'System Admin', s.tick(30, 300)); } });
     return lbl('anomaly', ['DEL-001'], 'Closed job deleted from the operational system together with its history.');
   },
   spoofed_actor: async c => {

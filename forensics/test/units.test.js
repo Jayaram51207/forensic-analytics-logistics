@@ -10,6 +10,7 @@ import { outboxAppend, ingest } from '../src/ingest.js';
 import { buildViews, reconcile } from '../src/model.js';
 import { analyze, score, caseId, recordDisposition, caseDetail, features } from '../src/cases.js';
 import { runRules, RULES, DEFAULT_CONFIG } from '../src/rules.js';
+import { parseBusinessRules, loadBusinessRules, DEFAULT_RULES_FILE } from '../src/business_rules.js';
 import { createDashboard } from '../src/dashboard.js';
 import { xlsxContentFingerprint } from '../src/capture.js';
 import { containerNo, rng } from '../synthetic/lib.js';
@@ -157,6 +158,61 @@ test('rules: tax-scheme disagreement is not flagged; both repository implementat
   const fin = analyze(store.readAll().records.map(x => x.record)).findings.filter(f => f.rule_id === 'FIN-001');
   assert.deepEqual(fin.map(f => f.job_no), ['J-5']);
   assert.ok(fin[0].assumptions.length > 0);
+});
+
+test('business rules: shipped file leaves every question unresolved; typos are refused', () => {
+  const br = loadBusinessRules(DEFAULT_RULES_FILE);
+  assert.deepEqual(br.unresolved, ['required_before_close', 'tax_scheme', 'closing_bill_basis']);
+  assert.deepEqual(loadBusinessRules(path.join(tmp(), 'absent.json')).unresolved.length, 3);
+  assert.throws(() => parseBusinessRules({ tax_scheme: '9+9' }), /tax_scheme/);
+  assert.throws(() => parseBusinessRules({ closing_bill_basis: 'total' }), /closing_bill_basis/);
+  assert.throws(() => parseBusinessRules({ required_before_close: 'some' }), /required_before_close/);
+  const bad = path.join(tmp(), 'r.json'); fs.writeFileSync(bad, '{oops');
+  assert.throws(() => loadBusinessRules(bad), /invalid business rules/);
+});
+
+test('business rules: closing basis and tax scheme narrow FIN-001 only once configured', () => {
+  const { store, base, job } = stream();
+  const close = (amount, half, seq) => {
+    const st = job({ status: 'Closed', billing_charges: [{ key: 'O/F - X', description: 'O/F - X', amount: 1000 }], closing_bill_no: 'B', closing_bill_amount: amount, closing_sgst: half, closing_cgst: half });
+    st.workflow_steps.forEach(s => { s.status = 'Completed'; });
+    store.append({ ...base, correlation_id: 'c' + seq, entity_id: String(seq), job_no: 'J-' + seq, action: 'job.created', operation_id: 'a' + seq, payload: { stored: { ...st, status: 'Active', job_no: 'J-' + seq, closing_bill_amount: '' }, state_hash: 'x', source_links: [] } });
+    store.append({ ...base, correlation_id: 'c' + seq, entity_id: String(seq), job_no: 'J-' + seq, action: 'workflow_step.status_changed', operation_id: 'b' + seq, changes: [{ field: 'workflow_steps[Job Closed].status', old: 'Pending', new: 'Completed' }], payload: { list: 'workflow_steps', item_name: 'Job Closed', job_status: 'Closed', closing: { bill_no: 'B', bill_amount: amount, sgst: half, cgst: half }, state_hash: 'y' } });
+    store.append({ ...base, correlation_id: 'c' + seq, entity_id: String(seq), job_no: 'J-' + seq, action: 'job.closed', operation_id: 'b' + seq, changes: [], payload: {} });
+  };
+  close(1180, 90, 2); close(1050, 25, 3); close(1000, 90, 4); close(1400, 90, 5);
+  const recs = store.readAll().records.map(x => x.record);
+  const fin = br => analyze(recs, br ? { business_rules: parseBusinessRules(br, 'config/business_rules.json') } : {}).findings.filter(f => f.rule_id === 'FIN-001');
+  const open = fin();
+  assert.deepEqual(open.map(f => f.job_no), ['J-5'], 'unconfigured: every basis and scheme accepted');
+  assert.ok(open[0].assumptions.every(a => /UNRESOLVED/.test(a)));
+  const set = fin({ tax_scheme: 'flat_9_9', closing_bill_basis: 'grand_total' });
+  assert.deepEqual([...new Set(set.map(f => f.job_no))].sort(), ['J-3', 'J-4', 'J-5']);
+  assert.ok(set.every(f => f.assumptions.every(a => !/UNRESOLVED/.test(a))));
+  assert.ok(set.some(f => f.job_no === 'J-3' && /SGST/.test(f.title)), '2.5% tax is wrong once 9% + 9% is the rule');
+});
+
+test('business rules: XAP-TAX is unresolved until a tax scheme is configured', () => {
+  const store = new EventStore(tmp());
+  const base = { application: 'workflow_sync', entity_type: 'job', entity_id: '1', job_no: 'J-1', correlation_id: 'corr-1' };
+  store.append({ ...base, action: 'job.created', operation_id: 'op1', payload: { stored: { job_no: 'J-1', type: 'sea_export', status: 'Active', gross_weight: '100 KGS', billing_charges: [{ key: 'O', description: 'OCEAN FREIGHT', amount: 1000 }], containers: [], documents: [], workflow_steps: [] }, state_hash: 'h', source_links: [] } });
+  store.append({ application: 'biil_unified', action: 'document.batch_generated', entity_type: 'document_batch', payload: { shipment_ref: 'J-1', fields: { gross_weight: '100 KGS' }, charges: [{ description: 'OCEAN FREIGHT', amount: '1000.00' }], totals: { taxable: 1000, grand_total: 1050 } } });
+  const recs = store.readAll().records.map(x => x.record);
+  const tax = br => analyze(recs, br ? { business_rules: parseBusinessRules(br, 'test') } : {}).provenance.get('corr-1').contradictions.filter(c => c.rule_id === 'XAP-TAX').map(c => c.classification);
+  assert.deepEqual(tax(), ['unresolved_business_rule_conflict']);
+  assert.deepEqual(tax({ tax_scheme: 'flat_9_9' }), ['confirmed_data_inconsistency']);
+  assert.deepEqual(tax({ tax_scheme: 'ocean_freight_2_5' }), [], 'B.I.I.L. follows the configured rule');
+});
+
+test('business rules: unconfigured mandatory steps are reported as compliance not verified', () => {
+  const { store, base, job } = stream();
+  store.append({ ...base, action: 'workflow_step.status_changed', operation_id: 'op2', changes: [{ field: 'workflow_steps[Job Closed].status', old: 'Pending', new: 'Completed' }], payload: { list: 'workflow_steps', item_name: 'Job Closed', job_status: 'Closed', closing: { bill_no: 'B', bill_amount: 1180, sgst: 90, cgst: 90 }, state_hash: 'y' } });
+  store.append({ ...base, action: 'job.closed', operation_id: 'op2', changes: [], payload: {} });
+  const recs = store.readAll().records.map(x => x.record);
+  const wfl = br => analyze(recs, br ? { business_rules: parseBusinessRules(br, 'cfg.json') } : {}).findings.filter(f => f.rule_id === 'WFL-001');
+  assert.match(wfl()[0].assumptions[0], /NOT verified/);
+  assert.equal(wfl({ required_before_close: ['Job Created'] }).length, 0);
+  assert.match(wfl({ required_before_close: ['Sailing Completed'] })[0].assumptions[0], /from cfg.json/);
 });
 
 test('rules: configuration changes behaviour; disabled rules stay silent', () => {

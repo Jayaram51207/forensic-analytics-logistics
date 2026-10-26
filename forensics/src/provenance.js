@@ -10,7 +10,8 @@
 // one statement, not two witnesses. Where an application does not tell us how a value got
 // there, the lineage is marked unknown instead of being guessed.
 import { sha256, canonical } from './store.js';
-import { parseWeight, parsePackages, parseNumberDate, parseMoney, normId, checkContainerNo, withinTolerance } from './normalize.js';
+import { parseWeight, parsePackages, parseNumberDate, parseMoney, normId, checkContainerNo, withinTolerance, normalizeJob } from './normalize.js';
+import { DEFAULT_CONFIG as RULE_CONFIG, schemeTotals } from './rules.js';
 
 export const PROVENANCE_CONFIG = {
   min_link_confidence: 0.5,          // below this a cross-application link cannot support a contradiction
@@ -21,7 +22,8 @@ export const PROVENANCE_CONFIG = {
   compare_packing_manifest: true,
   packing_weight_tolerance: { abs: 50, rel: 0.05 },
   clock_skew_minutes: 10,            // desktop tools use their own clock; closer than this, order is not asserted
-  enabled_comparisons: ['gross_weight', 'net_weight', 'packages', 'invoice_no', 'shipping_bill_no', 'container_nos', 'taxable_total', 'job_no', 'tax_treatment', 'timing']
+  enabled_comparisons: ['gross_weight', 'net_weight', 'packages', 'invoice_no', 'shipping_bill_no', 'container_nos', 'taxable_total', 'job_no', 'tax_treatment', 'timing'],
+  tax_scheme: null                   // from config/business_rules.json; null = unresolved
 };
 
 export const CLASSIFICATIONS = {
@@ -271,8 +273,18 @@ export function buildProvenance(view, context, config = {}, integrity = null) {
     // Same charges, different tax: both implementations exist in the repository and neither is authoritative.
     if (cfg.enabled_comparisons.includes('tax_treatment') && x.event.application === 'biil_unified' && x.values.taxable_total?.normalized != null && current.taxable_total?.normalized != null && same('taxable_total', current.taxable_total.normalized, x.values.taxable_total.normalized, cfg)) {
       const t = x.event.payload.totals || {}, taxable = current.taxable_total.normalized;
+      const scheme = cfg.tax_scheme && RULE_CONFIG.tax_schemes.find(s => s.id === cfg.tax_scheme);
+      if (scheme && Number.isFinite(+t.grand_total)) {
+        // An authorised tax rule exists: a total that does not follow it is a plain inconsistency.
+        const expected = schemeTotals({ ...RULE_CONFIG, tax_schemes: [scheme] }, normalizeJob(view.state).charges)[0].grand_total;
+        if (!withinTolerance(+t.grand_total, expected, cfg.money_tolerance)) {
+          const c = mk('XAP-TAX', 'tax_treatment', current.taxable_total, x.values.taxable_total, { difference: { absolute: +(expected - t.grand_total).toFixed(2) }, business_rule: `${scheme.id} from ${cfg.business_rules_source}` });
+          c.classification = c.classification || 'confirmed_data_inconsistency';
+          c.explanation = `Both applications hold the same taxable total (${taxable}). Under the configured tax scheme (${scheme.name}) the grand total is ${expected.toFixed(2)}, but B.I.I.L. recorded ${t.grand_total}.`;
+        }
+      }
       const syncGrand = taxable * 1.18;
-      if (Number.isFinite(+t.grand_total) && !withinTolerance(+t.grand_total, syncGrand, cfg.money_tolerance)) {
+      if (!scheme && Number.isFinite(+t.grand_total) && !withinTolerance(+t.grand_total, syncGrand, cfg.money_tolerance)) {
         const c = mk('XAP-TAX', 'tax_treatment', current.taxable_total, x.values.taxable_total, { difference: { absolute: +(syncGrand - t.grand_total).toFixed(2) }, missing_business_rule: 'Which GST treatment applies to which charge. compiler.py applies 9% + 9% to every charge; unified_generator.py applies 2.5% + 2.5% to ocean freight.' });
         c.classification = c.classification || 'unresolved_business_rule_conflict';
         c.explanation = `Both applications hold the same taxable total (${taxable}), but B.I.I.L. computed a grand total of ${t.grand_total} where the synchroniser's generator would give ${syncGrand.toFixed(2)}. The two programs implement different tax rules; without the authoritative rule neither total can be called wrong.`;

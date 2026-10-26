@@ -21,6 +21,8 @@ import {
   getAllUsers,
   createUser,
   deleteUser,
+  changePassword,
+  setPassword,
   startupInfo
 } from './db.js';
 import { createCapture, sha256File } from '../forensics/src/capture.js';
@@ -32,6 +34,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+const AUTH_REQUIRED = process.env.SYNC_AUTH !== 'off';
 
 // Runtime folders are configurable so tests and synthetic runs never touch live data.
 // Python for compiler.py: SYNC_PYTHON, else the project environment (forensics/setup_env.cmd), else PATH.
@@ -53,7 +57,9 @@ const forensic = process.env.FORENSIC_DISABLED === '1' ? null : createCapture({
     parser_sha256: sha256File(path.join(__dirname, 'pdf_parser.py'))
   }
 });
-if (forensic) forensic.startup(startupInfo);
+if (forensic && forensic.failMode === 'open') console.warn('WARNING: FORENSIC_FAIL_MODE=open - destructive operations will proceed even when their evidence cannot be written. Recorded in system.started.');
+if (startupInfo.accounts === 'no_accounts') console.warn('No user accounts exist. Start once with SYNC_ADMIN_PASSWORD set (12+ characters) to create the administrator.');
+if (forensic) forensic.startup({ ...startupInfo, auth_required: AUTH_REQUIRED, delete_requires_admin: process.env.SYNC_DELETE_REQUIRES_ADMIN !== '0' });
 
 // Setup multer for checklist uploads
 const storage = multer.diskStorage({
@@ -71,8 +77,8 @@ const upload = multer({ storage });
 // Identity and privileges come from a server-side session created at login.
 // Names sent by the client (creator, user, adminUsername) are no longer trusted.
 // SYNC_AUTH=off restores the original unauthenticated behaviour (not recommended).
-const AUTH_REQUIRED = process.env.SYNC_AUTH !== 'off';
-const SESSION_IDLE_MS = 12 * 60 * 60 * 1000;
+const SESSION_IDLE_MS = (parseFloat(process.env.SYNC_SESSION_IDLE_MINUTES || '720') || 720) * 60 * 1000;
+const SESSION_MAX_MS = (parseFloat(process.env.SYNC_SESSION_MAX_HOURS || '24') || 24) * 60 * 60 * 1000;
 const sessions = new Map(); // token -> { username, name, role, created_at, last_seen }  (in memory: a restart signs everyone out)
 if (!AUTH_REQUIRED) console.warn('WARNING: SYNC_AUTH=off - API requests are not authenticated and actor names are unverified.');
 
@@ -82,7 +88,7 @@ function sessionFrom(req) {
   const token = (cookie || bearer || [])[1];
   const session = token && sessions.get(token);
   if (!session) return null;
-  if (Date.now() - session.last_seen > SESSION_IDLE_MS) {
+  if (Date.now() - session.last_seen > SESSION_IDLE_MS || Date.now() - session.created_at > SESSION_MAX_MS) {
     sessions.delete(token);
     return null;
   }
@@ -93,7 +99,13 @@ function sessionFrom(req) {
 app.use('/api', (req, res, next) => {
   if (!AUTH_REQUIRED || req.path === '/login') return next();
   req.session = sessionFrom(req);
-  if (req.session) return next();
+  if (req.session) {
+    // An administrator-set or policy-failing password must be replaced before anything else.
+    if (req.session.must_change_password && !['/session', '/password', '/logout'].includes(req.path)) {
+      return res.status(403).json({ error: 'Password change required', must_change_password: true });
+    }
+    return next();
+  }
   if (forensic && req.method !== 'GET') forensic.rejected(req, 'no valid session');
   res.status(401).json({ error: 'Authentication required' });
 });
@@ -224,33 +236,84 @@ function runExcelCompiler(jobPayload) {
 }
 
 // Login authentication
+// Login throttling: failed attempts per client address and per username, kept in memory.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FAILURES = parseInt(process.env.SYNC_LOGIN_MAX_FAILURES || '5', 10);
+const loginFailures = new Map(); // key -> [timestamps]
+function recentFailures(key) {
+  const now = Date.now();
+  const list = (loginFailures.get(key) || []).filter(t => now - t < LOGIN_WINDOW_MS);
+  loginFailures.set(key, list);
+  return list;
+}
+function throttled(req, username) {
+  return [`ip:${req.ip}`, `user:${String(username).toLowerCase()}`].some(k => recentFailures(k).length >= LOGIN_MAX_FAILURES);
+}
+function noteFailure(req, username) {
+  for (const k of [`ip:${req.ip}`, `user:${String(username).toLowerCase()}`]) recentFailures(k).push(Date.now());
+}
+
+function startSession(res, user) {
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, { username: user.username, name: user.name, role: user.role, must_change_password: !!user.must_change_password, created_at: Date.now(), last_seen: Date.now() });
+  res.setHeader('Set-Cookie', `sync_sid=${token}; HttpOnly; SameSite=Strict; Path=/`);
+  return token;
+}
+function endSessionsOf(username, exceptToken = null) {
+  for (const [t, s] of sessions) if (s.username.toLowerCase() === String(username).toLowerCase() && t !== exceptToken) sessions.delete(t);
+}
+
+// Login authentication. One message for every failure, so it does not reveal which accounts exist.
 app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
+  const { username, password } = req.body || {};
+  if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password || username.length > 200 || password.length > 200) {
     return res.status(400).json({ error: 'Username and password are required' });
+  }
+  if (throttled(req, username)) {
+    if (forensic) forensic.rejected(req, 'login throttled');
+    return res.status(429).json({ error: 'Too many failed attempts. Try again later.' });
   }
 
   const user = verifyUser(username, password);
   if (forensic) forensic.login(req, username, user);
   if (user) {
-    const token = crypto.randomBytes(32).toString('hex');
-    sessions.set(token, { username: user.username, name: user.name, role: user.role, created_at: Date.now(), last_seen: Date.now() });
-    res.setHeader('Set-Cookie', `sync_sid=${token}; HttpOnly; SameSite=Strict; Path=/`);
+    loginFailures.delete(`user:${username.toLowerCase()}`);
+    const token = startSession(res, user);
     return res.json({
       success: true,
       username: user.username,
       name: user.name,
       role: user.role,
+      must_change_password: user.must_change_password,
       token
     });
   }
 
+  noteFailure(req, username);
   res.status(401).json({ error: 'Invalid username or password' });
+});
+
+// The signed-in user changes their own password. All their other sessions end.
+app.post('/api/password', (req, res) => {
+  if (!req.session) return res.status(401).json({ error: 'Authentication required' });
+  const { current_password, new_password } = req.body || {};
+  if (throttled(req, req.session.username)) return res.status(429).json({ error: 'Too many failed attempts. Try again later.' });
+  try {
+    changePassword(req.session.username, current_password, new_password);
+  } catch (err) {
+    if (/Current password/.test(err.message)) noteFailure(req, req.session.username);
+    if (forensic) forensic.userChanged(req, 'user.password_change_failed', req.session.username, { reason: err.message });
+    return res.status(err.status || 400).json({ error: err.message });
+  }
+  endSessionsOf(req.session.username);
+  const token = startSession(res, { ...req.session, must_change_password: false });
+  if (forensic) forensic.userChanged(req, 'user.password_changed', req.session.username, { other_sessions_ended: true });
+  res.json({ success: true, token });
 });
 
 app.get('/api/session', (req, res) => {
   if (!req.session) return res.status(401).json({ error: 'Authentication required' });
-  res.json({ username: req.session.username, name: req.session.name, role: req.session.role });
+  res.json({ username: req.session.username, name: req.session.name, role: req.session.role, must_change_password: !!req.session.must_change_password });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -285,12 +348,24 @@ app.post('/api/users', requireAdmin, (req, res) => {
   }
 });
 
+app.post('/api/users/:username/password', requireAdmin, (req, res) => {
+  try {
+    setPassword(req.params.username, (req.body || {}).new_password);
+    endSessionsOf(req.params.username);
+    if (forensic) forensic.userChanged(req, 'user.password_reset', req.params.username, { must_change_password: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
 app.delete('/api/users/:username', requireAdmin, (req, res) => {
   const { username } = req.params;
   try {
     const removed = getAllUsers().find(u => u.username.toLowerCase() === username.trim().toLowerCase());
     if (forensic && removed) forensic.userChanged(req, 'user.delete_requested', username, { removed });
     deleteUser(username);
+    endSessionsOf(username);
     if (forensic) forensic.userChanged(req, 'user.deleted', username, { removed });
     res.json({ success: true });
   } catch (err) {
@@ -413,7 +488,10 @@ app.put('/api/jobs/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/jobs/:id', (req, res) => {
+// Deleting a job: Admin role by default (DECISIONS_AND_OPEN_REQUIREMENTS.md, question 6).
+// SYNC_DELETE_REQUIRES_ADMIN=0 lets any signed-in user delete, as the original UI did.
+const requireDeleteRole = process.env.SYNC_DELETE_REQUIRES_ADMIN === '0' ? (req, res, next) => next() : requireAdmin;
+app.delete('/api/jobs/:id', requireDeleteRole, (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const job = getJobById(id);

@@ -1,0 +1,6 @@
+{
+  "_comment": "Unresolved business rules. Leave null until an authorised business owner decides; see docs/DECISIONS_AND_OPEN_REQUIREMENTS.md. required_before_close: null | \"all\" | [step names]. tax_scheme: null | \"flat_9_9\" (compiler.py) | \"ocean_freight_2_5\" (unified_generator.py). closing_bill_basis: null | \"taxable_total\" | \"grand_total\" | \"after_tds\".",
+  "required_before_close": null,
+  "tax_scheme": null,
+  "closing_bill_basis": null
+}

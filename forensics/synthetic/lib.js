@@ -181,10 +181,10 @@ const ACCOUNTS = { 'Desk 1 (Invoice)': 'desk1', 'Desk 2 (Documentation)': 'desk2
  * Each actor is a real signed-in session. A name that is not an account (a spoofing
  * attempt) is sent in the request body from Desk 4's session, as a crafted request would be.
  */
-export async function driver(base) {
+export async function driver(base, credentials) {
   const cookies = {};
   for (const [name, username] of Object.entries(ACCOUNTS)) {
-    const res = await fetch(base + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password: username }) });
+    const res = await fetch(base + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password: credentials[username] }) });
     if (res.status !== 200) throw new Error(`login failed for ${username}`);
     cookies[name] = res.headers.get('set-cookie').split(';')[0];
   }

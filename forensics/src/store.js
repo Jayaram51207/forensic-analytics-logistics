@@ -43,6 +43,21 @@ function sleepMs(ms) {
 
 const REQUIRED = ['application', 'action', 'entity_type'];
 
+/** Remote witness settings from FORENSIC_ANCHOR_URL / _TOKEN / _STORE_ID (see src/anchor_server.js). */
+export function remoteFromEnv(env = process.env) {
+  if (!env.FORENSIC_ANCHOR_URL) return null;
+  return { url: env.FORENSIC_ANCHOR_URL, token: env.FORENSIC_ANCHOR_TOKEN || '', storeId: env.FORENSIC_ANCHOR_STORE_ID || 'default' };
+}
+
+/** Everything the remote witness holds for this store: {entries, conflicts}. Throws if unreachable. */
+export async function fetchRemoteWitness(remote) {
+  const url = new URL(remote.url);
+  url.searchParams.set('store_id', remote.storeId);
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(10000) });
+  if (res.status !== 200) throw new Error(`remote anchor answered ${res.status}`);
+  return res.json();
+}
+
 export class EventStore {
   /**
    * `anchorFile` (or FORENSIC_ANCHOR_FILE) is an external witness log: after every
@@ -50,10 +65,14 @@ export class EventStore {
    * if it lives where someone able to rewrite the evidence folder cannot write, e.g.
    * another machine's share, another account's folder, or write-once media.
    */
-  constructor(dir, { lockTimeoutMs = 5000, staleLockMs = 30000, anchorFile = process.env.FORENSIC_ANCHOR_FILE || null } = {}) {
+  constructor(dir, { lockTimeoutMs = 5000, staleLockMs = 30000, anchorFile = process.env.FORENSIC_ANCHOR_FILE || null, remote = remoteFromEnv() } = {}) {
     this.dir = dir;
     this.anchorFile = anchorFile;
     this.anchorFailures = 0;
+    // `remote` = {url, token, storeId}: an anchor_server.js witness on another machine. Only
+    // sequence numbers and hashes are sent. Sending is asynchronous and catches up by itself.
+    this.remote = remote;
+    this.remoteStatus = { configured: !!remote, last_success: null, last_error: null, witnessed_through: null };
     this.file = path.join(dir, 'events.jsonl');
     this.headFile = path.join(dir, 'events.head.json');
     this.lockFile = path.join(dir, 'events.lock');
@@ -160,6 +179,7 @@ export class EventStore {
       // The record is durable from here on. Nothing below may turn this append into a reported failure.
       this._writeHead(record);
       this._witness(record);
+      if (this.remote) this.flushRemote().catch(() => {});
       return record;
     } catch (err) {
       this._tail = null;
@@ -211,6 +231,56 @@ export class EventStore {
     }
   }
 
+  /**
+   * Send every record the remote witness has not seen yet. It asks the witness where it is up to
+   * instead of keeping a local queue, so a witness that was down, or a restarted process, catches
+   * up on the next append. Records written while the witness was unreachable are protected by the
+   * local chain only until then. Never throws into the append path.
+   */
+  async flushRemote() {
+    if (!this.remote) return this.remoteStatus;
+    if (this._flushing) { this._flushAgain = true; return this._flushing; }
+    this._flushing = (async () => {
+      do {
+        this._flushAgain = false;
+        try {
+          const { entries } = await fetchRemoteWitness(this.remote);
+          let through = entries.reduce((m, e) => Math.max(m, e.sequence), 0);
+          for (const { record: r } of this.readAll().records) {
+            if (!(r.sequence > through)) continue;
+            const res = await fetch(this.remote.url, {
+              method: 'POST', signal: AbortSignal.timeout(10000),
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.remote.token}` },
+              body: JSON.stringify({ store_id: this.remote.storeId, sequence: r.sequence, integrity_hash: r.integrity_hash })
+            });
+            // 409: the witness already holds a different hash for this sequence. It keeps the
+            // attempt; verify() reports it. Nothing here can overwrite what it witnessed.
+            if (res.status === 409) throw new Error(`remote anchor holds a different hash for sequence ${r.sequence}`);
+            if (res.status !== 201 && res.status !== 200) throw new Error(`remote anchor answered ${res.status}`);
+            through = r.sequence;
+          }
+          Object.assign(this.remoteStatus, { last_success: new Date().toISOString(), last_error: null, witnessed_through: through });
+        } catch (err) {
+          this.anchorFailures++;
+          this.remoteStatus.last_error = err.message;
+          console.error('[forensic] remote anchor not updated:', err.message);
+          break;
+        }
+      } while (this._flushAgain);
+      this._flushing = null;
+      return this.remoteStatus;
+    })();
+    return this._flushing;
+  }
+
+  /** verify() plus the remote witness. If the witness cannot be reached that is itself reported. */
+  async verifyRemote(opts = {}) {
+    if (!this.remote) return this.verify(opts);
+    let witness;
+    try { witness = await fetchRemoteWitness(this.remote); } catch (err) { witness = { error: err.message }; }
+    return this.verify({ ...opts, witness });
+  }
+
   /** Read every line. Malformed lines are returned as problems, never dropped silently. */
   readAll() {
     const records = [], problems = [];
@@ -233,7 +303,7 @@ export class EventStore {
    * `expect` = { sequence, integrity_hash } recorded somewhere else (paper, another system):
    * the chain must contain exactly that record.
    */
-  verify({ anchorFile = this.anchorFile, expect = null } = {}) {
+  verify({ anchorFile = this.anchorFile, expect = null, witness = null } = {}) {
     const { records, problems, endsWithNewline } = this.readAll();
     if (!endsWithNewline) problems.push({ type: 'incomplete_final_record', detail: 'file does not end with a newline; last write may have been interrupted' });
     let prevSeq = 0, prevHash = GENESIS_HASH;
@@ -295,7 +365,20 @@ export class EventStore {
       }
     }
     if (expect) checkWitness(expect, 'expected head');
-    return { ok: problems.length === 0, count: records.length, last_sequence: prevSeq, last_hash: prevHash, head, anchor, problems };
+    // `witness` = what the remote witness returned ({entries, conflicts}) or {error}.
+    let remote = { configured: !!witness, witnessed: 0, last_witnessed_sequence: null };
+    if (witness?.error) problems.push({ type: 'remote_anchor_unreachable', detail: `remote anchor could not be checked: ${witness.error}` });
+    else if (witness) {
+      for (const w of witness.entries || []) {
+        checkWitness(w, 'remote anchor');
+        remote.witnessed++;
+        remote.last_witnessed_sequence = Math.max(remote.last_witnessed_sequence ?? 0, w.sequence);
+      }
+      for (const c of witness.conflicts || []) problems.push({ type: 'remote_anchor_conflict', sequence: c.sequence, detail: `someone sent the remote anchor a different hash for sequence ${c.sequence} at ${c.received_at}: an attempt to re-anchor a rewritten chain` });
+      const unseen = records.filter(x => !(x.record.sequence <= (remote.last_witnessed_sequence ?? 0))).length;
+      if (unseen) problems.push({ type: 'remote_unwitnessed_records', detail: `${unseen} record(s) are not yet held by the remote anchor; they are protected by the local chain only` });
+    }
+    return { ok: problems.length === 0, count: records.length, last_sequence: prevSeq, last_hash: prevHash, head, anchor, remote, problems };
   }
 
   /** Filter events. All criteria are optional and combined with AND. */

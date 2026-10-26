@@ -122,6 +122,10 @@ document.addEventListener('DOMContentLoaded', () => {
 const nativeFetch = window.fetch.bind(window);
 window.fetch = async (...args) => {
   const res = await nativeFetch(...args);
+  if (res.status === 403 && state.currentUser && !String(args[0]).includes('/api/password')) {
+    const body = await res.clone().json().catch(() => ({}));
+    if (body.must_change_password) openPasswordModal(true);
+  }
   if (res.status === 401 && !String(args[0]).includes('/api/login') && state.currentUser) {
     localStorage.removeItem('currentUser');
     state.currentUser = null;
@@ -140,6 +144,7 @@ async function checkLoginSession() {
       const check = await nativeFetch('/api/session');
       if (!check.ok) throw new Error('session expired');
       state.currentUser = await check.json();
+      if (state.currentUser.must_change_password) setTimeout(() => openPasswordModal(true), 0);
       applyUserSession();
       fetchInitialData();
       
@@ -276,8 +281,11 @@ function applyUserSession() {
   }
   currentUserName.textContent = state.currentUser.name;
 
+  // Deleting jobs is an administrator action (enforced by the server; this only hides the button)
+  if (drawerBtnDelete) drawerBtnDelete.classList.toggle('hidden', state.currentUser.role !== 'Admin');
+
   // Show Admin Tab if Role is Admin
-  if (state.currentUser.username === 'admin') {
+  if (state.currentUser.role === 'Admin') {
     menuBtnAdmin.classList.remove('hidden');
     document.getElementById('menu-btn-logs').classList.remove('hidden');
   } else {
@@ -461,18 +469,26 @@ function initEventListeners() {
       }
 
       const userData = await res.json();
+      delete userData.token; // the session lives in an HttpOnly cookie; nothing secret goes to localStorage
       state.currentUser = userData;
       localStorage.setItem('currentUser', JSON.stringify(userData));
-      
+
       applyUserSession();
-      fetchInitialData();
       showWorkspaceSelector();
       loginForm.reset();
+      if (userData.must_change_password) openPasswordModal(true);
+      else fetchInitialData();
     } catch (err) {
       loginErrorMsg.classList.remove('hidden');
       setTimeout(() => loginErrorMsg.classList.add('hidden'), 3000);
     }
   });
+
+  // Password change
+  document.getElementById('btn-change-password').addEventListener('click', () => openPasswordModal(false));
+  document.getElementById('password-btn-close').addEventListener('click', closePasswordModal);
+  document.getElementById('password-btn-cancel').addEventListener('click', closePasswordModal);
+  document.getElementById('password-form').addEventListener('submit', submitPasswordChange);
 
   // Logout Click
   btnLogout.addEventListener('click', () => {
@@ -698,6 +714,41 @@ function initEventListeners() {
       }
     });
   }
+}
+
+let passwordRequired = false;
+function openPasswordModal(required) {
+  passwordRequired = required;
+  document.getElementById('password-form').reset();
+  document.getElementById('password-error').classList.add('hidden');
+  document.getElementById('password-required-note').classList.toggle('hidden', !required);
+  document.getElementById('password-btn-cancel').classList.toggle('hidden', required);
+  document.getElementById('password-btn-close').classList.toggle('hidden', required);
+  document.getElementById('password-modal-backdrop').classList.add('active');
+  document.getElementById('password-modal').classList.add('active');
+}
+
+function closePasswordModal() {
+  if (passwordRequired) return;
+  document.getElementById('password-modal-backdrop').classList.remove('active');
+  document.getElementById('password-modal').classList.remove('active');
+}
+
+async function submitPasswordChange(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById('password-error');
+  const show = msg => { errorEl.textContent = msg; errorEl.classList.remove('hidden'); };
+  const current = document.getElementById('pw-current').value;
+  const next = document.getElementById('pw-new').value;
+  if (next !== document.getElementById('pw-repeat').value) return show('The new passwords do not match.');
+  const res = await nativeFetch('/api/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ current_password: current, new_password: next }) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) return show(body.error || 'Password not changed.');
+  passwordRequired = false;
+  state.currentUser.must_change_password = false;
+  localStorage.setItem('currentUser', JSON.stringify(state.currentUser));
+  closePasswordModal();
+  fetchInitialData();
 }
 
 function openClosureModal(jobId, stepId) {

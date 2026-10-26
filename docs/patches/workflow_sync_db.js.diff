@@ -1,5 +1,5 @@
 diff --git a/Workflow syncroniser/db.js b/Workflow syncroniser/db.js
-index 83a6672..c722155 100644
+index 83a6672..8966bc7 100644
 --- a/Workflow syncroniser/db.js	
 +++ b/Workflow syncroniser/db.js	
 @@ -5,7 +5,10 @@ import bcrypt from 'bcryptjs';
@@ -10,11 +10,140 @@ index 83a6672..c722155 100644
 +const dbPath = process.env.SYNC_DB_PATH || path.join(__dirname, 'db.json');
 +
 +// Read by the forensic layer: start-up migrations rewrite data outside any API call.
-+export const startupInfo = { db_path: dbPath, db_existed: false, migrated: false };
++export const startupInfo = { db_path: dbPath, db_existed: false, migrated: false, accounts: null };
  
  // Initialize local DB state
  let data = {
-@@ -186,6 +189,7 @@ export function getDefaultWorkflowSteps(type) {
+@@ -37,14 +40,39 @@ function getNextId(table) {
+   return Math.max(...list.map(item => item.id)) + 1;
+ }
+ 
+-// Password hashing helper
++// Password hashing: bcrypt (salted, adaptive) over a SHA-256 pre-hash, so passwords longer
++// than bcrypt's 72-byte limit are not silently truncated. Cost 12 unless SYNC_BCRYPT_COST
++// says otherwise (never below 10).
++const BCRYPT_COST = Math.max(10, parseInt(process.env.SYNC_BCRYPT_COST || '12', 10) || 12);
+ function hashPassword(password) {
+   const sha256 = crypto.createHash('sha256').update(password).digest('hex');
+-  return bcrypt.hashSync(sha256, 10);
++  return bcrypt.hashSync(sha256, BCRYPT_COST);
++}
++// Compared against when the username does not exist, so a missing account takes as long as a wrong password.
++const DUMMY_HASH = bcrypt.hashSync('no-such-account', BCRYPT_COST);
++
++const COMMON_PASSWORDS = new Set(['password', 'password123', 'password1234', 'admin', 'admin123', 'administrator', 'qwerty', 'qwertyuiop', '123456789012', '1234567890', 'letmein', 'welcome', 'welcome123', 'changeme', 'leadking', 'leadking123', 'logistics', 'iloveyou']);
++
++/** Server-side password policy. Returns null when acceptable, else a reason (never echoes the password). */
++export function validatePassword(username, password) {
++  if (typeof password !== 'string') return 'Password is required';
++  if (password.length < 12) return 'Password must be at least 12 characters';
++  if (password.length > 200) return 'Password must be at most 200 characters';
++  const lower = password.toLowerCase();
++  if (username && lower.includes(String(username).trim().toLowerCase())) return 'Password must not contain the username';
++  if (COMMON_PASSWORDS.has(lower)) return 'Password is too common';
++  if (new Set(password).size < 5) return 'Password must use at least 5 different characters';
++  return null;
++}
++
++function findUser(username) {
++  if (!data.users) data.users = [];
++  if (typeof username !== 'string') return null;
++  return data.users.find(u => u.username.toLowerCase() === username.trim().toLowerCase()) || null;
+ }
+ 
+ export function getAllUsers() {
+-  return (data.users || []).map(u => ({ username: u.username, name: u.name, role: u.role }));
++  return (data.users || []).map(u => ({ username: u.username, name: u.name, role: u.role, must_change_password: !!u.must_change_password }));
+ }
+ 
+ export function createUser({ username, password, name, role }) {
+@@ -53,16 +81,63 @@ export function createUser({ username, password, name, role }) {
+   if (exists) {
+     throw new Error('User already exists');
+   }
++  const problem = validatePassword(username, password);
++  if (problem) throw new Error(problem);
+   const passwordHash = hashPassword(password);
+   data.users.push({
+     username: username.trim(),
+     name: name.trim(),
+     role: role.trim(),
+-    passwordHash
++    passwordHash,
++    must_change_password: true, // set by an administrator: the user chooses their own at first sign-in
++    password_changed_at: new Date().toISOString()
+   });
+   saveToDisk();
+ }
+ 
++/** The account holder changes their own password; the current one must be supplied. */
++export function changePassword(username, currentPassword, newPassword) {
++  const user = findUser(username);
++  if (!user || !verifyUser(username, currentPassword)) throw Object.assign(new Error('Current password is incorrect'), { status: 400 });
++  const problem = validatePassword(user.username, newPassword);
++  if (problem) throw Object.assign(new Error(problem), { status: 400 });
++  if (verifyUser(username, newPassword)) throw Object.assign(new Error('New password must differ from the current one'), { status: 400 });
++  user.passwordHash = hashPassword(newPassword);
++  user.must_change_password = false;
++  user.password_changed_at = new Date().toISOString();
++  saveToDisk();
++}
++
++/** An administrator sets a temporary password; the user must change it at next sign-in. */
++export function setPassword(username, newPassword) {
++  const user = findUser(username);
++  if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
++  const problem = validatePassword(user.username, newPassword);
++  if (problem) throw Object.assign(new Error(problem), { status: 400 });
++  user.passwordHash = hashPassword(newPassword);
++  user.must_change_password = true;
++  user.password_changed_at = new Date().toISOString();
++  saveToDisk();
++}
++
++/**
++ * First administrator, from SYNC_ADMIN_PASSWORD (and optionally SYNC_ADMIN_USERNAME), only when
++ * no account exists. Nothing is created without it: there is no default password.
++ */
++function bootstrapAdmin() {
++  if (data.users.length) return 'existing_accounts';
++  const password = process.env.SYNC_ADMIN_PASSWORD;
++  if (!password) return 'no_accounts';
++  const username = (process.env.SYNC_ADMIN_USERNAME || 'admin').trim();
++  const problem = validatePassword(username, password);
++  if (problem) {
++    console.error(`SYNC_ADMIN_PASSWORD rejected: ${problem}. No account was created.`);
++    return 'bootstrap_rejected';
++  }
++  data.users.push({ username, name: 'System Admin', role: 'Admin', passwordHash: hashPassword(password), must_change_password: false, password_changed_at: new Date().toISOString() });
++  return 'admin_created';
++}
++
+ export function deleteUser(username) {
+   if (!data.users) data.users = [];
+   if (username.trim().toLowerCase() === 'admin') {
+@@ -77,13 +152,14 @@ export function deleteUser(username) {
+ }
+ 
+ export function verifyUser(username, password) {
+-  if (!data.users) data.users = [];
+-  const user = data.users.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+-  if (!user) return null;
++  if (typeof username !== 'string' || typeof password !== 'string') return null;
++  const user = findUser(username);
+   const sha256 = crypto.createHash('sha256').update(password).digest('hex');
+-  const match = bcrypt.compareSync(sha256, user.passwordHash);
+-  if (match) {
+-    return { username: user.username, name: user.name, role: user.role };
++  const match = bcrypt.compareSync(sha256, user ? user.passwordHash : DUMMY_HASH);
++  if (user && match) {
++    // Accounts from before this change (or seeded ones) may hold a password that fails the policy.
++    const weak = !!validatePassword(user.username, password);
++    return { username: user.username, name: user.name, role: user.role, must_change_password: !!user.must_change_password || weak };
+   }
+   return null;
+ }
+@@ -186,6 +262,7 @@ export function getDefaultWorkflowSteps(type) {
  
  // Check if db.json exists, if not initialize it
  if (fs.existsSync(dbPath)) {
@@ -22,7 +151,36 @@ index 83a6672..c722155 100644
    try {
      const raw = fs.readFileSync(dbPath, 'utf8');
      data = JSON.parse(raw);
-@@ -323,6 +327,7 @@ if (fs.existsSync(dbPath)) {
+@@ -201,25 +278,9 @@ if (fs.existsSync(dbPath)) {
+ 
+     let migrated = false;
+ 
+-    // Seed default users if users is empty
+-    if (data.users.length === 0) {
+-      const defaults = [
+-        { username: 'desk1', name: 'Desk 1 (Invoice)', role: 'Invoice', password: 'desk1' },
+-        { username: 'desk2', name: 'Desk 2 (Documentation)', role: 'Documentation', password: 'desk2' },
+-        { username: 'desk3', name: 'Desk 3 (Customs / CHA)', role: 'Customs', password: 'desk3' },
+-        { username: 'desk4', name: 'Desk 4 (Operations)', role: 'Operations', password: 'desk4' },
+-        { username: 'admin', name: 'System Admin', role: 'Admin', password: 'admin' }
+-      ];
+-      defaults.forEach(d => {
+-        data.users.push({
+-          username: d.username,
+-          name: d.name,
+-          role: d.role,
+-          passwordHash: hashPassword(d.password)
+-        });
+-      });
+-      migrated = true;
+-    }
++    // No default accounts any more (they used the username as password). See bootstrapAdmin().
++    startupInfo.accounts = bootstrapAdmin();
++    if (startupInfo.accounts === 'admin_created') migrated = true;
+ 
+     // Run migration to add closure bill properties to existing jobs
+     data.jobs.forEach(job => {
+@@ -323,6 +384,7 @@ if (fs.existsSync(dbPath)) {
        }
      });
  
@@ -30,3 +188,11 @@ index 83a6672..c722155 100644
      if (migrated) {
        saveToDisk();
      }
+@@ -331,6 +393,7 @@ if (fs.existsSync(dbPath)) {
+     saveToDisk();
+   }
+ } else {
++  startupInfo.accounts = bootstrapAdmin();
+   saveToDisk();
+ }
+ 

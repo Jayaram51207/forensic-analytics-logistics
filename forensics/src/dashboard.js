@@ -9,12 +9,13 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { EventStore } from './store.js';
 import { analyze, caseDetail, recordDisposition, DISPOSITIONS, SCORING } from './cases.js';
+import { loadBusinessRules } from './business_rules.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 export function createDashboard({ dir, reviewToken = process.env.FORENSIC_REVIEW_TOKEN || null, config = {} }) {
   const store = new EventStore(dir);
-  const load = () => analyze(store.readAll().records.map(x => x.record), { ...config, integrity: store.verify() });
+  const load = () => analyze(store.readAll().records.map(x => x.record), { business_rules: loadBusinessRules(), ...config, integrity: store.verify() });
   const summary = c => ({ case_id: c.case_id, job_no: c.job_no, status: c.status, priority: c.priority.value, band: c.priority.band, n_anomaly_findings: c.n_anomaly_findings, n_data_quality_findings: c.n_data_quality_findings, reasons: c.reasons.slice(0, 3) });
   const json = (res, code, body) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(body)); };
   const tokenOk = given => reviewToken && given && given.length === reviewToken.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(reviewToken));
@@ -28,7 +29,7 @@ export function createDashboard({ dir, reviewToken = process.env.FORENSIC_REVIEW
       }
       if (req.method === 'GET' && url.pathname === '/api/overview') {
         const a = load();
-        return json(res, 200, { integrity: store.verify(), cases: a.cases.map(summary), shipments: a.views.size, dispositions: DISPOSITIONS, review_enabled: !!reviewToken, scoring: SCORING });
+        return json(res, 200, { integrity: store.verify(), cases: a.cases.map(summary), shipments: a.views.size, dispositions: DISPOSITIONS, review_enabled: !!reviewToken, scoring: SCORING, business_rules: a.config.business_rules });
       }
       const m = url.pathname.match(/^\/api\/cases\/([A-Za-z0-9-]+)(\/disposition)?$/);
       if (m && req.method === 'GET' && !m[2]) {
