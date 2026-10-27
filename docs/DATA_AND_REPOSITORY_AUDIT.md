@@ -101,9 +101,9 @@ Windows user paths, private keys, AWS keys, long secret literals). Nothing publi
 | Archive contents by area | `forensics/src` 12, `forensics/test` 14, `forensics/evaluation` 6, `forensics/config` 1, `docs` 36, `Workflow syncroniser` 14, `B,I,I,L` 5, `EasyQuote` 16, `3D_stuffing_visualizer` 18 (plus root files) |
 | GSTIN / PAN patterns in the archive | none |
 | Private keys, AWS keys, real secrets | none. Three literal passwords exist in tests; each is a value a test sets inside its own disposable instance |
-| **E-mail addresses** | **`amy@sierac.cn`, `bm@creativepackaging.in` in the defaults of `unified_generator.py` and `document_generator.py` (both copies): third-party contacts, provenance unverified** |
-| Company name | `LEADKING AIR SERVICES PVT. LTD` in the same defaults (the operator's own name; publication still needs the owner) |
-| Phone number | `9876543210` (a common placeholder) in the same files and `public/index.html` |
+| **E-mail addresses** | **two third-party personal contact addresses (one `.cn`, one `.in` company domain) in the defaults of `unified_generator.py` and `document_generator.py` (both copies); provenance unverified. Not repeated here: this document was itself quoting them until 2026-10-27, so commits `8add33d`..`4f845f6` hold them in this file too (local history only)** |
+| Company name | the operator's own registered company name in the same defaults (publication still needs the owner) |
+| Phone number | a ten-digit mobile number that is a common placeholder pattern, in the same files and `public/index.html` |
 | Private paths | `c:\Users\vkmsd` quoted in `FORENSIC_REVERSE_ENGINEERING_REPORT.md`, this document and four files in `docs/patches/` (removed lines); `C:\Users\Jayaram` in the reverse-engineering report |
 | New commits since `forensic-v2` | add no documents, identifiers or keys; `vkmsd` appears only as removed lines in patches and in audit text |
 | `.gitignore` | verified with `git check-ignore`: `forensics/data/`, `forensics/datasets/`, `.env`, `*.pem`, `anchor-witness/`, `test_credentials.json`, `db.json` |
