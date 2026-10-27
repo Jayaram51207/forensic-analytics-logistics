@@ -1,0 +1,3861 @@
+{
+ "run": {
+  "code_commit": "8add33dd4617c73326d3df489c53c689f1926580",
+  "uncommitted_changes": "",
+  "node": "v24.11.1",
+  "evaluated_at": "2026-10-26T23:58:32.242Z"
+ },
+ "variants": {
+  "A": "rules only",
+  "C": "rules + provenance tracking",
+  "X": "rules + contradiction analysis without lineage",
+  "D": "full framework"
+ },
+ "datasets": [
+  {
+   "dataset": "bl-seed-4",
+   "seed": 4,
+   "dataset_generated_at": "2026-10-26T23:53:56.124Z",
+   "dataset_code_commit": "ce611ac7f018a815ac3d176da0eee6b6f6581f25",
+   "generation_errors": 0,
+   "jobs": 300,
+   "integrity_ok": true,
+   "events": 11797,
+   "class_counts": {
+    "normal": 68,
+    "hard_negative": 106,
+    "data_quality": 14,
+    "anomaly": 112
+   },
+   "detection": {
+    "A": {
+     "tp": 60,
+     "fp": 0,
+     "fn": 52,
+     "tn": 188,
+     "precision": 1,
+     "recall": 0.5357142857142857,
+     "f1": 0.6976744186046512,
+     "false_positive_rate": 0
+    },
+    "C": {
+     "tp": 60,
+     "fp": 0,
+     "fn": 52,
+     "tn": 188,
+     "precision": 1,
+     "recall": 0.5357142857142857,
+     "f1": 0.6976744186046512,
+     "false_positive_rate": 0
+    },
+    "X": {
+     "tp": 96,
+     "fp": 0,
+     "fn": 16,
+     "tn": 188,
+     "precision": 1,
+     "recall": 0.8571428571428571,
+     "f1": 0.923076923076923,
+     "false_positive_rate": 0
+    },
+    "D": {
+     "tp": 96,
+     "fp": 0,
+     "fn": 16,
+     "tn": 188,
+     "precision": 1,
+     "recall": 0.8571428571428571,
+     "f1": 0.923076923076923,
+     "false_positive_rate": 0
+    },
+    "A_on_rule_detectable_only": {
+     "tp": 60,
+     "fp": 0,
+     "fn": 7,
+     "tn": 188,
+     "precision": 1,
+     "recall": 0.8955223880597015,
+     "f1": 0.9448818897637796,
+     "false_positive_rate": 0
+    },
+    "D_on_detectable_only": {
+     "tp": 96,
+     "fp": 0,
+     "fn": 7,
+     "tn": 188,
+     "precision": 1,
+     "recall": 0.9320388349514563,
+     "f1": 0.9648241206030151,
+     "false_positive_rate": 0
+    },
+    "D_exact_rule_set_match_rate": 0.9766666666666667
+   },
+   "by_category": {
+    "cross_application": {
+     "n": 40,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 40,
+      "D": 40
+     }
+    },
+    "hard_negative": {
+     "n": 106,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "normal": {
+     "n": 68,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "document_integrity": {
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     }
+    },
+    "needs_independent_source": {
+     "n": 9,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "regeneration": {
+     "n": 7,
+     "flagged": {
+      "A": 7,
+      "C": 7,
+      "X": 7,
+      "D": 7
+     }
+    },
+    "physical_feasibility": {
+     "n": 7,
+     "flagged": {
+      "A": 7,
+      "C": 7,
+      "X": 7,
+      "D": 7
+     }
+    },
+    "data_quality": {
+     "n": 14,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "quantity_consistency": {
+     "n": 8,
+     "flagged": {
+      "A": 8,
+      "C": 8,
+      "X": 8,
+      "D": 8
+     }
+    },
+    "placeholder_values": {
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     }
+    },
+    "financial_consistency": {
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     }
+    },
+    "other": {
+     "n": 7,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "identifier": {
+     "n": 1,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 1,
+      "D": 1
+     }
+    },
+    "actor": {
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     }
+    },
+    "source_consistency": {
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     }
+    },
+    "workflow": {
+     "n": 7,
+     "flagged": {
+      "A": 7,
+      "C": 7,
+      "X": 7,
+      "D": 7
+     }
+    },
+    "deletion": {
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     }
+    },
+    "late_modification": {
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     }
+    }
+   },
+   "by_type": {
+    "xapp_identifier_mismatch": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "nonmaterial_late_edit": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 14,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 14
+    },
+    "clean_complete": {
+     "class": "normal",
+     "category": "normal",
+     "n": 56,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 56
+    },
+    "clean_in_progress": {
+     "class": "normal",
+     "category": "normal",
+     "n": 12,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 12
+    },
+    "stale_documents": {
+     "class": "anomaly",
+     "category": "document_integrity",
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     },
+     "exact_D": 6
+    },
+    "common_source_falsification": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 4
+    },
+    "regen_identical_excess": {
+     "class": "anomaly",
+     "category": "regeneration",
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "unplaced_cargo": {
+     "class": "anomaly",
+     "category": "physical_feasibility",
+     "n": 7,
+     "flagged": {
+      "A": 7,
+      "C": 7,
+      "X": 7,
+      "D": 7
+     },
+     "exact_D": 7
+    },
+    "missing_identifiers": {
+     "class": "data_quality",
+     "category": "data_quality",
+     "n": 7,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 7
+    },
+    "legit_reopen": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 10,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 10
+    },
+    "legit_night_shift": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 8,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 8
+    },
+    "xapp_weight_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "weight_mismatch": {
+     "class": "anomaly",
+     "category": "quantity_consistency",
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "regen_identical_few": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 9,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 9
+    },
+    "packing_fits": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 10,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 10
+    },
+    "xapp_post_issue_divergence": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 11,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 11,
+      "D": 11
+     },
+     "exact_D": 11
+    },
+    "xapp_rounding_difference": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 8,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 8
+    },
+    "xapp_consistent": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 11,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 11
+    },
+    "legit_backfill": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 5
+    },
+    "source_matches": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 7,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 7
+    },
+    "package_mismatch": {
+     "class": "anomaly",
+     "category": "quantity_consistency",
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "bad_container_check_digit": {
+     "class": "data_quality",
+     "category": "data_quality",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 4
+    },
+    "placeholder_charges": {
+     "class": "anomaly",
+     "category": "placeholder_values",
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "billing_inconsistency": {
+     "class": "anomaly",
+     "category": "financial_consistency",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "xapp_late_activity": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "xapp_ambiguous_link": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "unauthorized_delete_attempt": {
+     "class": "anomaly",
+     "category": "other",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 0
+    },
+    "xapp_charge_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "early_correction_regenerated": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 7,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 7
+    },
+    "unusual_timing": {
+     "class": "anomaly",
+     "category": "other",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 0
+    },
+    "job_renamed": {
+     "class": "anomaly",
+     "category": "identifier",
+     "n": 1,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 1,
+      "D": 1
+     },
+     "exact_D": 1
+    },
+    "regen_changed_excess": {
+     "class": "anomaly",
+     "category": "regeneration",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "spoofed_actor": {
+     "class": "anomaly",
+     "category": "actor",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "xapp_container_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "source_mismatch": {
+     "class": "anomaly",
+     "category": "source_consistency",
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "consistent_falsification": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 5
+    },
+    "xapp_unlinked_record": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 4
+    },
+    "xapp_unit_variant": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 4
+    },
+    "closing_changed_on_reclose": {
+     "class": "anomaly",
+     "category": "financial_consistency",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "deleted_draft": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 4
+    },
+    "malformed_source": {
+     "class": "data_quality",
+     "category": "data_quality",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "xapp_document_backed_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "xapp_duplicate_evidence": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 2
+    },
+    "xapp_package_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 7,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 7,
+      "D": 7
+     },
+     "exact_D": 7
+    },
+    "excess_reversals": {
+     "class": "anomaly",
+     "category": "workflow",
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "premature_closure": {
+     "class": "anomaly",
+     "category": "workflow",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "deleted_after_close": {
+     "class": "anomaly",
+     "category": "deletion",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "late_material_edit": {
+     "class": "anomaly",
+     "category": "late_modification",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "bulk_na": {
+     "class": "anomaly",
+     "category": "workflow",
+     "n": 1,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 1,
+      "D": 1
+     },
+     "exact_D": 1
+    }
+   },
+   "errors": {
+    "A": {
+     "missed": {
+      "xapp_identifier_mismatch": 3,
+      "common_source_falsification": 4,
+      "xapp_weight_conflict": 5,
+      "xapp_post_issue_divergence": 11,
+      "xapp_late_activity": 4,
+      "unauthorized_delete_attempt": 4,
+      "xapp_charge_conflict": 3,
+      "unusual_timing": 3,
+      "xapp_container_conflict": 3,
+      "consistent_falsification": 5,
+      "xapp_package_conflict": 7
+     },
+     "false_alarms": []
+    },
+    "C": {
+     "missed": {
+      "xapp_identifier_mismatch": 3,
+      "common_source_falsification": 4,
+      "xapp_weight_conflict": 5,
+      "xapp_post_issue_divergence": 11,
+      "xapp_late_activity": 4,
+      "unauthorized_delete_attempt": 4,
+      "xapp_charge_conflict": 3,
+      "unusual_timing": 3,
+      "xapp_container_conflict": 3,
+      "consistent_falsification": 5,
+      "xapp_package_conflict": 7
+     },
+     "false_alarms": []
+    },
+    "X": {
+     "missed": {
+      "common_source_falsification": 4,
+      "unauthorized_delete_attempt": 4,
+      "unusual_timing": 3,
+      "consistent_falsification": 5
+     },
+     "false_alarms": []
+    },
+    "D": {
+     "missed": {
+      "common_source_falsification": 4,
+      "unauthorized_delete_attempt": 4,
+      "unusual_timing": 3,
+      "consistent_falsification": 5
+     },
+     "false_alarms": []
+    }
+   },
+   "hard_negative_fpr": {
+    "A": 0,
+    "C": 0,
+    "X": 0,
+    "D": 0
+   },
+   "review_burden": {
+    "A": {
+     "cases_with_anomaly": 60,
+     "anomaly_findings": 62,
+     "notes": 18
+    },
+    "C": {
+     "cases_with_anomaly": 60,
+     "anomaly_findings": 62,
+     "notes": 18
+    },
+    "X": {
+     "cases_with_anomaly": 96,
+     "anomaly_findings": 117,
+     "notes": 85
+    },
+    "D": {
+     "cases_with_anomaly": 96,
+     "anomaly_findings": 117,
+     "notes": 85
+    }
+   },
+   "incident_ordering_arrival_A": {
+    "all_jobs": 0.9916259595254711,
+    "jobs_with_external_records": 0.9723422644770959,
+    "n_jobs_with_external_records": 92
+   },
+   "investigation": {
+    "C": {
+     "linkage": {
+      "expected_linked": 110,
+      "correctly_linked": 110,
+      "expected_unlinked": 4,
+      "correctly_unlinked": 4,
+      "expected_ambiguous": 3,
+      "correctly_ambiguous": 3,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 55,
+      "identified": 0,
+      "jobs_expected": 40,
+      "jobs_fully_identified": 0,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": 0
+     },
+     "lineage_expectations": {
+      "expected": 17,
+      "met": 10,
+      "failures": [
+       "xapp_ambiguous_link: insufficient_evidence",
+       "xapp_document_backed_conflict: potential_fraud_indicator_requiring_investigation"
+      ],
+      "rate": 0.5882352941176471
+     },
+     "provenance": {
+      "values": 3180,
+      "with_root": 3180,
+      "with_captured_source": 805,
+      "findings": 80,
+      "findings_citing_existing_events": 80,
+      "findings_with_assessment": 80,
+      "contradictions": 0,
+      "contradictions_two_items_traceable": 0,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.2531446540880503,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": null
+     },
+     "restraint": {
+      "undetectable_jobs": 9,
+      "flagged_anyway": 0,
+      "single_lineage_fields": 1990,
+      "needs_independent_source_stated": 1990,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 544,
+      "multi_record_agreement_counted_as_independent": 411,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": [
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       }
+      ]
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 92
+     }
+    },
+    "X": {
+     "linkage": {
+      "expected_linked": 110,
+      "correctly_linked": 110,
+      "expected_unlinked": 4,
+      "correctly_unlinked": 4,
+      "expected_ambiguous": 3,
+      "correctly_ambiguous": 3,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 55,
+      "identified": 55,
+      "jobs_expected": 40,
+      "jobs_fully_identified": 40,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": 1
+     },
+     "lineage_expectations": {
+      "expected": 17,
+      "met": 7,
+      "failures": [
+       "common_source_falsification: gross_weight roots",
+       "common_source_falsification: needs independent source",
+       "xapp_duplicate_evidence: gross_weight roots"
+      ],
+      "rate": 0.4117647058823529
+     },
+     "provenance": {
+      "values": 3180,
+      "with_root": 3180,
+      "with_captured_source": 805,
+      "findings": 202,
+      "findings_citing_existing_events": 202,
+      "findings_with_assessment": 202,
+      "contradictions": 122,
+      "contradictions_two_items_traceable": 122,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.2531446540880503,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": 1
+     },
+     "restraint": {
+      "undetectable_jobs": 9,
+      "flagged_anyway": 0,
+      "single_lineage_fields": 1873,
+      "needs_independent_source_stated": 1873,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 544,
+      "multi_record_agreement_counted_as_independent": 544,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": [
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 3,
+        "needs_independent_source": false,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 3,
+        "needs_independent_source": false,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 3,
+        "needs_independent_source": false,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 3,
+        "needs_independent_source": false,
+        "flagged_as_anomaly": false
+       }
+      ]
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 92
+     }
+    },
+    "D": {
+     "linkage": {
+      "expected_linked": 110,
+      "correctly_linked": 110,
+      "expected_unlinked": 4,
+      "correctly_unlinked": 4,
+      "expected_ambiguous": 3,
+      "correctly_ambiguous": 3,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 55,
+      "identified": 55,
+      "jobs_expected": 40,
+      "jobs_fully_identified": 40,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": 1
+     },
+     "lineage_expectations": {
+      "expected": 17,
+      "met": 17,
+      "failures": [],
+      "rate": 1
+     },
+     "provenance": {
+      "values": 3180,
+      "with_root": 3180,
+      "with_captured_source": 805,
+      "findings": 202,
+      "findings_citing_existing_events": 202,
+      "findings_with_assessment": 202,
+      "contradictions": 122,
+      "contradictions_two_items_traceable": 122,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.2531446540880503,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": 1
+     },
+     "restraint": {
+      "undetectable_jobs": 9,
+      "flagged_anyway": 0,
+      "single_lineage_fields": 1990,
+      "needs_independent_source_stated": 1990,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 544,
+      "multi_record_agreement_counted_as_independent": 411,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": [
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       }
+      ]
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 92
+     }
+    }
+   },
+   "unexpected_D": [
+    {
+     "job_no": "SYN-4-0049",
+     "type": "unauthorized_delete_attempt",
+     "fired": [],
+     "expected": [
+      "ACT-002"
+     ]
+    },
+    {
+     "job_no": "SYN-4-0064",
+     "type": "unusual_timing",
+     "fired": [],
+     "expected": [
+      "TIM-001"
+     ]
+    },
+    {
+     "job_no": "SYN-4-0076",
+     "type": "unusual_timing",
+     "fired": [],
+     "expected": [
+      "TIM-001"
+     ]
+    },
+    {
+     "job_no": "SYN-4-0228",
+     "type": "unauthorized_delete_attempt",
+     "fired": [],
+     "expected": [
+      "ACT-002"
+     ]
+    },
+    {
+     "job_no": "SYN-4-0264",
+     "type": "unusual_timing",
+     "fired": [],
+     "expected": [
+      "TIM-001"
+     ]
+    },
+    {
+     "job_no": "SYN-4-0270",
+     "type": "unauthorized_delete_attempt",
+     "fired": [],
+     "expected": [
+      "ACT-002"
+     ]
+    },
+    {
+     "job_no": "SYN-4-0274",
+     "type": "unauthorized_delete_attempt",
+     "fired": [],
+     "expected": [
+      "ACT-002"
+     ]
+    }
+   ]
+  },
+  {
+   "dataset": "bl-seed-5",
+   "seed": 5,
+   "dataset_generated_at": "2026-10-26T23:57:10.728Z",
+   "dataset_code_commit": "ce611ac7f018a815ac3d176da0eee6b6f6581f25",
+   "generation_errors": 0,
+   "jobs": 300,
+   "integrity_ok": true,
+   "events": 11643,
+   "class_counts": {
+    "normal": 92,
+    "hard_negative": 98,
+    "data_quality": 15,
+    "anomaly": 95
+   },
+   "detection": {
+    "A": {
+     "tp": 62,
+     "fp": 0,
+     "fn": 33,
+     "tn": 205,
+     "precision": 1,
+     "recall": 0.6526315789473685,
+     "f1": 0.7898089171974523,
+     "false_positive_rate": 0
+    },
+    "C": {
+     "tp": 62,
+     "fp": 0,
+     "fn": 33,
+     "tn": 205,
+     "precision": 1,
+     "recall": 0.6526315789473685,
+     "f1": 0.7898089171974523,
+     "false_positive_rate": 0
+    },
+    "X": {
+     "tp": 85,
+     "fp": 0,
+     "fn": 10,
+     "tn": 205,
+     "precision": 1,
+     "recall": 0.8947368421052632,
+     "f1": 0.9444444444444444,
+     "false_positive_rate": 0
+    },
+    "D": {
+     "tp": 85,
+     "fp": 0,
+     "fn": 10,
+     "tn": 205,
+     "precision": 1,
+     "recall": 0.8947368421052632,
+     "f1": 0.9444444444444444,
+     "false_positive_rate": 0
+    },
+    "A_on_rule_detectable_only": {
+     "tp": 62,
+     "fp": 0,
+     "fn": 5,
+     "tn": 205,
+     "precision": 1,
+     "recall": 0.9253731343283582,
+     "f1": 0.9612403100775194,
+     "false_positive_rate": 0
+    },
+    "D_on_detectable_only": {
+     "tp": 85,
+     "fp": 0,
+     "fn": 5,
+     "tn": 205,
+     "precision": 1,
+     "recall": 0.9444444444444444,
+     "f1": 0.9714285714285714,
+     "false_positive_rate": 0
+    },
+    "D_exact_rule_set_match_rate": 0.9833333333333333
+   },
+   "by_category": {
+    "physical_feasibility": {
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     }
+    },
+    "data_quality": {
+     "n": 15,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "normal": {
+     "n": 92,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "placeholder_values": {
+     "n": 1,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 1,
+      "D": 1
+     }
+    },
+    "workflow": {
+     "n": 11,
+     "flagged": {
+      "A": 11,
+      "C": 11,
+      "X": 11,
+      "D": 11
+     }
+    },
+    "needs_independent_source": {
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "hard_negative": {
+     "n": 98,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "cross_application": {
+     "n": 24,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 24,
+      "D": 24
+     }
+    },
+    "actor": {
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     }
+    },
+    "late_modification": {
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     }
+    },
+    "deletion": {
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     }
+    },
+    "identifier": {
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     }
+    },
+    "regeneration": {
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     }
+    },
+    "quantity_consistency": {
+     "n": 7,
+     "flagged": {
+      "A": 7,
+      "C": 7,
+      "X": 7,
+      "D": 7
+     }
+    },
+    "other": {
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "source_consistency": {
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     }
+    },
+    "financial_consistency": {
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     }
+    },
+    "document_integrity": {
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     }
+    }
+   },
+   "by_type": {
+    "unplaced_cargo": {
+     "class": "anomaly",
+     "category": "physical_feasibility",
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     },
+     "exact_D": 6
+    },
+    "missing_identifiers": {
+     "class": "data_quality",
+     "category": "data_quality",
+     "n": 9,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 9
+    },
+    "clean_complete": {
+     "class": "normal",
+     "category": "normal",
+     "n": 69,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 69
+    },
+    "placeholder_charges": {
+     "class": "anomaly",
+     "category": "placeholder_values",
+     "n": 1,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 1,
+      "D": 1
+     },
+     "exact_D": 1
+    },
+    "excess_reversals": {
+     "class": "anomaly",
+     "category": "workflow",
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "consistent_falsification": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "source_matches": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 10,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 10
+    },
+    "xapp_charge_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 1,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 1,
+      "D": 1
+     },
+     "exact_D": 1
+    },
+    "malformed_source": {
+     "class": "data_quality",
+     "category": "data_quality",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "legit_night_shift": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 6,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 6
+    },
+    "spoofed_actor": {
+     "class": "anomaly",
+     "category": "actor",
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "early_correction_regenerated": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 15,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 15
+    },
+    "xapp_container_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "bad_container_check_digit": {
+     "class": "data_quality",
+     "category": "data_quality",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "clean_in_progress": {
+     "class": "normal",
+     "category": "normal",
+     "n": 23,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 23
+    },
+    "xapp_consistent": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 12,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 12
+    },
+    "packing_fits": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 6,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 6
+    },
+    "xapp_unit_variant": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "xapp_unlinked_record": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 2
+    },
+    "regen_identical_few": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 5
+    },
+    "xapp_rounding_difference": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 6,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 6
+    },
+    "legit_reopen": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 14,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 14
+    },
+    "xapp_weight_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 6,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 6,
+      "D": 6
+     },
+     "exact_D": 6
+    },
+    "xapp_package_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "late_material_edit": {
+     "class": "anomaly",
+     "category": "late_modification",
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "deleted_after_close": {
+     "class": "anomaly",
+     "category": "deletion",
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "job_renamed": {
+     "class": "anomaly",
+     "category": "identifier",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "premature_closure": {
+     "class": "anomaly",
+     "category": "workflow",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "regen_changed_excess": {
+     "class": "anomaly",
+     "category": "regeneration",
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "xapp_post_issue_divergence": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "nonmaterial_late_edit": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 10,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 10
+    },
+    "xapp_duplicate_evidence": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 2
+    },
+    "weight_mismatch": {
+     "class": "anomaly",
+     "category": "quantity_consistency",
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     },
+     "exact_D": 6
+    },
+    "xapp_late_activity": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "xapp_ambiguous_link": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 4
+    },
+    "unusual_timing": {
+     "class": "anomaly",
+     "category": "other",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 0
+    },
+    "package_mismatch": {
+     "class": "anomaly",
+     "category": "quantity_consistency",
+     "n": 1,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 1,
+      "D": 1
+     },
+     "exact_D": 1
+    },
+    "xapp_identifier_mismatch": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "bulk_na": {
+     "class": "anomaly",
+     "category": "workflow",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "source_mismatch": {
+     "class": "anomaly",
+     "category": "source_consistency",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "regen_identical_excess": {
+     "class": "anomaly",
+     "category": "regeneration",
+     "n": 1,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 1,
+      "D": 1
+     },
+     "exact_D": 1
+    },
+    "unauthorized_delete_attempt": {
+     "class": "anomaly",
+     "category": "other",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 0
+    },
+    "xapp_document_backed_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 1,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 1,
+      "D": 1
+     },
+     "exact_D": 1
+    },
+    "common_source_falsification": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 2
+    },
+    "closing_changed_on_reclose": {
+     "class": "anomaly",
+     "category": "financial_consistency",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "deleted_draft": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "stale_documents": {
+     "class": "anomaly",
+     "category": "document_integrity",
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "billing_inconsistency": {
+     "class": "anomaly",
+     "category": "financial_consistency",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    }
+   },
+   "errors": {
+    "A": {
+     "missed": {
+      "consistent_falsification": 3,
+      "xapp_charge_conflict": 1,
+      "xapp_container_conflict": 2,
+      "xapp_weight_conflict": 6,
+      "xapp_package_conflict": 3,
+      "xapp_post_issue_divergence": 4,
+      "xapp_late_activity": 5,
+      "unusual_timing": 2,
+      "xapp_identifier_mismatch": 2,
+      "unauthorized_delete_attempt": 3,
+      "common_source_falsification": 2
+     },
+     "false_alarms": []
+    },
+    "C": {
+     "missed": {
+      "consistent_falsification": 3,
+      "xapp_charge_conflict": 1,
+      "xapp_container_conflict": 2,
+      "xapp_weight_conflict": 6,
+      "xapp_package_conflict": 3,
+      "xapp_post_issue_divergence": 4,
+      "xapp_late_activity": 5,
+      "unusual_timing": 2,
+      "xapp_identifier_mismatch": 2,
+      "unauthorized_delete_attempt": 3,
+      "common_source_falsification": 2
+     },
+     "false_alarms": []
+    },
+    "X": {
+     "missed": {
+      "consistent_falsification": 3,
+      "unusual_timing": 2,
+      "unauthorized_delete_attempt": 3,
+      "common_source_falsification": 2
+     },
+     "false_alarms": []
+    },
+    "D": {
+     "missed": {
+      "consistent_falsification": 3,
+      "unusual_timing": 2,
+      "unauthorized_delete_attempt": 3,
+      "common_source_falsification": 2
+     },
+     "false_alarms": []
+    }
+   },
+   "hard_negative_fpr": {
+    "A": 0,
+    "C": 0,
+    "X": 0,
+    "D": 0
+   },
+   "review_burden": {
+    "A": {
+     "cases_with_anomaly": 62,
+     "anomaly_findings": 64,
+     "notes": 19
+    },
+    "C": {
+     "cases_with_anomaly": 62,
+     "anomaly_findings": 64,
+     "notes": 19
+    },
+    "X": {
+     "cases_with_anomaly": 85,
+     "anomaly_findings": 93,
+     "notes": 74
+    },
+    "D": {
+     "cases_with_anomaly": 85,
+     "anomaly_findings": 93,
+     "notes": 74
+    }
+   },
+   "incident_ordering_arrival_A": {
+    "all_jobs": 0.9936356404136834,
+    "jobs_with_external_records": 0.9716535433070866,
+    "n_jobs_with_external_records": 69
+   },
+   "investigation": {
+    "C": {
+     "linkage": {
+      "expected_linked": 87,
+      "correctly_linked": 87,
+      "expected_unlinked": 2,
+      "correctly_unlinked": 2,
+      "expected_ambiguous": 4,
+      "correctly_ambiguous": 4,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 29,
+      "identified": 0,
+      "jobs_expected": 24,
+      "jobs_fully_identified": 0,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": 0
+     },
+     "lineage_expectations": {
+      "expected": 11,
+      "met": 6,
+      "failures": [
+       "xapp_ambiguous_link: insufficient_evidence",
+       "xapp_document_backed_conflict: potential_fraud_indicator_requiring_investigation"
+      ],
+      "rate": 0.5454545454545454
+     },
+     "provenance": {
+      "values": 3073,
+      "with_root": 3073,
+      "with_captured_source": 659,
+      "findings": 83,
+      "findings_citing_existing_events": 83,
+      "findings_with_assessment": 83,
+      "contradictions": 0,
+      "contradictions_two_items_traceable": 0,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.21444842173771558,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": null
+     },
+     "restraint": {
+      "undetectable_jobs": 5,
+      "flagged_anyway": 0,
+      "single_lineage_fields": 2086,
+      "needs_independent_source_stated": 2086,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 440,
+      "multi_record_agreement_counted_as_independent": 321,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": [
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       }
+      ]
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 69
+     }
+    },
+    "X": {
+     "linkage": {
+      "expected_linked": 87,
+      "correctly_linked": 87,
+      "expected_unlinked": 2,
+      "correctly_unlinked": 2,
+      "expected_ambiguous": 4,
+      "correctly_ambiguous": 4,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 29,
+      "identified": 29,
+      "jobs_expected": 24,
+      "jobs_fully_identified": 24,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": 1
+     },
+     "lineage_expectations": {
+      "expected": 11,
+      "met": 5,
+      "failures": [
+       "xapp_duplicate_evidence: gross_weight roots",
+       "common_source_falsification: gross_weight roots",
+       "common_source_falsification: needs independent source"
+      ],
+      "rate": 0.45454545454545453
+     },
+     "provenance": {
+      "values": 3073,
+      "with_root": 3073,
+      "with_captured_source": 659,
+      "findings": 167,
+      "findings_citing_existing_events": 167,
+      "findings_with_assessment": 167,
+      "contradictions": 84,
+      "contradictions_two_items_traceable": 84,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.21444842173771558,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": 1
+     },
+     "restraint": {
+      "undetectable_jobs": 5,
+      "flagged_anyway": 0,
+      "single_lineage_fields": 1983,
+      "needs_independent_source_stated": 1983,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 440,
+      "multi_record_agreement_counted_as_independent": 440,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": [
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 3,
+        "needs_independent_source": false,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 3,
+        "needs_independent_source": false,
+        "flagged_as_anomaly": false
+       }
+      ]
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 69
+     }
+    },
+    "D": {
+     "linkage": {
+      "expected_linked": 87,
+      "correctly_linked": 87,
+      "expected_unlinked": 2,
+      "correctly_unlinked": 2,
+      "expected_ambiguous": 4,
+      "correctly_ambiguous": 4,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 29,
+      "identified": 29,
+      "jobs_expected": 24,
+      "jobs_fully_identified": 24,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": 1
+     },
+     "lineage_expectations": {
+      "expected": 11,
+      "met": 11,
+      "failures": [],
+      "rate": 1
+     },
+     "provenance": {
+      "values": 3073,
+      "with_root": 3073,
+      "with_captured_source": 659,
+      "findings": 167,
+      "findings_citing_existing_events": 167,
+      "findings_with_assessment": 167,
+      "contradictions": 84,
+      "contradictions_two_items_traceable": 84,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.21444842173771558,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": 1
+     },
+     "restraint": {
+      "undetectable_jobs": 5,
+      "flagged_anyway": 0,
+      "single_lineage_fields": 2086,
+      "needs_independent_source_stated": 2086,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 440,
+      "multi_record_agreement_counted_as_independent": 321,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": [
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       }
+      ]
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 69
+     }
+    }
+   },
+   "unexpected_D": [
+    {
+     "job_no": "SYN-5-0080",
+     "type": "unusual_timing",
+     "fired": [],
+     "expected": [
+      "TIM-001"
+     ]
+    },
+    {
+     "job_no": "SYN-5-0098",
+     "type": "unusual_timing",
+     "fired": [],
+     "expected": [
+      "TIM-001"
+     ]
+    },
+    {
+     "job_no": "SYN-5-0132",
+     "type": "unauthorized_delete_attempt",
+     "fired": [],
+     "expected": [
+      "ACT-002"
+     ]
+    },
+    {
+     "job_no": "SYN-5-0163",
+     "type": "unauthorized_delete_attempt",
+     "fired": [],
+     "expected": [
+      "ACT-002"
+     ]
+    },
+    {
+     "job_no": "SYN-5-0239",
+     "type": "unauthorized_delete_attempt",
+     "fired": [],
+     "expected": [
+      "ACT-002"
+     ]
+    }
+   ]
+  },
+  {
+   "dataset": "bl-seed-6",
+   "seed": 6,
+   "dataset_generated_at": "2026-10-26T23:57:07.304Z",
+   "dataset_code_commit": "ce611ac7f018a815ac3d176da0eee6b6f6581f25",
+   "generation_errors": 0,
+   "jobs": 300,
+   "integrity_ok": true,
+   "events": 11674,
+   "class_counts": {
+    "normal": 86,
+    "hard_negative": 98,
+    "data_quality": 7,
+    "anomaly": 109
+   },
+   "detection": {
+    "A": {
+     "tp": 67,
+     "fp": 0,
+     "fn": 42,
+     "tn": 191,
+     "precision": 1,
+     "recall": 0.6146788990825688,
+     "f1": 0.7613636363636362,
+     "false_positive_rate": 0
+    },
+    "C": {
+     "tp": 67,
+     "fp": 0,
+     "fn": 42,
+     "tn": 191,
+     "precision": 1,
+     "recall": 0.6146788990825688,
+     "f1": 0.7613636363636362,
+     "false_positive_rate": 0
+    },
+    "X": {
+     "tp": 99,
+     "fp": 0,
+     "fn": 10,
+     "tn": 191,
+     "precision": 1,
+     "recall": 0.908256880733945,
+     "f1": 0.9519230769230769,
+     "false_positive_rate": 0
+    },
+    "D": {
+     "tp": 99,
+     "fp": 0,
+     "fn": 10,
+     "tn": 191,
+     "precision": 1,
+     "recall": 0.908256880733945,
+     "f1": 0.9519230769230769,
+     "false_positive_rate": 0
+    },
+    "A_on_rule_detectable_only": {
+     "tp": 67,
+     "fp": 0,
+     "fn": 4,
+     "tn": 191,
+     "precision": 1,
+     "recall": 0.9436619718309859,
+     "f1": 0.9710144927536231,
+     "false_positive_rate": 0
+    },
+    "D_on_detectable_only": {
+     "tp": 99,
+     "fp": 0,
+     "fn": 4,
+     "tn": 191,
+     "precision": 1,
+     "recall": 0.9611650485436893,
+     "f1": 0.9801980198019802,
+     "false_positive_rate": 0
+    },
+    "D_exact_rule_set_match_rate": 0.9866666666666667
+   },
+   "by_category": {
+    "quantity_consistency": {
+     "n": 9,
+     "flagged": {
+      "A": 9,
+      "C": 9,
+      "X": 9,
+      "D": 9
+     }
+    },
+    "normal": {
+     "n": 86,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "actor": {
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     }
+    },
+    "cross_application": {
+     "n": 40,
+     "flagged": {
+      "A": 8,
+      "C": 8,
+      "X": 40,
+      "D": 40
+     }
+    },
+    "needs_independent_source": {
+     "n": 6,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "hard_negative": {
+     "n": 98,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "placeholder_values": {
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     }
+    },
+    "other": {
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "financial_consistency": {
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     }
+    },
+    "workflow": {
+     "n": 13,
+     "flagged": {
+      "A": 13,
+      "C": 13,
+      "X": 13,
+      "D": 13
+     }
+    },
+    "document_integrity": {
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     }
+    },
+    "physical_feasibility": {
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     }
+    },
+    "data_quality": {
+     "n": 7,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "late_modification": {
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     }
+    },
+    "deletion": {
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     }
+    },
+    "identifier": {
+     "n": 1,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 1,
+      "D": 1
+     }
+    },
+    "regeneration": {
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     }
+    },
+    "source_consistency": {
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     }
+    }
+   },
+   "by_type": {
+    "weight_mismatch": {
+     "class": "anomaly",
+     "category": "quantity_consistency",
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     },
+     "exact_D": 6
+    },
+    "clean_complete": {
+     "class": "normal",
+     "category": "normal",
+     "n": 70,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 70
+    },
+    "spoofed_actor": {
+     "class": "anomaly",
+     "category": "actor",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "package_mismatch": {
+     "class": "anomaly",
+     "category": "quantity_consistency",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "xapp_identifier_mismatch": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "common_source_falsification": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "xapp_post_issue_divergence": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 9,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 9,
+      "D": 9
+     },
+     "exact_D": 9
+    },
+    "legit_reopen": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 14,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 14
+    },
+    "source_matches": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 5
+    },
+    "xapp_consistent": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 7,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 7
+    },
+    "placeholder_charges": {
+     "class": "anomaly",
+     "category": "placeholder_values",
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "packing_fits": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 5
+    },
+    "regen_identical_few": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 11,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 11
+    },
+    "xapp_rounding_difference": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 7,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 7
+    },
+    "xapp_document_backed_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 8,
+     "flagged": {
+      "A": 8,
+      "C": 8,
+      "X": 8,
+      "D": 8
+     },
+     "exact_D": 8
+    },
+    "clean_in_progress": {
+     "class": "normal",
+     "category": "normal",
+     "n": 16,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 16
+    },
+    "xapp_ambiguous_link": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 4
+    },
+    "unusual_timing": {
+     "class": "anomaly",
+     "category": "other",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 0
+    },
+    "xapp_late_activity": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "billing_inconsistency": {
+     "class": "anomaly",
+     "category": "financial_consistency",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "early_correction_regenerated": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 14,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 14
+    },
+    "xapp_duplicate_evidence": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 4
+    },
+    "premature_closure": {
+     "class": "anomaly",
+     "category": "workflow",
+     "n": 5,
+     "flagged": {
+      "A": 5,
+      "C": 5,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "xapp_package_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "closing_changed_on_reclose": {
+     "class": "anomaly",
+     "category": "financial_consistency",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    },
+    "xapp_weight_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "consistent_falsification": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "unauthorized_delete_attempt": {
+     "class": "anomaly",
+     "category": "other",
+     "n": 1,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 0
+    },
+    "nonmaterial_late_edit": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 10,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 10
+    },
+    "stale_documents": {
+     "class": "anomaly",
+     "category": "document_integrity",
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     },
+     "exact_D": 6
+    },
+    "excess_reversals": {
+     "class": "anomaly",
+     "category": "workflow",
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "unplaced_cargo": {
+     "class": "anomaly",
+     "category": "physical_feasibility",
+     "n": 6,
+     "flagged": {
+      "A": 6,
+      "C": 6,
+      "X": 6,
+      "D": 6
+     },
+     "exact_D": 6
+    },
+    "legit_night_shift": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 5
+    },
+    "xapp_container_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 5,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 5,
+      "D": 5
+     },
+     "exact_D": 5
+    },
+    "xapp_unlinked_record": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 2
+    },
+    "missing_identifiers": {
+     "class": "data_quality",
+     "category": "data_quality",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "xapp_charge_conflict": {
+     "class": "anomaly",
+     "category": "cross_application",
+     "n": 4,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "deleted_draft": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 6,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 6
+    },
+    "malformed_source": {
+     "class": "data_quality",
+     "category": "data_quality",
+     "n": 3,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 3
+    },
+    "bulk_na": {
+     "class": "anomaly",
+     "category": "workflow",
+     "n": 4,
+     "flagged": {
+      "A": 4,
+      "C": 4,
+      "X": 4,
+      "D": 4
+     },
+     "exact_D": 4
+    },
+    "legit_backfill": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 2
+    },
+    "xapp_unit_variant": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 2,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 2
+    },
+    "late_material_edit": {
+     "class": "anomaly",
+     "category": "late_modification",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "deleted_after_close": {
+     "class": "anomaly",
+     "category": "deletion",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "job_renamed": {
+     "class": "anomaly",
+     "category": "identifier",
+     "n": 1,
+     "flagged": {
+      "A": 1,
+      "C": 1,
+      "X": 1,
+      "D": 1
+     },
+     "exact_D": 1
+    },
+    "regen_changed_excess": {
+     "class": "anomaly",
+     "category": "regeneration",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "regen_identical_excess": {
+     "class": "anomaly",
+     "category": "regeneration",
+     "n": 2,
+     "flagged": {
+      "A": 2,
+      "C": 2,
+      "X": 2,
+      "D": 2
+     },
+     "exact_D": 2
+    },
+    "bad_container_check_digit": {
+     "class": "data_quality",
+     "category": "data_quality",
+     "n": 1,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 1
+    },
+    "source_mismatch": {
+     "class": "anomaly",
+     "category": "source_consistency",
+     "n": 3,
+     "flagged": {
+      "A": 3,
+      "C": 3,
+      "X": 3,
+      "D": 3
+     },
+     "exact_D": 3
+    }
+   },
+   "errors": {
+    "A": {
+     "missed": {
+      "xapp_identifier_mismatch": 2,
+      "common_source_falsification": 3,
+      "xapp_post_issue_divergence": 9,
+      "unusual_timing": 3,
+      "xapp_late_activity": 4,
+      "xapp_package_conflict": 4,
+      "xapp_weight_conflict": 4,
+      "consistent_falsification": 3,
+      "unauthorized_delete_attempt": 1,
+      "xapp_container_conflict": 5,
+      "xapp_charge_conflict": 4
+     },
+     "false_alarms": []
+    },
+    "C": {
+     "missed": {
+      "xapp_identifier_mismatch": 2,
+      "common_source_falsification": 3,
+      "xapp_post_issue_divergence": 9,
+      "unusual_timing": 3,
+      "xapp_late_activity": 4,
+      "xapp_package_conflict": 4,
+      "xapp_weight_conflict": 4,
+      "consistent_falsification": 3,
+      "unauthorized_delete_attempt": 1,
+      "xapp_container_conflict": 5,
+      "xapp_charge_conflict": 4
+     },
+     "false_alarms": []
+    },
+    "X": {
+     "missed": {
+      "common_source_falsification": 3,
+      "unusual_timing": 3,
+      "consistent_falsification": 3,
+      "unauthorized_delete_attempt": 1
+     },
+     "false_alarms": []
+    },
+    "D": {
+     "missed": {
+      "common_source_falsification": 3,
+      "unusual_timing": 3,
+      "consistent_falsification": 3,
+      "unauthorized_delete_attempt": 1
+     },
+     "false_alarms": []
+    }
+   },
+   "hard_negative_fpr": {
+    "A": 0,
+    "C": 0,
+    "X": 0,
+    "D": 0
+   },
+   "review_burden": {
+    "A": {
+     "cases_with_anomaly": 67,
+     "anomaly_findings": 70,
+     "notes": 14
+    },
+    "C": {
+     "cases_with_anomaly": 67,
+     "anomaly_findings": 70,
+     "notes": 14
+    },
+    "X": {
+     "cases_with_anomaly": 99,
+     "anomaly_findings": 127,
+     "notes": 81
+    },
+    "D": {
+     "cases_with_anomaly": 99,
+     "anomaly_findings": 127,
+     "notes": 81
+    }
+   },
+   "incident_ordering_arrival_A": {
+    "all_jobs": 0.9928609201480698,
+    "jobs_with_external_records": 0.9734077478660539,
+    "n_jobs_with_external_records": 82
+   },
+   "investigation": {
+    "C": {
+     "linkage": {
+      "expected_linked": 92,
+      "correctly_linked": 92,
+      "expected_unlinked": 2,
+      "correctly_unlinked": 2,
+      "expected_ambiguous": 4,
+      "correctly_ambiguous": 4,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 57,
+      "identified": 0,
+      "jobs_expected": 40,
+      "jobs_fully_identified": 0,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": 0
+     },
+     "lineage_expectations": {
+      "expected": 22,
+      "met": 10,
+      "failures": [
+       "xapp_document_backed_conflict: potential_fraud_indicator_requiring_investigation",
+       "xapp_ambiguous_link: insufficient_evidence"
+      ],
+      "rate": 0.45454545454545453
+     },
+     "provenance": {
+      "values": 3153,
+      "with_root": 3153,
+      "with_captured_source": 753,
+      "findings": 84,
+      "findings_citing_existing_events": 84,
+      "findings_with_assessment": 84,
+      "contradictions": 0,
+      "contradictions_two_items_traceable": 0,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.23882017126546146,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": null
+     },
+     "restraint": {
+      "undetectable_jobs": 6,
+      "flagged_anyway": 0,
+      "single_lineage_fields": 2052,
+      "needs_independent_source_stated": 2052,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 482,
+      "multi_record_agreement_counted_as_independent": 345,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": [
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       }
+      ]
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 82
+     }
+    },
+    "X": {
+     "linkage": {
+      "expected_linked": 92,
+      "correctly_linked": 92,
+      "expected_unlinked": 2,
+      "correctly_unlinked": 2,
+      "expected_ambiguous": 4,
+      "correctly_ambiguous": 4,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 57,
+      "identified": 57,
+      "jobs_expected": 40,
+      "jobs_fully_identified": 40,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": 1
+     },
+     "lineage_expectations": {
+      "expected": 22,
+      "met": 12,
+      "failures": [
+       "common_source_falsification: gross_weight roots",
+       "common_source_falsification: needs independent source",
+       "xapp_duplicate_evidence: gross_weight roots"
+      ],
+      "rate": 0.5454545454545454
+     },
+     "provenance": {
+      "values": 3153,
+      "with_root": 3153,
+      "with_captured_source": 753,
+      "findings": 208,
+      "findings_citing_existing_events": 208,
+      "findings_with_assessment": 208,
+      "contradictions": 124,
+      "contradictions_two_items_traceable": 124,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.23882017126546146,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": 1
+     },
+     "restraint": {
+      "undetectable_jobs": 6,
+      "flagged_anyway": 0,
+      "single_lineage_fields": 1947,
+      "needs_independent_source_stated": 1947,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 482,
+      "multi_record_agreement_counted_as_independent": 482,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": [
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 3,
+        "needs_independent_source": false,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 3,
+        "needs_independent_source": false,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 3,
+        "needs_independent_source": false,
+        "flagged_as_anomaly": false
+       }
+      ]
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 82
+     }
+    },
+    "D": {
+     "linkage": {
+      "expected_linked": 92,
+      "correctly_linked": 92,
+      "expected_unlinked": 2,
+      "correctly_unlinked": 2,
+      "expected_ambiguous": 4,
+      "correctly_ambiguous": 4,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 57,
+      "identified": 57,
+      "jobs_expected": 40,
+      "jobs_fully_identified": 40,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": 1
+     },
+     "lineage_expectations": {
+      "expected": 22,
+      "met": 22,
+      "failures": [],
+      "rate": 1
+     },
+     "provenance": {
+      "values": 3153,
+      "with_root": 3153,
+      "with_captured_source": 753,
+      "findings": 208,
+      "findings_citing_existing_events": 208,
+      "findings_with_assessment": 208,
+      "contradictions": 124,
+      "contradictions_two_items_traceable": 124,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.23882017126546146,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": 1
+     },
+     "restraint": {
+      "undetectable_jobs": 6,
+      "flagged_anyway": 0,
+      "single_lineage_fields": 2052,
+      "needs_independent_source_stated": 2052,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 482,
+      "multi_record_agreement_counted_as_independent": 345,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": [
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "consistent_falsification",
+        "agreeing_records": 1,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       },
+       {
+        "type": "common_source_falsification",
+        "agreeing_records": 3,
+        "independent_roots": 1,
+        "needs_independent_source": true,
+        "flagged_as_anomaly": false
+       }
+      ]
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 82
+     }
+    }
+   },
+   "unexpected_D": [
+    {
+     "job_no": "SYN-6-0027",
+     "type": "unusual_timing",
+     "fired": [],
+     "expected": [
+      "TIM-001"
+     ]
+    },
+    {
+     "job_no": "SYN-6-0051",
+     "type": "unauthorized_delete_attempt",
+     "fired": [],
+     "expected": [
+      "ACT-002"
+     ]
+    },
+    {
+     "job_no": "SYN-6-0230",
+     "type": "unusual_timing",
+     "fired": [],
+     "expected": [
+      "TIM-001"
+     ]
+    },
+    {
+     "job_no": "SYN-6-0267",
+     "type": "unusual_timing",
+     "fired": [],
+     "expected": [
+      "TIM-001"
+     ]
+    }
+   ]
+  }
+ ]
+}

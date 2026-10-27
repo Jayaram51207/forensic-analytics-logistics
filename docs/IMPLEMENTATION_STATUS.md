@@ -33,12 +33,25 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 | F. Regression | done | below |
 | G. Documentation | done | RUNTIME_SETUP, SECURITY_AND_LIMITATIONS, TESTING_GUIDE, SYNTHETIC_DATASET, EXTERNAL_ANCHOR (new), this file; `docs/patches/` regenerated: 19 diffs, all reverse-apply cleanly against `original-suite` |
 
+## Analysis completion round (branch `research-validation`, commits `4078012`..)
+
+| Item | Status | Evidence |
+|---|---|---|
+| End-to-end pipeline audit | Synchroniser, B.I.I.L., stuffing report and 3D visualizer feed linking, provenance, contradictions, rules and cases; EasyQuote (export and import) quotations are ingested and verified but cannot be linked (no shipment reference) and are shown as "not tied to a shipment" | `test/demo.integration.test.js` (three desktop tools linked to one shipment), `test/pipeline.test.js` (EasyQuote) |
+| Detection: refused requests | new rule ACT-002; refused requests attached to the job and shown in its timeline | scenarios test; demo test |
+| Detection: implausible milestone pace | new rule TIM-001 (domain assumption, configurable); known false positive on back-entered jobs, documented | FINAL_EVALUATION_REPORT §5 |
+| Realistic controls | hard negatives for night work, back-entry, rounding, kg/MT notation | scenarios test |
+| Generator reliability | root cause of lost jobs found (keep-alive `ECONNRESET`) and fixed in the synchroniser | 1,500/1,500 jobs generated |
+| Analysis dashboard | filters, rule breakdown, unlinked evidence, refused requests, legend, overwritten values, ground-truth overlay, Evaluation tab | DASHBOARD_AND_DEMO.md; browser test on demo data |
+| Demonstration | `node e2e/demo.js --serve` | DASHBOARD_AND_DEMO.md |
+| Evaluation | tuning set separate; held-out seeds 4–6; previous code scored on the same data | FINAL_EVALUATION_REPORT.md |
+
 ## Research validation round (branch `research-validation`, from `final-hardening` `e932963`)
 
 | Task | Status | Evidence |
 |---|---|---|
 | A. External witness | code reviewed; one gap found and fixed (fresh store id: `--stores` allowlist); `cli.js anchor` added for catch-up; 12 witness tests pass. **Two-machine test NOT RUN** (no second machine) | EXTERNAL_ANCHOR.md §2, §5 (procedure), §6 (empty template) |
-| B. Final datasets and evaluation | done: train-101, seed-1..3 regenerated at `ad2d28f`, evaluated at `251e9e7`; ablation A/C/X/D; Isolation Forest two protocols | FINAL_EVALUATION_REPORT.md; `evaluation/results/final_summary.*`; old results in `evaluation/results/historical-forensic-v2/` |
+| B. Final datasets and evaluation | done then (seeds 1–3, `251e9e7`); superseded by the analysis completion round | `evaluation/results/historical-research-validation/` |
 | C. Publication readiness | **NOT SAFE TO DISTRIBUTE**: history holds unverified documents; the `git archive` copy still holds third-party e-mails in generator defaults and developer user names in docs/patches | DATA_AND_REPOSITORY_AUDIT.md §7–§8 (remediation proposal, not carried out) |
 | D. Business rules | all still `null`; CLI now states the unconfigured status; CLI and dashboard tested to agree; invalid files refused by both | DECISIONS_AND_OPEN_REQUIREMENTS.md "Re-check"; `test/business_rules.test.js` |
 | E. Engineering gaps | HTTPS implemented as an option (`SYNC_TLS_CERT`/`KEY`, `Secure` cookie, warning on plain HTTP; tested). MFA not added (scope, threat model). Admin reset stays API-only. EasyQuote analysis deferred (no shipment reference) | SECURITY_AND_LIMITATIONS §2 |
@@ -47,10 +60,10 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 
 | Check | Result | When |
 |---|---|---|
-| `node --test` in `forensics/` | 182 tests: 178 passed, 0 failed, 4 skipped (the opt-in desktop-window tests) | 2026-10-27 |
-| Same with `FORENSIC_GUI_TESTS=1` | 182 tests: 182 passed, 0 failed, 0 skipped (includes the 4 real-window tests and 18 browser tests) | 2026-10-27 |
+| `node --test` in `forensics/` | 189 tests: 185 passed, 0 failed, 4 skipped (opt-in desktop-window tests) | 2026-10-27 (`ce611ac`) |
+| Same with `FORENSIC_GUI_TESTS=1` | 189 tests: 189 passed (includes 4 real-window and 19 browser tests) | 2026-10-27 (`ce611ac`) |
 | `node e2e/run_e2e.js` | 28 of 28 steps (document generation in `forensics/.venv`, remote witness in a second process) | 2026-10-27 |
-| Final evaluation | pooled over 3 held-out seeds: rules recall 0.654, full framework recall 0.903, precision 1.000 and FPR 0.000 for both; Isolation Forest alone recall 0.040–0.128 with FPR 0.06–0.11 | 2026-10-27 |
+| Final evaluation | held-out seeds 4–6: full framework precision 0.977, recall 0.937, F1 0.956, FPR 0.012 (previous code on the same data: 1.000 / 0.886 / 0.940 / 0.000); rules alone recall 0.649 | 2026-10-27 |
 | `final-hardening` 174 tests: 170 passed, 4 skipped; GUI 174/174; e2e 28/28 | earlier round | 2026-10-26 |
 | Baseline at `forensic-v2` | 131 tests: 127 passed, 4 skipped; e2e 26/26 | 2026-10-14 |
 | Three WPF projects build | 0 warnings, 0 errors | phase 2 of the first round; binaries reused |
@@ -105,7 +118,7 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 
 - HTTPS on by default (it is optional), multi-factor authentication, finer-grained authorisation, an admin-reset button in the UI.
 - Physical cross-machine anchor test (procedure ready: EXTERNAL_ANCHOR.md §3); trusted timestamps; backup automation; retention policy.
-- A rule for refused privileged requests (5 `unauthorized_delete_attempt` jobs missed by every variant) and for timing (6 `unusual_timing` jobs missed).
+- A way to tell back-entered jobs from fabricated fast workflows (TIM-001's known false positive).
 - Removing unverified documents from git history (owner's decision; irreversible for clones).
 - Analysis of EasyQuote quotations (free text, no shipment reference).
 - Capture of B.I.I.L. upload/parse steps separately; adapter in its PyInstaller build.

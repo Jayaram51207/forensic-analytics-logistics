@@ -1,178 +1,150 @@
 # Final Evaluation Report
 
 **All data is synthetic. Nothing here estimates performance on real shipments, real fraud, or real users.**
-Results were produced on 2026-10-27 from code commit `251e9e7` (branch `research-validation`). Datasets were generated at commit `ad2d28f`; the generation code is identical across `45d0152`..`251e9e7` (`git diff` touches only `cli.js`, one test, documentation and the evaluator's category grouping).
-Full tables: `forensics/evaluation/results/final_summary.md`. Raw results: `framework.json`, `ml_normal_only.json`, `ml_unsupervised_q0.10.json`, `final_summary.json` in the same folder.
-Earlier results (tag `forensic-v2`) are kept unchanged in `evaluation/results/historical-forensic-v2/` and are **not** used below.
+Produced 2026-10-27 at code commit `ce611ac` (branch `research-validation`); all datasets were generated at the same commit.
+Full tables: `forensics/evaluation/results/final_summary.md`; raw results beside it. The dashboard's Evaluation tab shows the same file.
+
+Historical results are kept unchanged and are **not** used below:
+`evaluation/results/historical-forensic-v2/` (tag `forensic-v2`) and `evaluation/results/historical-research-validation/` (commit `251e9e7`, with the report as it stood).
 
 ## 1. What is evaluated
 
-The research contribution is **provenance-aware cross-application contradiction analysis and incident reconstruction**: evidence from several logistics applications is linked to one shipment, every value is traced to its source (lineage), and disagreements between applications are reported with what they do and do not prove. It is evaluated here as a component of a forensic framework, against rules alone and an Isolation Forest baseline. No claim of novelty is made; no literature review was done for this report.
+The research contribution is **provenance-aware cross-application contradiction analysis and incident reconstruction**: evidence from several logistics applications is linked to one shipment, every value is traced to its source, and disagreements between applications are reported with what they do and do not prove. No claim of novelty is made (no literature review was done for this report).
 
-| Variant | Code path | What it adds |
+| Variant | Code path | Adds |
 |---|---|---|
-| A | `analyze(records, { provenance: false })` | existing rules (16) only |
-| C | `analyze(records, { contradictions: false })` | A + provenance tracking (lineage, corroboration, entity linking); contradictions computed but never shown |
-| X | `analyze(records, { provenance_config: { lineage: false } })` | A + contradiction analysis, with lineage disabled (every value treated as its own source) |
-| D | `analyze(records)` | full framework: A + provenance + contradictions |
-| B | `ml_baseline.py` | Isolation Forest alone; also OR-combined with A and with D |
+| A | `analyze(records, { provenance: false })` | rules only (18 rules) |
+| C | `analyze(records, { contradictions: false })` | A + provenance tracking (lineage, corroboration, linking); contradictions hidden |
+| X | `analyze(records, { provenance_config: { lineage: false } })` | A + contradiction analysis, lineage off (every value its own source) |
+| D | `analyze(records)` | full framework |
+| B | `evaluation/ml_baseline.py` | Isolation Forest alone, and OR-combined with A and D |
 
-## 2. Environment
+## 2. Changes since the previous evaluation (`251e9e7`) and why
 
-| Item | Value |
+Each change addresses a cause found in the previous held-out results; none was tuned on the new held-out seeds.
+
+| Change | Cause it addresses |
 |---|---|
-| Machine | one Windows 11 PC |
-| Node.js | v24.11.1 |
-| Python / scikit-learn / numpy | 3.13.9 / 1.8.0 / 2.4.2 (`forensics/.venv`) |
-| Synchroniser | real `Workflow syncroniser/server.js`, started per dataset with a disposable database and evidence store, authenticated sessions, generated random passwords |
+| Rule ACT-002: refused privileged request on a job (refused requests are now attached to the job that held the id) | 5/5 refused deletion attempts were missed: the refusal was recorded but no rule read it |
+| Rule TIM-001: "Cargo Movement" → "Sailing Completed" recorded in under 120 minutes | 6/6 `unusual_timing` jobs were missed. The threshold is a labelled domain assumption (stuffing, gate pass, let-export and departure lie between these milestones), not a business rule; off-hours time is deliberately not used |
+| New hard negatives `legit_night_shift`, `legit_backfill`, `xapp_rounding_difference`, `xapp_unit_variant` | the earlier zero false-positive rate rested on clean injections; these test night work, back-entry, rounding below tolerance and kg/MT notation |
+| `legit_night_shift` in the normal-only ML fit set | `frac_events_off_hours` was constant in that fit set, so Isolation Forest could not use it |
+| Synchroniser `keepAliveTimeout` 65 s | every job previously lost to `fetch failed` was an `ECONNRESET` on a reused idle socket (reproduced 24/24 under load, 0 after); all 1,500 jobs now generate |
+| Separate tuning set `tune-11`; unsupervised ML fit on `tune-11` instead of a test seed | the previous unsupervised protocol fitted on seed-1 and tested on seeds 2–3 |
 
-## 3. Data
+## 3. Protocol and data
 
-Generated by `synthetic/generate.js`, which drives the real synchroniser over HTTP with signed-in sessions (admin and four desk accounts) and writes desktop-tool evidence (B.I.I.L., stuffing report, 3D visualizer) in their real schemas to an outbox, which is then ingested. Ground truth (`labels.json`) is written beside the evidence and never read by the analysis.
+1. Rules frozen after inspecting **only** `tune-11`: it showed misses only for the by-design falsification cases and false alarms only for `legit_backfill` (TIM-001), which no timing threshold can separate from fabricated pace. No further change was made.
+2. Held-out seeds 4, 5, 6 evaluated once, with the new code and with the previous code (`8add33d`, run from a git worktree) on the same evidence.
 
-| Dataset | Seed | Use | Jobs labelled | Normal | Hard negative | Data quality | Anomaly | Events | Chain verifies | Generation errors |
+| Dataset | Seed | Use | Jobs | Normal | Hard negative | Data quality | Anomaly | Events | Chain | Errors |
 |---|---|---|---|---|---|---|---|---|---|---|
-| train-101 | 101 | ML fit only (normal and hard-negative scenarios only) | 300 | 163 | 137 | 0 | 0 | 11,608 | yes | 0 |
-| seed-1 | 1 | held-out test; ML fit for the unsupervised protocol | 300 | 103 | 77 | 11 | 109 | 11,845 | yes | 0 |
-| seed-2 | 2 | held-out test | 299 | 92 | 98 | 10 | 99 | 11,609 | yes | 1 |
-| seed-3 | 3 | held-out test | 299 | 81 | 93 | 12 | 113 | 11,508 | yes | 1 |
+| tune-11 | 11 | tuning only; unsupervised ML fit | 300 | 81 | 105 | 8 | 106 | 11,535 | verifies | 0 |
+| train-201 | 201 | normal-only ML fit | 300 | 154 | 146 | 0 | 0 | 11,607 | verifies | 0 |
+| seed-4 | 4 | held-out test | 300 | 68 | 106 | 14 | 112 | 11,797 | verifies | 0 |
+| seed-5 | 5 | held-out test | 300 | 92 | 98 | 15 | 95 | 11,643 | verifies | 0 |
+| seed-6 | 6 | held-out test | 300 | 86 | 98 | 7 | 109 | 11,674 | verifies | 0 |
 
-- 45 scenario types: 2 normal, 11 hard negative (legitimate changes that resemble misconduct), 29 anomaly, 3 data quality. Scenarios are sampled per job by fixed weights from the seed.
-- Two jobs were lost to a transient `fetch failed` between the generator and its test server (seed-2 `SYN-2-0119` packing_fits, seed-3 `SYN-3-0219` xapp_consistent, both negative scenarios). The generator writes no label for them; their evidence fragments are not scored.
-- New since `forensic-v2`: deletions act as the administrator (deletion is admin-only), and a new scenario `unauthorized_delete_attempt` (a desk user's deletion is refused with 403; the job then completes normally).
-
-Coverage of the required challenging cases:
-
-| Case | Scenario types |
-|---|---|
-| Incorrect initial value repeated consistently downstream | `consistent_falsification`, `common_source_falsification` |
-| Conflicting independent sources | `xapp_document_backed_conflict`, `source_mismatch` |
-| Several documents derived from one source value | `common_source_falsification`, `xapp_duplicate_evidence` |
-| Invoice inconsistencies | `xapp_charge_conflict`, `billing_inconsistency`, `closing_changed_on_reclose` |
-| Quotation inconsistencies | **not covered**: EasyQuote quotations carry no shipment reference (SECURITY_AND_LIMITATIONS §2) |
-| Cargo quantity / weight | `weight_mismatch`, `package_mismatch`, `xapp_weight_conflict`, `xapp_package_conflict`, `unplaced_cargo` |
-| Timing | `unusual_timing`, `xapp_late_activity`, `premature_closure` |
-| Post-generation modification | `late_material_edit`, `stale_documents`, `xapp_post_issue_divergence` |
-| Missing evidence | `xapp_unlinked_record`, `missing_identifiers` |
-| Ambiguous identifiers | `xapp_ambiguous_link`, `xapp_identifier_mismatch` |
-| Duplicate ingestion | `xapp_duplicate_evidence` |
-| Legitimate changes resembling misconduct | 11 hard-negative types |
-| Admin deletion / refused deletion attempt | `deleted_after_close`, `deleted_draft` / `unauthorized_delete_attempt` |
+49 scenario types (2 normal, 15 hard negative, 29 anomaly, 3 data quality), generated by driving the real synchroniser over HTTP with signed-in sessions and writing B.I.I.L., stuffing-report and 3D-visualizer records in their real schemas to an outbox that is then ingested. Labels are written beside the evidence and never read by the analysis; `ml_baseline.py` drops every `LABEL_*` column and the rule flags before fitting; thresholds are fixed in advance (normal-only: 95th percentile of training scores; unsupervised: top 10 %).
 
 ## 4. Metrics
 
-| Metric | Definition |
-|---|---|
-| Unit | one labelled job number |
-| Predicted positive | at least one finding of kind `anomaly` on any lifecycle of that job number (data-quality notes do not count) |
-| Precision, recall, F1, FPR | usual definitions; positives are `class = anomaly`; normal, hard negative and data quality are negatives |
-| Pooled | confusion counts summed over seed-1..3, then the metric |
-| Isolation Forest | 5 model seeds; counts summed over the test datasets per model seed, then mean ± standard deviation |
-| Conflicting field identified | of the fields a scenario changed in another application (`params.conflict_fields`), the share reported as a contradiction not classified `insufficient_evidence` or `unresolved_business_rule_conflict` |
-| Lineage expectations met | label expectations on provenance: number of independent roots for a field (`expect_roots`), "needs an independent source" stated (`expect_needs_authority`), expected contradiction classification (`expect_classification`) |
-| Copies counted as independent | fields where several records agree, and every agreeing record is counted as a separate source |
-| Linkage | external records linked to the right job / left unlinked when unattributable / marked ambiguous when the reference fits two lifecycles; wrong attributions |
-| Traceable finding | every cited event id exists in the verified chain |
-| Timeline order | share of adjacent timeline entries in true chronological order (truth: simulated event time), jobs with external records only |
+Unit: one labelled job. Predicted positive: at least one finding of kind `anomaly` on any lifecycle of that job number. Positives: `class = anomaly`; negatives: normal, hard negative, data quality. Pooled = confusion counts summed over seeds 4–6, then the metric. Isolation Forest: 5 model seeds, mean ± sd. Definitions of the investigation measures are in `evaluation/evaluate.js` and §4 of the historical report; they are unchanged.
 
-Ground truth is kept out of features: `ml_baseline.py` drops every `LABEL_*` column and the rule flags (`rule_flag`, `full_flag`, `rule_priority`) before fitting. Thresholds were fixed in advance (normal-only fit: 95th percentile of training scores; unsupervised: top 10 %) and not tuned on the test labels. No label was changed after results were seen. One evaluator *grouping* was corrected after the first run: `unusual_timing` was grouped as "needs independent source" and is now "timing_no_rule"; detection and labels were unaffected.
-
-## 5. Detection results
-
-Pooled over seed-1..3 (898 labelled jobs, 321 anomalous):
+## 5. Detection on held-out seeds 4–6 (900 jobs, 316 anomalous)
 
 | Variant | TP | FP | FN | TN | Precision | Recall | F1 | FPR |
 |---|---|---|---|---|---|---|---|---|
-| A rules | 210 | 0 | 111 | 577 | 1.000 | 0.654 | 0.791 | 0.000 |
-| C rules + provenance | 210 | 0 | 111 | 577 | 1.000 | 0.654 | 0.791 | 0.000 |
-| X rules + contradictions, no lineage | 290 | 0 | 31 | 577 | 1.000 | 0.903 | 0.949 | 0.000 |
-| D full framework | 290 | 0 | 31 | 577 | 1.000 | 0.903 | 0.949 | 0.000 |
-| B Isolation Forest, normal-only fit (train-101) | | | | | 0.173 ± 0.023 | 0.040 ± 0.007 | 0.066 ± 0.010 | 0.107 ± 0.007 |
-| A + B (normal-only fit) | | | | | 0.772 ± 0.011 | 0.655 ± 0.001 | 0.709 ± 0.004 | 0.107 ± 0.007 |
-| D + B (normal-only fit) | | | | | 0.824 ± 0.009 | 0.903 ± 0.000 | 0.862 ± 0.005 | 0.107 ± 0.007 |
-| B Isolation Forest, unsupervised fit on seed-1, tested on seed-2+3 | | | | | 0.530 ± 0.030 | 0.128 ± 0.015 | 0.206 ± 0.022 | 0.062 ± 0.004 |
-| A + B (unsupervised) | | | | | 0.850 ± 0.008 | 0.642 ± 0.002 | 0.732 ± 0.004 | 0.062 ± 0.004 |
-| D + B (unsupervised) | | | | | 0.888 ± 0.006 | 0.896 ± 0.000 | 0.892 ± 0.003 | 0.062 ± 0.004 |
+| A rules | 205 | 7 | 111 | 577 | 0.967 | 0.649 | 0.777 | 0.012 |
+| C rules + provenance | 205 | 7 | 111 | 577 | 0.967 | 0.649 | 0.777 | 0.012 |
+| X rules + contradictions, no lineage | 296 | 7 | 20 | 577 | 0.977 | 0.937 | 0.956 | 0.012 |
+| **D full framework** | **296** | **7** | **20** | **577** | **0.977** | **0.937** | **0.956** | **0.012** |
+| B Isolation Forest, normal-only fit (train-201) | | | | | 0.401 ± 0.040 | 0.106 ± 0.017 | 0.168 ± 0.025 | 0.085 ± 0.005 |
+| A + B (normal-only) | | | | | 0.790 ± 0.009 | 0.675 ± 0.006 | 0.728 ± 0.006 | 0.097 ± 0.005 |
+| D + B (normal-only) | | | | | 0.839 ± 0.007 | 0.937 ± 0.000 | 0.885 ± 0.004 | 0.097 ± 0.005 |
+| B Isolation Forest, unsupervised fit (tune-11) | | | | | 0.713 ± 0.011 | 0.209 ± 0.013 | 0.323 ± 0.016 | 0.046 ± 0.002 |
+| A + B (unsupervised) | | | | | 0.862 ± 0.004 | 0.663 ± 0.007 | 0.750 ± 0.004 | 0.058 ± 0.002 |
+| D + B (unsupervised) | | | | | 0.898 ± 0.004 | 0.937 ± 0.000 | 0.917 ± 0.002 | 0.058 ± 0.002 |
 
-Per seed (A / D): recall 0.679 / 0.917 (seed-1), 0.636 / 0.939 (seed-2), 0.646 / 0.858 (seed-3); precision 1.000 and FPR 0.000 everywhere for A, C, X and D. The fit set train-101 also produced no anomaly finding (FPR 0.000).
+Per seed, D: recall 0.920 / 0.947 / 0.945, precision 0.954 / 1.000 / 0.981, FPR 0.027 / 0.000 / 0.010. Fit set train-201: no anomaly finding.
 
-**Recall by category (pooled):** every rule-covered category 1.000 in all variants; `cross_application` (89 jobs) 0.101 for A and C (rules catch only jobs whose cross-application change also shows inside the synchroniser) and 1.000 for X and D; `needs_independent_source` (20), `timing_no_rule` (6) and `access_control_gap` (5) 0.000 in every variant.
+### Against the previous code on the same held-out evidence
 
-**Missed anomalies (D, 31):** `common_source_falsification` 12, `consistent_falsification` 8, `unusual_timing` 6, `unauthorized_delete_attempt` 5. A and C additionally miss all 80 cross-application jobs except `xapp_document_backed_conflict`, which the source-document rule SRC-001 catches.
-
-**False alarms:** none in A, C, X or D on any seed. Isolation Forest flags 6–11 % of negative jobs.
-
-## 6. Ablation: what each capability adds
-
-| Measure (pooled) | C provenance only | X contradictions without lineage | D full |
+| | Previous `8add33d` | Current `ce611ac` | Change |
 |---|---|---|---|
-| Detection recall | 0.654 (= A) | 0.903 | 0.903 |
-| Conflicting field identified | 0/115 | 115/115 | 115/115 |
+| A rules: precision / recall / F1 / FPR | 1.000 / 0.598 / 0.749 / 0.000 | 0.967 / 0.649 / 0.777 / 0.012 | +16 TP, +7 FP |
+| D full: precision / recall / F1 / FPR | 1.000 / 0.886 / 0.940 / 0.000 | 0.977 / 0.937 / 0.956 / 0.012 | +16 TP (8 refused deletions, 8 timing), +7 FP (all `legit_backfill`) |
+
+(`evaluation/results/baseline_8add33d_on_seed4-6.json`.) The detection gain costs a false-positive rate of 1.2 %: TIM-001 cannot tell a fabricated fast workflow from a shipment entered after the fact, and all 7 `legit_backfill` jobs are flagged. TIM-001's finding text names back-entry as a legitimate explanation; it is left in because a reviewer can resolve it from the job's paperwork, and removing it would hide 8 true anomalies. This is a judgement, recorded here.
+
+### By category (pooled, D)
+
+Every rule-covered category, now including `access_control` (8) and `timing` (8): recall 1.000. `cross_application` (104): 0.125 for A and C, 1.000 for X and D. `needs_independent_source` (20): 0.000 in every variant, by design (§7). Negatives: normal 0/246 flagged; hard negative 7/302 (all `legit_backfill`); data quality 0/36. The new controls `legit_night_shift` (19), `xapp_rounding_difference` (21), `xapp_unit_variant` (9) were never flagged.
+
+**Missed (D, 20):** `consistent_falsification` 11, `common_source_falsification` 9. A and C additionally miss 91 cross-application jobs.
+
+## 6. Ablation: detection vs. attribution
+
+| Measure (pooled) | C provenance only | X contradictions, no lineage | D full |
+|---|---|---|---|
+| Detection recall | 0.649 | 0.937 | 0.937 |
+| Conflicting field identified | 0/141 | 141/141 | 141/141 |
 | Contradictions on non-anomalous jobs | 0 | 0 | 0 |
-| Lineage expectations met | 40/69 (58 %) | 29/69 (42 %) | **69/69** |
-| Agreement among copies counted as independent evidence | 781/1,222 (64 %) | **1,222/1,222 (100 %)** | 781/1,222 (64 %) |
-| External records linked to the right job | 252/252 | 252/252 | 252/252 |
-| Unattributable records left unlinked / ambiguous marked ambiguous | 19/19, 20/20 | 19/19, 20/20 | 19/19, 20/20 |
+| Lineage expectations met | 26/50 | 24/50 | **50/50** |
+| Agreement among copies counted as independent | 1,077/1,466 (73 %) | **1,466/1,466 (100 %)** | 1,077/1,466 (73 %) |
+| External records linked to the right job / unattributable left unlinked / ambiguous marked | 289/289, 8/8, 11/11 | same | same |
 | Wrong attributions; weak links used as anomaly evidence | 0; 0 | 0; 0 | 0; 0 |
-| Findings citing existing events | 286/286 | 584/584 | 584/584 |
-| Contradictions with both records traceable | n/a | 298/298 | 298/298 |
-| Timeline order correct, jobs with external records (per seed) | 1.000 | 1.000 | 1.000 (arrival order: 0.973 / 0.971 / 0.974) |
+| Findings citing existing events | 270/270 | 600/600 | 600/600 |
+| Timeline order correct, jobs with external records | 1.000 | 1.000 | 1.000 (arrival order: 0.972 / 0.972 / 0.973) |
 
-Reading:
+Contradiction analysis provides the detection gain (+0.288 recall over A). Lineage changes no detection figure, but without it every agreement between copies is presented as independent corroboration, falsification cases lose their single-source statement, and the document-backed conflict loses its stronger classification. Ordering by event time is correct by construction on simulated clocks.
 
-- **Detection** comes entirely from contradiction analysis (+0.249 recall over A). Lineage does not change detection (X = D).
-- **Attribution and restraint** come from lineage. Without it (X), every agreement between copies of one statement is presented as independent corroboration (100 % vs 64 %; the remaining 64 % in D are agreements that really are separately recorded), the falsification scenarios lose their "rests on a single source" statement, and the document-backed conflict is no longer classified as a potential fraud indicator (lineage failures listed in `final_summary.json`).
-- **Provenance alone** (C) adds no detection by design; its value is in what the investigator is told.
-- **Ordering** by event time instead of arrival order corrects the 2.6–2.9 % of adjacent pairs that arrival order gets wrong; this is by construction on simulated clocks.
+## 7. A false initial value repeated everywhere
 
-## 7. The first required scenario: a false initial value repeated everywhere
+`consistent_falsification` and `common_source_falsification` (20 jobs) are flagged by no variant, which is the correct outcome: internal consistency cannot show that the original value was false. D reports for these jobs a single independent root and `needs_independent_source = true`; X reports the copies as independent sources. That is a statement of missing independent verification, not a detection.
 
-`consistent_falsification` (8 jobs) and `common_source_falsification` (12 jobs) are flagged by **no** variant, which is the correct outcome: every record agrees, and internal consistency cannot show the original value was false. What D does instead, for every one of these jobs: the gross-weight corroboration reports a single independent root and `needs_independent_source = true` (e.g. 3 agreeing records, 1 root). That is a statement of missing independent verification, not a detection. X, without lineage, reports the 3 records as 3 independent sources.
+## 8. Isolation Forest
 
-## 8. False-negative and false-positive analysis
-
-- **Refused deletion attempts (5):** the refusal is recorded as `auth.request_rejected`, but no rule turns refused requests into findings, so every variant misses them. This is a detection gap, not a design limit. Refused operations are recorded as refusals: no case shows the job as deleted.
-- **Unusual timing (6):** no rule covers timing. Isolation Forest could, but `frac_events_off_hours` is constant in both fit sets (normal-only by construction; seed-1 happened to contain no `unusual_timing` job), so the model cannot split on it, and it flagged none of them. A fit set that contains off-hours work would be needed.
-- **Isolation Forest flags** mostly `closing_changed_on_reclose` (normal-only fit) and `regen_changed_excess`, `premature_closure`, `stale_documents`, `excess_reversals` (unsupervised fit): types the rules already catch. Constant features in the normal-only fit set: `n_generation_failures`, `frac_steps_pending_at_close`, `frac_events_off_hours`, `deleted`, `weight_rel_diff`.
-- **Zero false positives** for the rule-based variants follow from the hard negatives and tolerances being written by the same author as the rules (§9).
-- **Anomaly is not fraud.** A finding is a potential anomaly requiring review. The contradiction classes (`confirmed_data_inconsistency`, `potential_fraud_indicator_requiring_investigation`, …) state what the evidence supports; none is a finding of fraud.
+With night-shift work in the normal-only fit set the off-hours feature is no longer constant, and the model now flags 73–90 % of `unusual_timing` jobs (previously none); normal-only recall rose from 0.040 to 0.106. It also flags `deleted_draft` (a hard negative) on every seed, `legit_reopen` 27–54 %, and types the rules already catch. Combined with D it adds no recall (0.937 either way) and raises the false-positive rate to 5.8–9.7 %. Remaining constant features in the normal-only fit set: `n_generation_failures`, `frac_steps_pending_at_close`, `deleted`, `weight_rel_diff` (absent from normal behaviour by definition); kept, since removing them changes nothing for a tree model and they describe the data honestly.
 
 ## 9. Threats to validity
 
-- **Circularity.** Rules, contradiction analysis, scenarios, tolerances and labels were written by the same author. Perfect precision and complete conflict identification show that the implementation matches its specification across three seeds, not that it finds anomalies shaped differently.
-- **Clean injections.** Each cross-application record differs from the job only in the injected field. Real tools differ in rounding, units and abbreviations; each such difference is a potential false contradiction.
-- **Template reuse across seeds.** All seeds draw from the same 45 scenario templates with different random content; test jobs are not independent of the scenario design. The ML fit sets use different seeds but the same templates.
-- **Prevalence.** About a third of jobs are anomalous, far above any realistic rate; precision depends on it.
-- **Small counts per type** (5–22 pooled).
-- **One job type** (sea export), one machine, simulated clocks (ordering accuracy is by construction).
-- **Unresolved business rules.** All business rules are unconfigured (`config/business_rules.json` null): FIN-001 accepts any closing basis and either tax scheme, so closing-bill errors that match some accepted total are not detected; XAP-TAX differences are reported as unresolved conflicts and are not counted as detections.
-- **No human evaluation.** Whether lineage statements help investigators decide faster or better was not measured.
-- **No real data.** Parser accuracy on real documents and behaviour on real operational histories are unverified.
+- **Circularity.** Rules, scenarios, tolerances and labels have one author; the new rules were written after seeing which types were missed. The held-out seeds prevent tuning to particular jobs, not to the scenario templates. Results show the implementation meets its specification.
+- **Template reuse.** All seeds sample the same 49 templates; tuning, training and test jobs differ in content, not in kind.
+- **Injected differences are still simple.** Rounding and unit variants are now tested; abbreviations, partial shipments, multi-document disagreements and real-tool quirks are not.
+- **Prevalence** (≈ 35 % anomalous), small counts per type (4–31), one job type, one machine, simulated clocks.
+- **Unresolved business rules** (all `null`): FIN-001 accepts any closing basis and either tax scheme; tax differences are notes, not detections.
+- **Quotations not analysed:** EasyQuote records carry no shipment reference; they are ingested, verified and listed as "not tied to a shipment".
+- **No human evaluation and no real data.**
 
-## 10. Verified implementation behaviour vs. this evaluation
+## 10. Verified behaviour vs. this evaluation
 
-| Kind of claim | Status |
+| Claim | Status |
 |---|---|
-| Evidence chain detects edits, deletions, reordering and truncation | tested (store and remote-anchor tests) |
-| Remote witness detects full local rewrites | tested on **one machine**; two-machine test **NOT RUN** (EXTERNAL_ANCHOR.md) |
-| Authentication, authorisation, admin-only deletion, password handling | tested (credentials, auth, browser, TLS tests) |
-| Detection, attribution and reconstruction figures above | synthetic data only |
-| Real-world fraud detection performance | **not evaluated** |
+| Evidence chain detects edits, deletions, reordering, truncation | tested |
+| Remote witness detects full local rewrites | tested on one machine; **two-machine test NOT RUN** (EXTERNAL_ANCHOR.md) |
+| Authentication, admin-only deletion, refused-request capture, TLS option | tested |
+| One synthetic shipment set through the real pipeline, shown in the dashboard; controls clean | tested (`test/demo.integration.test.js`, browser test) |
+| Figures in §5–§8 | synthetic data only |
+| Real-world fraud detection performance | not evaluated |
 
 ## 11. Reproducing
 
 ```
 cd forensics
-setup_env.cmd                                   (once; creates .venv)
-node synthetic/generate.js --seed 101 --jobs 300 --out datasets/train-101 --normal-only
-node synthetic/generate.js --seed 1 --jobs 300 --out datasets/seed-1
-node synthetic/generate.js --seed 2 --jobs 300 --out datasets/seed-2
-node synthetic/generate.js --seed 3 --jobs 300 --out datasets/seed-3
+setup_env.cmd                                                     (once)
+node synthetic/generate.js --seed 11  --jobs 300 --out datasets/tune-11
+node synthetic/generate.js --seed 201 --jobs 300 --out datasets/train-201 --normal-only
+node synthetic/generate.js --seed 4   --jobs 300 --out datasets/seed-4
+node synthetic/generate.js --seed 5   --jobs 300 --out datasets/seed-5
+node synthetic/generate.js --seed 6   --jobs 300 --out datasets/seed-6
 set FORENSIC_ANCHOR_URL=
-node evaluation/evaluate.js datasets/train-101 datasets/seed-1 datasets/seed-2 datasets/seed-3
-.venv\Scripts\python evaluation/ml_baseline.py --train datasets/train-101 --test datasets/seed-1 datasets/seed-2 datasets/seed-3 --quantile 0.05 --name ml_normal_only
-.venv\Scripts\python evaluation/ml_baseline.py --train datasets/seed-1 --test datasets/seed-2 datasets/seed-3 --unsupervised --quantile 0.10 --name ml_unsupervised_q0.10
+node evaluation/evaluate.js datasets/tune-11 --out results/tuning/tune-11.json
+node evaluation/evaluate.js datasets/train-201 datasets/seed-4 datasets/seed-5 datasets/seed-6
+.venv\Scripts\python evaluation/ml_baseline.py --train datasets/train-201 --test datasets/seed-4 datasets/seed-5 datasets/seed-6 --quantile 0.05 --name ml_normal_only
+.venv\Scripts\python evaluation/ml_baseline.py --train datasets/tune-11 --test datasets/seed-4 datasets/seed-5 datasets/seed-6 --unsupervised --quantile 0.10 --name ml_unsupervised_q0.10
 node evaluation/summarize.js
 ```
 
-About 10–15 minutes per dataset (two in parallel on the development machine). Job content and scenario assignment are fixed by the seed; event ids are random, so hashes differ between runs. A run in which a scenario aborts with a network error has fewer labelled jobs; `manifest.json` lists them. Each manifest records its code commit; `framework.json` records the evaluating commit and Node version; the ML files record Python, scikit-learn and numpy versions.
+Previous-code comparison: `git worktree add <dir> 8add33d`, then in `<dir>/forensics` run `node evaluation/evaluate.js <copies of seed-4..6> --out results/baseline_8add33d.json`.
+About 10–15 minutes per dataset (three in parallel here). Job content and scenario assignment are fixed by the seed; event ids are random. Environment: Node v24.11.1; Python 3.13.9, scikit-learn 1.8.0, numpy 2.4.2.

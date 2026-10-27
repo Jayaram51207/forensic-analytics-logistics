@@ -86,7 +86,8 @@ node cli.js verify                     # integrity (reports whether an external 
 node cli.js artifacts                  # do recorded files still match their hashes?
 node cli.js reconcile
 node cli.js cases
-node src/dashboard.js                  # http://127.0.0.1:3100
+node src/dashboard.js                  # http://127.0.0.1:3100 (usage: docs/DASHBOARD_AND_DEMO.md)
+node e2e/demo.js --serve               # synthetic demonstration through the real pipeline
 ```
 
 ## 4. Signing in
