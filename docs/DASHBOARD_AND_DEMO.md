@@ -17,10 +17,17 @@ have decided the open questions (DECISIONS_AND_OPEN_REQUIREMENTS.md), run it onl
 
 ## 2. Demonstration (about 30 seconds)
 
+Any of these (Node.js 20+, `npm install` done in `Workflow syncroniser/` and `forensics/`, and `forensics\setup_env.cmd` run once for document generation):
+
 ```
-cd forensics
-node e2e/demo.js --serve
+node e2e/demo.js --serve                 (from the repository root)
+cd forensics && node e2e/demo.js --serve
+cd forensics && npm run demo
 ```
+
+Add `--port <n>` if 3100 is taken; a clear message is printed when the port is in use. Ctrl+C stops it.
+(Before 2026-10-27 the command only worked from `forensics/`; from the root it failed with
+"Cannot find module …\Forensics\e2e\demo.js". The root `e2e/demo.js` and `e2e/run_e2e.js` now forward to `forensics/e2e/`.)
 
 It runs ten synthetic shipments through the real pipeline (synchroniser over HTTP with signed-in sessions →
 evidence store; B.I.I.L., stuffing-report and 3D-visualizer records in their real schemas → outbox →

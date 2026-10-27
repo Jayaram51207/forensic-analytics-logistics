@@ -3,8 +3,10 @@
 // (B.I.I.L., stuffing report, 3D visualizer) in their real schemas -> outbox -> ingestion; then
 // entity linking, provenance, contradiction analysis, rules, case scoring.
 //
-//   node e2e/demo.js            prints what was found for each shipment
-//   node e2e/demo.js --serve    also opens the investigation dashboard on the demo evidence
+//   cd forensics
+//   node e2e/demo.js                      prints what was found for each shipment
+//   node e2e/demo.js --serve [--port N]   also serves the investigation dashboard on the demo evidence
+//   (from the repository root: node forensics/e2e/demo.js --serve; inside forensics: npm run demo)
 //
 // Everything is written to a fresh temp folder. No live database or evidence folder is opened.
 import fs from 'fs';
@@ -43,7 +45,7 @@ export async function runDemo(out = fs.mkdtempSync(path.join(os.tmpdir(), 'fdemo
   return { dir, labels, manifest, integrity, analysis, byJob };
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+export async function main(argv = process.argv) {
   const d = await runDemo();
   console.log(`Synthetic demo evidence: ${path.join(d.dir, 'evidence')}  (chain ${d.integrity.ok ? 'verifies' : 'HAS PROBLEMS'}, ${d.integrity.count} events)\n`);
   for (const { label, case: c, provenance: p, rules } of d.byJob.values()) {
@@ -53,8 +55,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (xap.length) console.log(`    contradictions: ${xap.join('; ')}`);
     if (single.length) console.log(`    agreement from a single source only: ${single.join(', ')}`);
   }
-  if (process.argv.includes('--serve')) {
+  if (argv.includes('--serve')) {
     const { createDashboard } = await import('../src/dashboard.js');
-    createDashboard({ dir: path.join(d.dir, 'evidence') }).listen(3100, '127.0.0.1', () => console.log('\nDashboard: http://127.0.0.1:3100  (Ctrl+C to stop)'));
+    const i = argv.indexOf('--port'), port = i > 0 ? +argv[i + 1] : 3100;
+    createDashboard({ dir: path.join(d.dir, 'evidence') })
+      .on('error', err => { console.error(err.code === 'EADDRINUSE' ? `\nPort ${port} is in use (another dashboard?). Stop it or pass --port <other>.` : err.message); process.exit(1); })
+      .listen(port, '127.0.0.1', () => console.log(`\nDashboard: http://127.0.0.1:${port}  (Ctrl+C to stop)`));
   }
 }
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) await main();

@@ -7,7 +7,10 @@
   "scripts": {
     "test": "node --test",
     "verify": "node cli.js verify",
-    "dashboard": "node src/dashboard.js"
+    "dashboard": "node src/dashboard.js",
+    "demo": "node e2e/demo.js --serve",
+    "e2e": "node e2e/run_e2e.js",
+    "evaluate": "node evaluation/evaluate.js datasets/train-201 datasets/seed-4 datasets/seed-5 datasets/seed-6 && node evaluation/summarize.js"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"
