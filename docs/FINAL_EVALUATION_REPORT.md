@@ -1,8 +1,79 @@
 # Final Evaluation Report
 
 **All data is synthetic. Nothing here estimates performance on real shipments, real fraud, or real users.**
-Produced 2026-10-27 at code commit `ce611ac` (branch `research-validation`); all datasets were generated at the same commit.
-Full tables: `forensics/evaluation/results/final_summary.md`; raw results beside it. The dashboard's Evaluation tab shows the same file.
+
+## 0. Current round (2026-10-29, code `3d2a5e3`)
+
+Full tables: `forensics/evaluation/results/final_summary.md` (and `.json`, shown in the dashboard's Evaluation view). Sections 1–11 below describe the previous round (code `ce611ac`); its result files were moved unchanged to `evaluation/results/historical-final-ce611ac/`.
+
+### What changed and why
+
+- **Fresh untouched test set.** Seeds 4–6 were the held-out sets of the previous round, and their misses and false alarms were read in detail. No rule or threshold was changed after that, but they are no longer untouched. Seeds 7, 8 and 9 (300 jobs each) were generated at `7ebf118` and scored once. They are now the primary test set. Seeds 4–6 are re-scored and reported separately.
+- **Unseen scenario families.** `synthetic/unseen_scenarios.js` holds 10 families written after the rules and thresholds were fixed. It was committed (`7ebf118`) before any dataset was generated from it, and it is not in the tuning mix. The set has 5 anomaly families and 5 realistic negative controls. Anomalies: net-weight conflict; a charge dropped from the invoice; weight cut after closure; two tools agreeing against the job; a stuffing report after closure. Negative controls: net weight in tonnes; a batch exported twice; stuffing-report rounding; a linked quotation; a quotation without a reference. Clean jobs are included as the normal base rate. Labels give only the class, not the expected rules.
+- **Uncertainty and per-rule figures.** Pooled metrics carry 95% Wilson intervals over jobs, and each rule's firings on anomalies and negatives are counted.
+- **Code changes behind this round:** shipment-reference linkage (validation, conflict detection, manual assertions) and the dashboard redesign. Re-scoring seeds 4–6 at `3d2a5e3` reproduced the `ce611ac` figures exactly, so the linkage change did not alter detection on that data.
+
+### Protocol
+
+| Set | Datasets (seed, jobs) | Generated at | Role |
+|---|---|---|---|
+| Tuning | tune-11 (300) | `ce611ac` | thresholds were set here in the previous round; unchanged |
+| Normal-only fit | train-201 (300) | `ce611ac` | Isolation Forest fit (normal-only protocol); fit-set FPR |
+| **Test (primary)** | seed-7, seed-8, seed-9 (300 each) | `7ebf118` | scored once at `7ebf118` and again at `3d2a5e3` (identical) |
+| Previous held-out | seed-4, seed-5, seed-6 (300 each) | `ce611ac` | re-scored; no longer untouched |
+| Unseen families | unseen-301 (150) | `7ebf118` | scored once |
+
+The unit is one labelled job. A job is predicted positive if it has at least one finding of kind `anomaly`. Labels are never read by the analysis, and `ml_baseline.py` drops every `LABEL_*` column. Variants: A is rules only; C adds provenance tracking; X adds contradiction analysis without lineage; D is the full framework. B is Isolation Forest, alone or OR-combined with A or D. Terms: a *finding* is a rule result; an *anomaly* is a finding of kind anomaly; a *contradiction* is two linked records disagreeing about one field. None of these is a determination of fraud.
+
+### Results (synthetic)
+
+Test seeds 7–9 (900 jobs, 328 anomalous), pooled:
+
+| Variant | TP | FP | FN | TN | Precision | Recall | FPR |
+|---|---|---|---|---|---|---|---|
+| A rules only | 221 | 7 | 107 | 565 | 0.969 [0.938, 0.985] | 0.674 [0.621, 0.722] | 0.012 [0.006, 0.025] |
+| C + provenance | 221 | 7 | 107 | 565 | same as A | | |
+| X + contradictions, no lineage | 301 | 7 | 27 | 565 | 0.977 [0.954, 0.989] | 0.918 [0.883, 0.943] | 0.012 [0.006, 0.025] |
+| **D full framework** | 301 | 7 | 27 | 565 | **0.977 [0.954, 0.989]** | **0.918 [0.883, 0.943]** | **0.012 [0.006, 0.025]** |
+| B Isolation Forest only (normal-only fit) | | | | | 0.348 ± 0.049 | 0.084 ± 0.020 | 0.088 ± 0.007 |
+| D + Isolation Forest (normal-only fit) | | | | | 0.841 ± 0.010 | 0.918 ± 0.001 | 0.100 ± 0.007 |
+
+Per seed, D: P 0.989 / 0.951 / 0.991, R 0.869 / 0.951 / 0.933. Previous held-out seeds 4–6, re-scored: D P 0.977 [0.953, 0.989], R 0.937 [0.904, 0.959], FPR 0.012; A R 0.649.
+
+Unseen families (unseen-301; 58 anomalous, 92 negative): D flagged 58/58 anomalies and 0/92 negatives (recall interval [0.938, 1.000], FPR interval [0, 0.040]). Rules alone flagged 14/58: only "weight cut after closure" (GEN-002); the four cross-application families were found only by contradiction analysis. No negative control was flagged: net weight in tonnes, re-exported batch, stuffing rounding, linked quotation, unlinked quotation.
+
+Errors on the test seeds (D):
+- **All 7 false alarms** are `legit_backfill` (TIM-001). This is the documented known false positive: back-entered jobs cannot be told apart from fabricated pace by timing alone. TIM-001 is the only rule with false alarms (11 on anomalies, 7 on negatives, precision 0.611); every other rule fired only on anomalies.
+- **All 27 misses** are `consistent_falsification` (18) and `common_source_falsification` (9). These are falsifications that are internally consistent or copied from one false source. They are undetectable without an independent source of truth, by design.
+
+### What this shows, and what it does not
+
+- **Shown, on synthetic data:** on fresh seeds and on variations the rules were not written against, cross-application contradiction analysis raises recall from about 0.67 to about 0.92 (seeds 7–9) with no added false positives. The added recall comes from contradiction analysis (A to X). Provenance tracking and lineage (A to C, X to D) do not change which jobs are flagged. They change what the investigator is told: single source versus independent agreement, and what evidence is missing.
+- **Isolation Forest** on the same behavioural features adds false positives without adding recall to D. It is kept only as a comparison, not as a detector.
+- **Not shown:** effectiveness on real shipments, real fraud or real users. Rules, scenarios, labels and the unseen families share one author. The unseen families vary mechanisms the framework already compares (fields across tools, edits after closure), so they test generalisation within those mechanisms, not to new kinds of fraud. No independent reviewer or independently written scenarios were available. The priority score is not calibrated.
+- **Needed before any real-world claim:** a labelled sample of real or audited shipments with confirmed outcomes, scenarios written by someone other than the rule author, a two-machine witness test, measured reviewer time and agreement on real cases, and the owner's business-rule decisions (Q1–Q4).
+
+### Reproducing this round
+
+```
+cd forensics
+node synthetic/generate.js --seed 7 --jobs 300 --out datasets/seed-7          (also 8, 9)
+node synthetic/generate.js --set unseen --seed 301 --jobs 150 --out datasets/unseen-301
+set FORENSIC_ANCHOR_URL=
+node evaluation/evaluate.js datasets/train-201 datasets/seed-7 datasets/seed-8 datasets/seed-9
+node evaluation/evaluate.js datasets/seed-4 datasets/seed-5 datasets/seed-6 --out results/dev_heldout.json
+node evaluation/evaluate.js datasets/unseen-301 --out results/unseen.json
+.venv\Scripts\python evaluation/ml_baseline.py --train datasets/train-201 --test datasets/seed-7 datasets/seed-8 datasets/seed-9 --quantile 0.05 --name ml_normal_only
+.venv\Scripts\python evaluation/ml_baseline.py --train datasets/tune-11 --test datasets/seed-7 datasets/seed-8 datasets/seed-9 --unsupervised --quantile 0.10 --name ml_unsupervised_q0.10
+node evaluation/summarize.js
+```
+train-201, tune-11 and seeds 4–6 come from the commands in §11. The datasets for this round were generated in a clean worktree at `7ebf118`, so each `manifest.json` records that commit without uncommitted changes. Generating them took about 20 minutes, four in parallel.
+
+---
+
+## Previous round (2026-10-27, code `ce611ac`)
+
+Produced 2026-10-27 at code commit `ce611ac`; all datasets were generated at the same commit. Its result files are now in `evaluation/results/historical-final-ce611ac/`; paths below that name `results/` refer to that folder.
 
 Historical results are kept unchanged and are **not** used below:
 `evaluation/results/historical-forensic-v2/` (tag `forensic-v2`) and `evaluation/results/historical-research-validation/` (commit `251e9e7`, with the report as it stood).
@@ -114,7 +185,7 @@ With night-shift work in the normal-only fit set the off-hours feature is no lon
 - **Injected differences are still simple.** Rounding and unit variants are now tested; abbreviations, partial shipments, multi-document disagreements and real-tool quirks are not.
 - **Prevalence** (≈ 35 % anomalous), small counts per type (4–31), one job type, one machine, simulated clocks.
 - **Unresolved business rules** (all `null`): FIN-001 accepts any closing basis and either tax scheme; tax differences are notes, not detections.
-- **Quotations not analysed:** EasyQuote records carry no shipment reference; they are ingested, verified and listed as "not tied to a shipment".
+- **Quotations not analysed:** EasyQuote records carried no shipment reference in this round; they were ingested, verified and listed as "not tied to a shipment". (Since `7ebf118` an optional reference is captured and linked; rates are still not compared with job charges.)
 - **No human evaluation and no real data.**
 
 ## 10. Verified behaviour vs. this evaluation

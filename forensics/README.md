@@ -17,6 +17,8 @@ node cli.js ingest                     evidence from the desktop tools
 node cli.js verify                     is the evidence chain intact?
 node cli.js cases                      review queue
 node cli.js case CASE-XXXXXXXX
+node cli.js evidence --status unlinked   desktop-tool records not tied to a shipment
+node cli.js link <event_id> <job_no> --reason "..."   record (not change) a manual link
 node src/dashboard.js                  http://127.0.0.1:3100
 ```
 

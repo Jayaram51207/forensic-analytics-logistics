@@ -1,0 +1,1010 @@
+{
+ "run": {
+  "code_commit": "3d2a5e3374be0966f577a6ae38816730170bf1e5",
+  "uncommitted_changes": "",
+  "node": "v24.11.1",
+  "evaluated_at": "2026-10-28T21:53:54.114Z"
+ },
+ "variants": {
+  "A": "rules only",
+  "C": "rules + provenance tracking",
+  "X": "rules + contradiction analysis without lineage",
+  "D": "full framework"
+ },
+ "datasets": [
+  {
+   "dataset": "unseen-301",
+   "seed": 301,
+   "dataset_generated_at": "2026-10-28T21:42:18.984Z",
+   "dataset_code_commit": "7ebf118e87eef31622a051a360f6f5a2798aa412",
+   "generation_errors": 0,
+   "jobs": 150,
+   "integrity_ok": true,
+   "events": 5887,
+   "class_counts": {
+    "normal": 44,
+    "hard_negative": 48,
+    "data_quality": 0,
+    "anomaly": 58
+   },
+   "detection": {
+    "A": {
+     "tp": 14,
+     "fp": 0,
+     "fn": 44,
+     "tn": 92,
+     "precision": 1,
+     "recall": 0.2413793103448276,
+     "f1": 0.3888888888888889,
+     "false_positive_rate": 0
+    },
+    "C": {
+     "tp": 14,
+     "fp": 0,
+     "fn": 44,
+     "tn": 92,
+     "precision": 1,
+     "recall": 0.2413793103448276,
+     "f1": 0.3888888888888889,
+     "false_positive_rate": 0
+    },
+    "X": {
+     "tp": 58,
+     "fp": 0,
+     "fn": 0,
+     "tn": 92,
+     "precision": 1,
+     "recall": 1,
+     "f1": 1,
+     "false_positive_rate": 0
+    },
+    "D": {
+     "tp": 58,
+     "fp": 0,
+     "fn": 0,
+     "tn": 92,
+     "precision": 1,
+     "recall": 1,
+     "f1": 1,
+     "false_positive_rate": 0
+    },
+    "A_on_rule_detectable_only": {
+     "tp": 0,
+     "fp": 0,
+     "fn": 0,
+     "tn": 92,
+     "precision": null,
+     "recall": null,
+     "f1": null,
+     "false_positive_rate": 0
+    },
+    "D_on_detectable_only": {
+     "tp": 0,
+     "fp": 0,
+     "fn": 0,
+     "tn": 92,
+     "precision": null,
+     "recall": null,
+     "f1": null,
+     "false_positive_rate": 0
+    },
+    "D_exact_rule_set_match_rate": 0.6133333333333333
+   },
+   "by_category": {
+    "needs_independent_source": {
+     "n": 58,
+     "flagged": {
+      "A": 14,
+      "C": 14,
+      "X": 58,
+      "D": 58
+     }
+    },
+    "hard_negative": {
+     "n": 48,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    },
+    "normal": {
+     "n": 44,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     }
+    }
+   },
+   "by_type": {
+    "u_two_tools_agree_against_job": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 10,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 10,
+      "D": 10
+     },
+     "exact_D": 0
+    },
+    "u_net_weight_conflict": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 15,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 15,
+      "D": 15
+     },
+     "exact_D": 0
+    },
+    "u_stuffing_rounding": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 11,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 11
+    },
+    "u_quotation_without_ref": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 9,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 9
+    },
+    "u_stuffing_late_container": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 8,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 8,
+      "D": 8
+     },
+     "exact_D": 0
+    },
+    "clean_complete": {
+     "class": "normal",
+     "category": "normal",
+     "n": 44,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 44
+    },
+    "u_quotation_linked": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 6,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 6
+    },
+    "u_charge_dropped_in_invoice": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 11,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 11,
+      "D": 11
+     },
+     "exact_D": 0
+    },
+    "u_net_weight_in_tonnes": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 12,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 12
+    },
+    "u_weight_cut_after_close": {
+     "class": "anomaly",
+     "category": "needs_independent_source",
+     "n": 14,
+     "flagged": {
+      "A": 14,
+      "C": 14,
+      "X": 14,
+      "D": 14
+     },
+     "exact_D": 0
+    },
+    "u_reexported_batch": {
+     "class": "hard_negative",
+     "category": "hard_negative",
+     "n": 10,
+     "flagged": {
+      "A": 0,
+      "C": 0,
+      "X": 0,
+      "D": 0
+     },
+     "exact_D": 10
+    }
+   },
+   "errors": {
+    "A": {
+     "missed": {
+      "u_two_tools_agree_against_job": 10,
+      "u_net_weight_conflict": 15,
+      "u_stuffing_late_container": 8,
+      "u_charge_dropped_in_invoice": 11
+     },
+     "false_alarms": []
+    },
+    "C": {
+     "missed": {
+      "u_two_tools_agree_against_job": 10,
+      "u_net_weight_conflict": 15,
+      "u_stuffing_late_container": 8,
+      "u_charge_dropped_in_invoice": 11
+     },
+     "false_alarms": []
+    },
+    "X": {
+     "missed": {},
+     "false_alarms": []
+    },
+    "D": {
+     "missed": {},
+     "false_alarms": []
+    }
+   },
+   "per_rule": {
+    "XAP-GROSS_WEIGHT": {
+     "on_anomaly": 10,
+     "on_negative": 0
+    },
+    "XAP-NET_WEIGHT": {
+     "on_anomaly": 15,
+     "on_negative": 0
+    },
+    "XAP-PACKAGES": {
+     "on_anomaly": 8,
+     "on_negative": 0
+    },
+    "XAP-TIMING": {
+     "on_anomaly": 8,
+     "on_negative": 0
+    },
+    "XAP-TAXABLE_TOTAL": {
+     "on_anomaly": 11,
+     "on_negative": 0
+    },
+    "GEN-002": {
+     "on_anomaly": 14,
+     "on_negative": 0
+    },
+    "WGT-001": {
+     "on_anomaly": 14,
+     "on_negative": 0
+    }
+   },
+   "hard_negative_fpr": {
+    "A": 0,
+    "C": 0,
+    "X": 0,
+    "D": 0
+   },
+   "review_burden": {
+    "A": {
+     "cases_with_anomaly": 14,
+     "anomaly_findings": 28,
+     "notes": 0
+    },
+    "C": {
+     "cases_with_anomaly": 14,
+     "anomaly_findings": 28,
+     "notes": 0
+    },
+    "X": {
+     "cases_with_anomaly": 58,
+     "anomaly_findings": 90,
+     "notes": 57
+    },
+    "D": {
+     "cases_with_anomaly": 58,
+     "anomaly_findings": 90,
+     "notes": 57
+    }
+   },
+   "incident_ordering_arrival_A": {
+    "all_jobs": 0.9868628481345244,
+    "jobs_with_external_records": 0.9763705103969754,
+    "n_jobs_with_external_records": 83
+   },
+   "investigation": {
+    "C": {
+     "linkage": {
+      "expected_linked": 103,
+      "correctly_linked": 103,
+      "expected_unlinked": 0,
+      "correctly_unlinked": 0,
+      "expected_ambiguous": 0,
+      "correctly_ambiguous": 0,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 0,
+      "identified": 0,
+      "jobs_expected": 0,
+      "jobs_fully_identified": 0,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": null
+     },
+     "lineage_expectations": {
+      "expected": 0,
+      "met": 0,
+      "failures": [],
+      "rate": null
+     },
+     "provenance": {
+      "values": 1874,
+      "with_root": 1874,
+      "with_captured_source": 660,
+      "findings": 28,
+      "findings_citing_existing_events": 28,
+      "findings_with_assessment": 28,
+      "contradictions": 0,
+      "contradictions_two_items_traceable": 0,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.35218783351120597,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": null
+     },
+     "restraint": {
+      "undetectable_jobs": 58,
+      "flagged_anyway": 14,
+      "single_lineage_fields": 704,
+      "needs_independent_source_stated": 704,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 496,
+      "multi_record_agreement_counted_as_independent": 416,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": []
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 83
+     }
+    },
+    "X": {
+     "linkage": {
+      "expected_linked": 103,
+      "correctly_linked": 103,
+      "expected_unlinked": 0,
+      "correctly_unlinked": 0,
+      "expected_ambiguous": 0,
+      "correctly_ambiguous": 0,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 0,
+      "identified": 0,
+      "jobs_expected": 0,
+      "jobs_fully_identified": 0,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": null
+     },
+     "lineage_expectations": {
+      "expected": 0,
+      "met": 0,
+      "failures": [],
+      "rate": null
+     },
+     "provenance": {
+      "values": 1874,
+      "with_root": 1874,
+      "with_captured_source": 660,
+      "findings": 147,
+      "findings_citing_existing_events": 147,
+      "findings_with_assessment": 147,
+      "contradictions": 119,
+      "contradictions_two_items_traceable": 119,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.35218783351120597,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": 1
+     },
+     "restraint": {
+      "undetectable_jobs": 58,
+      "flagged_anyway": 58,
+      "single_lineage_fields": 704,
+      "needs_independent_source_stated": 704,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 496,
+      "multi_record_agreement_counted_as_independent": 496,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": []
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 83
+     }
+    },
+    "D": {
+     "linkage": {
+      "expected_linked": 103,
+      "correctly_linked": 103,
+      "expected_unlinked": 0,
+      "correctly_unlinked": 0,
+      "expected_ambiguous": 0,
+      "correctly_ambiguous": 0,
+      "wrongly_attributed": 0,
+      "linked_recall": 1
+     },
+     "conflict_identification": {
+      "expected_fields": 0,
+      "identified": 0,
+      "jobs_expected": 0,
+      "jobs_fully_identified": 0,
+      "spurious_contradictions_on_non_anomalous_jobs": 0,
+      "field_recall": null
+     },
+     "lineage_expectations": {
+      "expected": 0,
+      "met": 0,
+      "failures": [],
+      "rate": null
+     },
+     "provenance": {
+      "values": 1874,
+      "with_root": 1874,
+      "with_captured_source": 660,
+      "findings": 147,
+      "findings_citing_existing_events": 147,
+      "findings_with_assessment": 147,
+      "contradictions": 119,
+      "contradictions_two_items_traceable": 119,
+      "root_assigned_rate": 1,
+      "captured_source_rate": 0.35218783351120597,
+      "findings_traceable_rate": 1,
+      "contradictions_traceable_rate": 1
+     },
+     "restraint": {
+      "undetectable_jobs": 58,
+      "flagged_anyway": 58,
+      "single_lineage_fields": 704,
+      "needs_independent_source_stated": 704,
+      "single_lineage_reported_as_corroborated": 0,
+      "ambiguous_or_unlinked_used_as_anomaly": 0,
+      "multi_record_agreement_fields": 496,
+      "multi_record_agreement_counted_as_independent": 416,
+      "independent_source_stated_rate": 1,
+      "common_source_cases": []
+     },
+     "incident_ordering": {
+      "all_jobs": 1,
+      "jobs_with_external_records": 1,
+      "n_jobs_with_external_records": 83
+     }
+    }
+   },
+   "unexpected_D": [
+    {
+     "job_no": "SYN-301-0001",
+     "type": "u_two_tools_agree_against_job",
+     "fired": [
+      "XAP-GROSS_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0002",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0005",
+     "type": "u_stuffing_late_container",
+     "fired": [
+      "XAP-PACKAGES",
+      "XAP-TIMING"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0009",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0011",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0016",
+     "type": "u_stuffing_late_container",
+     "fired": [
+      "XAP-PACKAGES",
+      "XAP-TIMING"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0017",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0021",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0026",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0028",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0032",
+     "type": "u_two_tools_agree_against_job",
+     "fired": [
+      "XAP-GROSS_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0035",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0036",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0037",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0041",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0042",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0045",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0049",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0051",
+     "type": "u_two_tools_agree_against_job",
+     "fired": [
+      "XAP-GROSS_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0052",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0053",
+     "type": "u_stuffing_late_container",
+     "fired": [
+      "XAP-PACKAGES",
+      "XAP-TIMING"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0055",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0061",
+     "type": "u_two_tools_agree_against_job",
+     "fired": [
+      "XAP-GROSS_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0063",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0064",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0065",
+     "type": "u_stuffing_late_container",
+     "fired": [
+      "XAP-PACKAGES",
+      "XAP-TIMING"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0068",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0069",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0076",
+     "type": "u_two_tools_agree_against_job",
+     "fired": [
+      "XAP-GROSS_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0077",
+     "type": "u_stuffing_late_container",
+     "fired": [
+      "XAP-PACKAGES",
+      "XAP-TIMING"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0081",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0083",
+     "type": "u_two_tools_agree_against_job",
+     "fired": [
+      "XAP-GROSS_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0084",
+     "type": "u_stuffing_late_container",
+     "fired": [
+      "XAP-PACKAGES",
+      "XAP-TIMING"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0087",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0088",
+     "type": "u_stuffing_late_container",
+     "fired": [
+      "XAP-PACKAGES",
+      "XAP-TIMING"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0089",
+     "type": "u_stuffing_late_container",
+     "fired": [
+      "XAP-PACKAGES",
+      "XAP-TIMING"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0090",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0091",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0093",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0097",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0099",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0104",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0105",
+     "type": "u_two_tools_agree_against_job",
+     "fired": [
+      "XAP-GROSS_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0108",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0111",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0112",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0114",
+     "type": "u_two_tools_agree_against_job",
+     "fired": [
+      "XAP-GROSS_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0115",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0124",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0126",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0132",
+     "type": "u_two_tools_agree_against_job",
+     "fired": [
+      "XAP-GROSS_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0133",
+     "type": "u_weight_cut_after_close",
+     "fired": [
+      "GEN-002",
+      "WGT-001"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0135",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0137",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0140",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0144",
+     "type": "u_net_weight_conflict",
+     "fired": [
+      "XAP-NET_WEIGHT"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0146",
+     "type": "u_charge_dropped_in_invoice",
+     "fired": [
+      "XAP-TAXABLE_TOTAL"
+     ],
+     "expected": []
+    },
+    {
+     "job_no": "SYN-301-0147",
+     "type": "u_two_tools_agree_against_job",
+     "fired": [
+      "XAP-GROSS_WEIGHT"
+     ],
+     "expected": []
+    }
+   ]
+  }
+ ]
+}

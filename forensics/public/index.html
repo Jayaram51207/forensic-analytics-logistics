@@ -81,6 +81,7 @@
   tbody tr:last-child td { border-bottom:0; }
   td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
   tr.cited td { background:var(--cite); }
+  table.cm th, table.cm td { padding:6px 8px; white-space:normal; }
   .scroll { overflow-x:auto; }
 
   /* controls */
@@ -362,7 +363,7 @@ async function openCase(id) {
 
     $('div', { class: 'card', style: d.ground_truth ? 'margin-top:14px' : null },
       $('h2', {}, 'Findings'),
-      d.findings.map(f => $('div', { class: 'finding' },
+      [...anomalies, ...notes].map(f => $('div', { class: 'finding' },
         $('div', { class: 'ttl' }, $('span', { class: 'sev ' + f.severity }, f.severity), $('strong', {}, f.title), $('span', { class: 'mute' }, `${f.rule_id} v${f.rule_version} · ${human(f.kind)}`)),
         $('p', {}, f.explanation),
         f.assessment && f.assessment.supports.length ? $('p', { class: 'sup' }, 'Supports: ' + f.assessment.supports.join(' ')) : null,
@@ -555,7 +556,7 @@ async function loadEvaluation() {
         ...V.map(k => metricRow(`${k} ${e.variants[k]}`, { ...e.pooled[k], ci: e.pooled[k].ci })),
         ...Object.entries(e.ml).flatMap(([name, m]) => [['Isolation Forest only', 'ml_only'], ['A + Isolation Forest', 'rules_or_ml'], ['D + Isolation Forest', 'full_or_ml']].map(([label, key]) => metricRow(`${label} (${name})`, m[key], true)))])),
       $('div', { class: 'mute', style: 'margin-top:8px' }, 'Brackets: 95% Wilson interval over jobs. Isolation Forest: mean ± sd over model seeds.')),
-    $('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); margin-top:14px' }, V.map(k => cm(k, e.pooled[k]))),
+    $('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); margin-top:14px' }, V.map(k => cm(k, e.pooled[k]))),
     setBlock('Unseen scenario families', e.unseen),
     setBlock('Previous held-out seeds, re-scored', e.previous_heldout),
     e.per_rule ? $('div', { class: 'card' }, $('h2', {}, 'Each rule alone (full framework, pooled)'), $('div', { class: 'scroll' }, table(['Rule', { t: 'On anomalies', num: true }, { t: 'On negatives', num: true }, { t: 'Precision', num: true }],

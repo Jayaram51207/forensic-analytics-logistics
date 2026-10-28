@@ -56,37 +56,42 @@ node src/dashboard.js --dir <evidence folder> [--port 3100] [--labels <labels.js
 ```
 
 - On a generated dataset (`--dir datasets/seed-4/evidence`) the labels next to it are found automatically.
-- `FORENSIC_REVIEW_TOKEN=<secret>` enables recording reviewer assessments (written to the evidence chain).
-- The Evaluation tab reads `evaluation/results/final_summary.json` (produced by `evaluation/summarize.js`).
+- `FORENSIC_REVIEW_TOKEN=<secret>` enables recording reviewer assessments and manual evidence links (both appended to the evidence chain; nothing is edited).
+- The Evaluation view reads `evaluation/results/final_summary.json` (produced by `evaluation/summarize.js`).
+- Views have addresses: `#/overview`, `#/cases`, `#/cases/<CASE-ID>`, `#/evidence`, `#/eval`; browser back and forward work.
 
 ## 4. What the dashboard shows
 
-**Header:** whether the evidence chain verifies; whether business rules are configured.
+**Top bar:** whether the evidence chain verifies (integrity: the records were not altered after capture, not that they are true) and whether business rules are configured.
 
-**Cases tab**
-
-| Area | Content |
+| View | Content |
 |---|---|
-| Review queue | cases ranked by review priority (0–100, not a probability); filters for text, priority band, rule, deleted jobs, cases with contradictions |
-| Rules raised | how many cases each rule raised; click to filter |
-| Evidence not tied to a shipment | external records with no link or an ambiguous one, per application (e.g. EasyQuote quotations, which carry no shipment reference); refused requests |
-| Legend | recorded evidence vs. inferred findings vs. unresolved questions vs. synthetic ground truth |
-| Synthetic ground truth | scenario label and expected rules, and whether the raised rules match; only when labels are available; never used by the analysis |
-| Case / Why this was raised | score components, each finding with rule id, severity, explanation, assumptions, supporting/weakening evidence, cited event ids |
-| Contradictions between applications | both records with values, source application, time basis, actor, evidence and event ids, link method and confidence, classification, independence of sources, recommended next step |
-| Where key values come from | per field: records agreeing, separate sources, and whether the agreement is copies of one statement |
-| Evidence trust | integrity / authenticity / accuracy / independence answered separately |
-| Overwritten values | every captured edit with old and new value; deletion noted |
-| Document generations | each generation, outcome, input hash, output hashes |
-| Timeline | all events across applications in event-time order, with time basis, uncertain ordering, refused requests, cited rows highlighted, evidence gaps |
-| Review outcome | recorded assessments; form when a review token is set |
+| Overview | open cases, high priority, contradictions in open cases, chain integrity, desktop-tool records not tied to one shipment (each opens the filtered view); unconfigured business rules stated once; highest-priority cases; rules raised (click to filter); recent desktop-tool records |
+| Investigation queue | cases ranked by review priority (0–100, not a probability); search, priority, rule, status, sort, contradiction and deletion filters; keyboard: arrows and Enter. Each row: main reason, findings, contradictions, source applications |
+| Case | "Why this was raised" (highest-severity finding, with "potential anomaly, not a finding of fraud"); synthetic ground truth when labels exist (never used by the analysis); findings with supporting and weakening evidence; contradictions between applications (both records, classification, link method and confidence, independence); recommended next steps; uncertainty and limitations; where key values come from (separate sources vs copies); related records from other applications; timeline (filter: cited by a finding, application); expandable technical details: score components, four trust questions, overwritten values, document generations; review outcome |
+| Evidence | every desktop-tool record as Linked, Uncertain (several candidate jobs, or the record points two ways) or Unlinked (with the reason: no reference, malformed reference, reference matching no job); link method, confidence, basis, conflict; event id, actor claim, artifact hashes; "Link by hand" form when a review token is set |
+| Evaluation | synthetic-only label first; precision, recall and FPR of the full framework with 95% intervals; variants and Isolation Forest compared; confusion matrices; unseen scenario families; previous held-out seeds re-scored; each rule alone; per seed, per category, per scenario type, false alarms, misses, investigation quality |
 
-**Evaluation tab** (synthetic results only): confusion matrix per variant (A rules, C + provenance,
-X + contradictions without lineage, D full), comparison with Isolation Forest, per-seed results,
-per-category recall, per-scenario counts, false alarms listed, and investigation-quality measures.
+Loading, empty and error states are shown in every view; the page follows the system light or dark theme.
 
-## 5. Verified by tests
+## 5. Linking a record by hand
+
+A desktop-tool record without a usable shipment reference (for example a quotation exported before the
+Shipment / Job No. field existed) can be tied to a job by a reviewer:
+
+```
+node cli.js evidence --status unlinked                      list them with their event ids
+node cli.js link <event_id> <job_no> --reason "..."          or the Evidence view with a review token
+```
+
+The link is a new `evidence.link_asserted` event with the reviewer and reason; the record is unchanged.
+It counts as a claim (method `manual_assertion`, confidence 0.7). If the record's own reference or
+container numbers point to another job, the link becomes uncertain and both jobs are shown.
+
+## 6. Verified by tests
 
 `test/browser.test.js` drives the dashboard in Edge: empty, malformed and populated stores; markup safety;
-and on the demo evidence the rule filter, contradiction filter, text filter, ground-truth panel, refused
-request in the timeline, unlinked-evidence panel, and the Evaluation tab.
+the case view and the Evidence view (linked record, integrity wording, status filter); and on the demo
+evidence the overview, rule filter, keyboard selection, priority filter, sort, contradiction and text
+filters, ground-truth panel, refused request in the timeline, unlinked records in the Evidence view and the
+Evaluation view. `test/linkage.test.js` covers the evidence API and manual links.

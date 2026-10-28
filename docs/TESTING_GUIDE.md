@@ -24,6 +24,8 @@ Every integration test starts its own synchroniser on a random port, with databa
 
 Run 2026-10-28 at `bc86d5c` (same code as `4f845f6`): `node --test` 189 reported (= 188 tests + `helpers.js`), 185 passed, 0 failed, 4 skipped; `npm test` **188 tests, 184 passed, 0 failed, 4 skipped**. Then `test/reproducibility.test.js` was added (1 test, passed): **189 tests with `npm test`**. GUI and e2e were not re-run that day.
 
+Run 2026-10-29 (after the linkage, evaluation and dashboard round): `npm test` **195 tests, 191 passed, 0 failed, 4 skipped** (opt-in desktop-window tests); `test/browser.test.js` 19/19 after the redesign. GUI and e2e not re-run in that round.
+
 Previous full run (2026-10-27, commit `ce611ac`): **189 tests, 185 passed, 0 failed, 4 skipped** (opt-in desktop-window tests); with `FORENSIC_GUI_TESTS=1`: **189/189 passed**. End-to-end: 28/28. New this round: `test/demo.integration.test.js` (acceptance run through the real pipeline), a browser test of the analysis dashboard on demo data, an EasyQuote ingestion test, and 4 new scenarios plus 2 rules in the scenario test (61 subtests). (Earlier: 182 at `8add33d`, 174 at `e932963`, 131 at `forensic-v2`.)
 
 ## Test files
@@ -42,6 +44,7 @@ Previous full run (2026-10-27, commit `ce611ac`): **189 tests, 185 passed, 0 fai
 | `test/business_rules.test.js` | 2 | CLI and dashboard report the same cases and business-rule status for every configuration; invalid configuration refused by both |
 | `test/tls.integration.test.js` | 2 | HTTPS option: `Secure` cookie, no plain HTTP, TLS recorded; plain HTTP warns and the cookie is not `Secure` (first test skipped without `openssl`) |
 | `test/demo.integration.test.js` | 1 | Demo shipments through the real pipeline: cross-application links, contradictions, provenance, controls clean |
+| `test/linkage.test.js` | 6 | Shipment references of desktop-tool records: exact link with normalisation, missing, malformed (never normalised into a match), unknown, reference and containers pointing to different jobs (uncertain), duplicate delivery, manual link (validation, reason and actor recorded, record unchanged, conflict kept uncertain), evidence API and review-token handling |
 | `test/reproducibility.test.js` | 1 | Same seed generated twice: identical labels (event ids aside), `features.csv` and evaluation figures |
 | `test/pipeline.test.js` | 14 (4 opt-in) | Missing file, invalid lines, duplicate delivery, retry after failure, incomplete line, artifact hash states, B.I.I.L. and stuffing-report evidence reaching analysis and case view, weak links never becoming contradictions, configuration and switches; **real windows** of the visualizer and the three WPF programs |
 

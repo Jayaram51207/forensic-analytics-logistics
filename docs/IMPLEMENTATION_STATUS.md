@@ -13,7 +13,7 @@ Git repository. Tags: `original-suite` (applications as received), `forensic-v1`
 | 1 | Recoverability and baseline | done | 14 of 14 patches reverse to the exact originals; two tagged commits |
 | 2 | Environment and end-to-end verification | done, with untested paths listed | `forensics/setup_env.cmd`, `e2e/run_e2e.js` (26/26), real visualizer and WPF windows driven; TESTING_GUIDE "Paths that were NOT tested" |
 | 3 | Integrity, security, failure handling | done; residual weaknesses documented | Sessions in `server.js`; `auth.integration.test.js`; external anchor and limitation tests in `store.test.js`; SECURITY_AND_LIMITATIONS.md; RUNTIME_SETUP.md §5–6 |
-| 4 | Complete the evidence pipeline | done for ingestion and analysis; partial for capture coverage | `pipeline.test.js`; `verifyArtifacts`; B.I.I.L., stuffing-report and packing evidence analysed. EasyQuote quotations are captured and stored but not analysed |
+| 4 | Complete the evidence pipeline | done for ingestion and analysis; partial for capture coverage | `pipeline.test.js`; `verifyArtifacts`; B.I.I.L., stuffing-report and packing evidence analysed. EasyQuote quotations are captured, stored and, with the optional Shipment / Job No. (since `7ebf118`), linked; their rates are not analysed |
 | 5 | Provenance-aware contradiction analysis | done | `src/provenance.js`; cases, dashboard, timeline; PROVENANCE_AND_CONTRADICTIONS.md |
 | 6 | Synthetic data and business assumptions | done; four questions remain open | 49 scenarios (44 before the analysis completion round); SYNTHETIC_DATASET.md; open questions below |
 | 7 | Evaluation of the contribution | done | FINAL_EVALUATION_REPORT.md (earlier: EXPERIMENTS_AND_RESULTS.md); `evaluation/results/` |
@@ -56,6 +56,16 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 | D. Business rules | all still `null`; CLI now states the unconfigured status; CLI and dashboard tested to agree; invalid files refused by both | DECISIONS_AND_OPEN_REQUIREMENTS.md "Re-check"; `test/business_rules.test.js` |
 | E. Engineering gaps | HTTPS implemented as an option (`SYNC_TLS_CERT`/`KEY`, `Secure` cookie, warning on plain HTTP; tested). MFA not added (scope, threat model). Admin reset stays API-only. EasyQuote analysis deferred (no shipment reference) | SECURITY_AND_LIMITATIONS §2 |
 
+## Integration, evaluation and dashboard round (2026-10-29, commits `7ebf118`, `3d2a5e3` and after)
+
+| Item | Status | Evidence |
+|---|---|---|
+| Shipment reference from EasyQuote | done: optional Shipment / Job No. in EasyQuote and EasyQuoteImport, written to `shipment_ref`; empty stays null; all three WPF projects build (0 warnings, 0 errors) | `EasyQuote/ForensicOutbox.cs`; GUI tests not re-run |
+| Link validation and conflicts | malformed references never normalised into a match; every link has status and reason; reference vs container numbers pointing to different jobs = uncertain, never silently attributed | `src/model.js` `linkExternal`; `test/linkage.test.js` |
+| Manual linking | `cli.js link` and `POST /api/evidence/:id/link` (review token) append `evidence.link_asserted` with actor and reason; record unchanged; conflicts stay uncertain | `test/linkage.test.js` |
+| Evaluation | fresh test seeds 7–9, unseen families (pre-registered), seeds 4–6 re-scored, Wilson intervals, per-rule counts | FINAL_EVALUATION_REPORT §0 |
+| Dashboard | redesigned: overview, queue + case, evidence, evaluation | DASHBOARD_AND_DEMO.md; `test/browser.test.js` (19) |
+
 ## Verification status
 
 | Check | Result | When |
@@ -81,7 +91,7 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 | Repository recoverable | yes | tags and reversible patches |
 | End-to-end operation demonstrated in a controlled environment | yes | scripted, disposable, repeatable |
 | Evidence capture, integrity verification, actor attribution tested | yes | including the case integrity does not cover |
-| Adapters feed real analysis | partly | B.I.I.L., stuffing report, packing: yes. EasyQuote quotations: captured only |
+| Adapters feed real analysis | partly | B.I.I.L., stuffing report, packing: yes. EasyQuote quotations: captured and linked, rates not analysed |
 | Provenance-aware contradiction analysis implemented and integrated | yes | findings, cases, score, dashboard, CLI |
 | Contribution evaluated against the previous system | yes | variants A, B, C, D on the same data and labels |
 | Report separates verified facts, synthetic findings, assumptions, untested behaviour | yes | each document labels them |
@@ -124,7 +134,7 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 - Physical cross-machine anchor test (procedure ready: EXTERNAL_ANCHOR.md §3); trusted timestamps; backup automation; retention policy.
 - A way to tell back-entered jobs from fabricated fast workflows (TIM-001's known false positive).
 - Removing unverified documents from git history (owner's decision; irreversible for clones).
-- Analysis of EasyQuote quotations (free text, no shipment reference).
+- Analysis of EasyQuote quotation rates (free-text tariff rows; rates are not job charges). Linking is done.
 - Capture of B.I.I.L. upload/parse steps separately; adapter in its PyInstaller build.
 - Reading generated workbooks back to compare cell values.
 - Full replay of evidence into `db.json`.
@@ -138,5 +148,5 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 3. Run the two-machine witness test (EXTERNAL_ANCHOR.md §5, steps 1–11), fill in §6, and schedule backups.
 4. Data owner: decide on the 33 distinct documents and the generator defaults; then follow DATA_AND_REPOSITORY_AUDIT.md §8 if a distribution is wanted.
 5. Run the parser against a small set of cleared, real checklists and measure extraction accuracy; SRC-001 and all document-backed contradictions depend on it.
-6. Add a shipment-reference field to EasyQuote and B.I.I.L. exports so links do not depend on typed job numbers and container numbers.
+6. Done for EasyQuote (optional Shipment / Job No.). B.I.I.L. already sends the job number typed there; a stable shared shipment id across all tools would still need a change to every application and an owner decision.
 7. Have someone other than the author write anomaly scenarios, and evaluate on those.
