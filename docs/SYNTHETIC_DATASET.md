@@ -11,7 +11,7 @@ node synthetic/generate.js --seed 1 --jobs 300 --out datasets/seed-1
 node synthetic/generate.js --seed 101 --jobs 300 --out datasets/train-101 --normal-only
 ```
 
-Requires a Python with `openpyxl` and `pdfplumber` (set `SYNC_PYTHON` if it is not the default `python`).
+Requires a Python with `openpyxl` and `pdfplumber`: `forensics\.venv` (from `setup_env.cmd`) is used automatically, else `python` on PATH; `SYNC_PYTHON` overrides both.
 
 | Output | Content |
 |---|---|
@@ -26,7 +26,8 @@ Requires a Python with `openpyxl` and `pdfplumber` (set `SYNC_PYTHON` if it is n
 
 - One PRNG (mulberry32) per job, seeded from `seed × 100003 + job index`, so concurrency does not change the data.
 - Same seed ⇒ same jobs, same field values, same scenario assignment, same simulated times.
-- Not reproducible bit-for-bit: event ids, operation ids and correlation ids are random UUIDs, so hashes differ between runs.
+- Not reproducible bit-for-bit: event ids, operation ids and correlation ids are random UUIDs, so hashes differ between runs. Set-up events (start, user creation, sign-in) carry wall-clock time; job events carry simulated time.
+- Checked by `test/reproducibility.test.js`: the same seed generated twice gives the same labels (event ids aside), a byte-identical `features.csv` and identical evaluation figures. Re-evaluating the committed held-out datasets at `bc86d5c` (2026-10-28) reproduced `evaluation/results/framework.json` exactly.
 
 ## Simulated time
 

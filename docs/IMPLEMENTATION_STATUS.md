@@ -15,8 +15,8 @@ Git repository. Tags: `original-suite` (applications as received), `forensic-v1`
 | 3 | Integrity, security, failure handling | done; residual weaknesses documented | Sessions in `server.js`; `auth.integration.test.js`; external anchor and limitation tests in `store.test.js`; SECURITY_AND_LIMITATIONS.md; RUNTIME_SETUP.md §5–6 |
 | 4 | Complete the evidence pipeline | done for ingestion and analysis; partial for capture coverage | `pipeline.test.js`; `verifyArtifacts`; B.I.I.L., stuffing-report and packing evidence analysed. EasyQuote quotations are captured and stored but not analysed |
 | 5 | Provenance-aware contradiction analysis | done | `src/provenance.js`; cases, dashboard, timeline; PROVENANCE_AND_CONTRADICTIONS.md |
-| 6 | Synthetic data and business assumptions | done; four questions remain open | 44 scenarios; SYNTHETIC_DATASET.md; open questions below |
-| 7 | Evaluation of the contribution | done | EXPERIMENTS_AND_RESULTS.md; `evaluation/results/` |
+| 6 | Synthetic data and business assumptions | done; four questions remain open | 49 scenarios (44 before the analysis completion round); SYNTHETIC_DATASET.md; open questions below |
+| 7 | Evaluation of the contribution | done | FINAL_EVALUATION_REPORT.md (earlier: EXPERIMENTS_AND_RESULTS.md); `evaluation/results/` |
 | 8 | Documentation and final verification | done | this folder; final test run below |
 
 Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remain as described at tag `forensic-v1` and are covered by the same test suite.
@@ -60,7 +60,9 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 
 | Check | Result | When |
 |---|---|---|
-| `node --test` in `forensics/` | 189 tests: 185 passed, 0 failed, 4 skipped (opt-in desktop-window tests) | 2026-10-27 (`ce611ac`) |
+| `npm test` in `forensics/` | 189 tests: 185 passed, 0 failed, 4 skipped (188 existing + new `reproducibility.test.js`) | 2026-10-28 (`bc86d5c` + this change) |
+| Held-out evaluation re-run on existing datasets | identical to `results/framework.json` | 2026-10-28 (`bc86d5c`) |
+| `node --test` in `forensics/` | 189 reported: 185 passed, 0 failed, 4 skipped (opt-in desktop-window tests). One of the 189 is `test/helpers.js`, counted by Node's default discovery; real tests 188 | 2026-10-27 (`ce611ac`) |
 | Same with `FORENSIC_GUI_TESTS=1` | 189 tests: 189 passed (includes 4 real-window and 19 browser tests) | 2026-10-27 (`ce611ac`) |
 | `node e2e/run_e2e.js` | 28 of 28 steps (document generation in `forensics/.venv`, remote witness in a second process) | 2026-10-27 |
 | Final evaluation | held-out seeds 4–6: full framework precision 0.977, recall 0.937, F1 0.956, FPR 0.012 (previous code on the same data: 1.000 / 0.886 / 0.940 / 0.000); rules alone recall 0.649 | 2026-10-27 |

@@ -133,6 +133,7 @@ With night-shift work in the normal-only fit set the off-hours feature is no lon
 ```
 cd forensics
 setup_env.cmd                                                     (once)
+.venv\Scripts\python -m pip install -r requirements.lock.txt      (exact versions used here)
 node synthetic/generate.js --seed 11  --jobs 300 --out datasets/tune-11
 node synthetic/generate.js --seed 201 --jobs 300 --out datasets/train-201 --normal-only
 node synthetic/generate.js --seed 4   --jobs 300 --out datasets/seed-4
@@ -147,4 +148,6 @@ node evaluation/summarize.js
 ```
 
 Previous-code comparison: `git worktree add <dir> 8add33d`, then in `<dir>/forensics` run `node evaluation/evaluate.js <copies of seed-4..6> --out results/baseline_8add33d.json`.
-About 10–15 minutes per dataset (three in parallel here). Job content and scenario assignment are fixed by the seed; event ids are random. Environment: Node v24.11.1; Python 3.13.9, scikit-learn 1.8.0, numpy 2.4.2.
+About 10–15 minutes per dataset (three in parallel here). Job content and scenario assignment are fixed by the seed; event ids are random. Environment: Node v24.11.1; Python 3.13.9, scikit-learn 1.8.0, numpy 2.4.2 (all Python versions in `forensics/requirements.lock.txt`; `requirements.txt` only sets minimums, and other scikit-learn or numpy versions may change the Isolation Forest figures). The two `evaluate.js … summarize.js` steps for the held-out sets are also `npm run evaluate`; it does not re-run `ml_baseline.py`, so `summarize.js` reuses whatever `results/ml_*.json` are present.
+
+Check on 2026-10-28 at `bc86d5c`: `evaluate.js` on the existing `train-201` and `seed-4..6` gave dataset results identical to `results/framework.json`; a small same-seed regeneration gave identical figures (`test/reproducibility.test.js`). The 300-job datasets were not regenerated and `ml_baseline.py` was not re-run that day (last reproduced at `4f845f6`).

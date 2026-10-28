@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "node --test",
+    "test": "node --test \"test/*.test.js\"",
     "verify": "node cli.js verify",
     "dashboard": "node src/dashboard.js",
     "demo": "node e2e/demo.js --serve",

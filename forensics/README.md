@@ -2,7 +2,7 @@
 
 Academic prototype. Captures what the Leadking applications do, keeps it in a tamper-evident store, and turns it into reviewable investigation cases. It raises **potential anomalies for human review**; it does not decide that fraud occurred.
 
-No npm dependencies. Node.js 20+.
+No runtime npm dependencies (`npm install` only adds `playwright-core` for the browser tests). Node.js 20+.
 
 ## Quick start
 
@@ -29,11 +29,18 @@ node synthetic/generate.js --seed 1 --jobs 60 --out datasets/demo
 node src/dashboard.js --dir datasets/demo/evidence
 ```
 
+Or `npm run demo` (demo shipments through the real pipeline, dashboard on http://127.0.0.1:3100; [docs/DASHBOARD_AND_DEMO.md](../docs/DASHBOARD_AND_DEMO.md)).
+
 ## Tests
 
 ```
-node --test
+npm test                               node --test "test/*.test.js"
+npm run e2e                            end-to-end run
 ```
+
+## Evaluation
+
+Datasets are not committed (`datasets/` is ignored); regenerate them with the commands in [docs/FINAL_EVALUATION_REPORT.md §11](../docs/FINAL_EVALUATION_REPORT.md), then `npm run evaluate`.
 
 ## Documentation
 
@@ -46,7 +53,7 @@ node --test
 | Provenance and cross-application contradictions | [docs/PROVENANCE_AND_CONTRADICTIONS.md](../docs/PROVENANCE_AND_CONTRADICTIONS.md) |
 | Setup, recovery, operations | [docs/RUNTIME_SETUP.md](../docs/RUNTIME_SETUP.md) |
 | Synthetic data | [docs/SYNTHETIC_DATASET.md](../docs/SYNTHETIC_DATASET.md) |
-| Measured results | [docs/EXPERIMENTS_AND_RESULTS.md](../docs/EXPERIMENTS_AND_RESULTS.md) |
+| Measured results | [docs/FINAL_EVALUATION_REPORT.md](../docs/FINAL_EVALUATION_REPORT.md) (earlier rounds: [docs/EXPERIMENTS_AND_RESULTS.md](../docs/EXPERIMENTS_AND_RESULTS.md), historical) |
 | What it does not guarantee | [docs/SECURITY_AND_LIMITATIONS.md](../docs/SECURITY_AND_LIMITATIONS.md) |
 | Running the tests | [docs/TESTING_GUIDE.md](../docs/TESTING_GUIDE.md) |
 | Why it is built this way | [docs/ARCHITECTURE_DECISIONS.md](../docs/ARCHITECTURE_DECISIONS.md) |

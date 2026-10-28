@@ -14,13 +14,17 @@ Tests that need a missing component are **skipped with a stated reason**, never 
 
 ```
 cd forensics
-node --test                    # 4 desktop-window tests skipped unless FORENSIC_GUI_TESTS=1
+npm test                       # = node --test "test/*.test.js"; 4 desktop-window tests skipped unless FORENSIC_GUI_TESTS=1
 node e2e/run_e2e.js            # 28-step end-to-end run on a disposable synchroniser
 ```
 
+Plain `node --test` also works, but Node's default discovery also loads `test/helpers.js` (no tests in it) and counts that file as one passing test, so it reports one more test than exist. The counts up to 2026-10-27 below include that extra one.
+
 Every integration test starts its own synchroniser on a random port, with database, uploads, downloads and evidence in a temp folder, and signs in through the real login route. The live `db.json` and `forensics/data` are never opened.
 
-Last full run (2026-10-27, commit `ce611ac`): **189 tests, 185 passed, 0 failed, 4 skipped** (opt-in desktop-window tests); with `FORENSIC_GUI_TESTS=1`: **189/189 passed**. End-to-end: 28/28. New this round: `test/demo.integration.test.js` (acceptance run through the real pipeline), a browser test of the analysis dashboard on demo data, an EasyQuote ingestion test, and 4 new scenarios plus 2 rules in the scenario test (61 subtests). (Earlier: 182 at `8add33d`, 174 at `e932963`, 131 at `forensic-v2`.)
+Run 2026-10-28 at `bc86d5c` (same code as `4f845f6`): `node --test` 189 reported (= 188 tests + `helpers.js`), 185 passed, 0 failed, 4 skipped; `npm test` **188 tests, 184 passed, 0 failed, 4 skipped**. Then `test/reproducibility.test.js` was added (1 test, passed): **189 tests with `npm test`**. GUI and e2e were not re-run that day.
+
+Previous full run (2026-10-27, commit `ce611ac`): **189 tests, 185 passed, 0 failed, 4 skipped** (opt-in desktop-window tests); with `FORENSIC_GUI_TESTS=1`: **189/189 passed**. End-to-end: 28/28. New this round: `test/demo.integration.test.js` (acceptance run through the real pipeline), a browser test of the analysis dashboard on demo data, an EasyQuote ingestion test, and 4 new scenarios plus 2 rules in the scenario test (61 subtests). (Earlier: 182 at `8add33d`, 174 at `e932963`, 131 at `forensic-v2`.)
 
 ## Test files
 
@@ -30,12 +34,16 @@ Last full run (2026-10-27, commit `ce611ac`): **189 tests, 185 passed, 0 failed,
 | `test/units.test.js` | 21 | Business-rule configuration (validation, FIN-001 basis and tax scheme, XAP-TAX resolved by configuration, WFL-001 "not verified"); normalisation, ISO 6346, diff and state hash, packing reason codes, ingest basics, views and gaps, rules on hand-built streams, configuration, scoring, ambiguous links, dispositions, dashboard API and rendering safety |
 | `test/sync.integration.test.js` | 9 | Real HTTP: lifecycle (desk deletion refused, admin deletion), id reuse, generation success and failure, login and users, upload, fail-closed, fail-open, baseline and restart, capture disabled |
 | `test/auth.integration.test.js` | 6 | Every route refuses anonymous requests; forged and expired tokens; admin from session role, not `adminUsername`; actor spoofing recorded and flagged; sessions end on restart; `SYNC_AUTH=off` |
-| `test/scenarios.integration.test.js` | 56 | All 44 scenarios through the real synchroniser: expected findings and nothing else; citations exist; lineage, classification and linkage expectations; common-source falsification; duplicate evidence; post-issue divergence; event time vs ingestion time; deleted job; reconciliation clean and tampered |
+| `test/scenarios.integration.test.js` | 61 | All 49 scenarios through the real synchroniser: expected findings and nothing else; citations exist; lineage, classification and linkage expectations; common-source falsification; duplicate evidence; post-issue divergence; event time vs ingestion time; deleted job; reconciliation clean and tampered |
 | `test/adapters.test.js` | 3 | Python outbox; visualizer bridge → chain → finding; real B.I.I.L. `generate_all()` |
 | `test/credentials.integration.test.js` | 12 | No default accounts; weak bootstrap refused; only hashes stored, nothing leaked to logs or evidence; malformed credentials; enumeration resistance; throttling; forced first change; change with right and wrong current password; sessions ended by change, reset, deletion; idle and absolute expiry; legacy weak passwords forced to change; admin-only deletion and its override; fail-open announced |
-| `test/browser.test.js` | 18 | **Real synchroniser UI in Edge:** invalid login, sign-in, upload and autofill, job creation with document generation, edit, workflow tick, desk delete refused, evidence-store failure dialog, password change, session ended elsewhere, forced change after admin reset, admin delete and logout, no console errors. **Dashboard:** empty store and unconfigured business rules banner, case with contradiction and provenance panels, malformed evidence, markup safety |
-| `test/anchor.remote.test.js` | 9 | Remote witness (same machine): hashes only leave the host; full rewrite after altered, deleted, reordered, truncated records; rewritten local anchor file; refused re-anchoring; witness outage and catch-up; token and input checks |
-| `test/pipeline.test.js` | 13 (4 opt-in) | Missing file, invalid lines, duplicate delivery, retry after failure, incomplete line, artifact hash states, B.I.I.L. and stuffing-report evidence reaching analysis and case view, weak links never becoming contradictions, configuration and switches; **real windows** of the visualizer and the three WPF programs |
+| `test/browser.test.js` | 19 | **Real synchroniser UI in Edge:** invalid login, sign-in, upload and autofill, job creation with document generation, edit, workflow tick, desk delete refused, evidence-store failure dialog, password change, session ended elsewhere, forced change after admin reset, admin delete and logout, no console errors. **Dashboard:** empty store and unconfigured business rules banner, case with contradiction and provenance panels, malformed evidence, markup safety. **Analysis dashboard on demo shipments:** filters, ground truth, unlinked evidence, Evaluation tab |
+| `test/anchor.remote.test.js` | 12 | Remote witness (same machine): hashes only leave the host; full rewrite after altered, deleted, reordered, truncated records; rewritten local anchor file; refused re-anchoring; witness outage and catch-up; token and input checks; store allowlist; no history-changing route; `cli.js anchor` catch-up |
+| `test/business_rules.test.js` | 2 | CLI and dashboard report the same cases and business-rule status for every configuration; invalid configuration refused by both |
+| `test/tls.integration.test.js` | 2 | HTTPS option: `Secure` cookie, no plain HTTP, TLS recorded; plain HTTP warns and the cookie is not `Secure` (first test skipped without `openssl`) |
+| `test/demo.integration.test.js` | 1 | Demo shipments through the real pipeline: cross-application links, contradictions, provenance, controls clean |
+| `test/reproducibility.test.js` | 1 | Same seed generated twice: identical labels (event ids aside), `features.csv` and evaluation figures |
+| `test/pipeline.test.js` | 14 (4 opt-in) | Missing file, invalid lines, duplicate delivery, retry after failure, incomplete line, artifact hash states, B.I.I.L. and stuffing-report evidence reaching analysis and case view, weak links never becoming contradictions, configuration and switches; **real windows** of the visualizer and the three WPF programs |
 
 ## Where each required case is tested
 

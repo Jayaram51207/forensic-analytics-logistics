@@ -1,0 +1,15 @@
+# Exact versions behind the final evaluation (commit ce611ac, Python 3.13.9, Node v24.11.1).
+# requirements.txt gives minimums; install this file instead to reproduce the Isolation Forest figures exactly:
+#   .venv\Scripts\python -m pip install -r requirements.lock.txt
+openpyxl==3.1.5
+et_xmlfile==2.0.0
+pdfplumber==0.11.10
+pdfminer.six==20260107
+pypdfium2==5.14.0
+pillow==12.3.0
+scikit-learn==1.8.0
+numpy==2.4.2
+scipy==1.17.1
+joblib==1.5.3
+threadpoolctl==3.6.0
+pywebview==6.2.1
