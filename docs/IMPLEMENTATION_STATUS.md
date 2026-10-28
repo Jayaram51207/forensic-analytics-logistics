@@ -62,6 +62,8 @@ Earlier phases (store, capture, rules, cases, dashboard, first evaluation) remai
 |---|---|---|
 | `npm test` in `forensics/` | 189 tests: 185 passed, 0 failed, 4 skipped (188 existing + new `reproducibility.test.js`) | 2026-10-28 (`bc86d5c` + this change) |
 | Held-out evaluation re-run on existing datasets | identical to `results/framework.json` | 2026-10-28 (`bc86d5c`) |
+| `ml_baseline.py` re-run (both protocols) | `results/ml_*.json` byte-identical to the committed files | 2026-10-29 (`532ac65`) |
+| `node e2e/run_e2e.js` | 28 of 28 steps | 2026-10-29 (`532ac65`) |
 | `node --test` in `forensics/` | 189 reported: 185 passed, 0 failed, 4 skipped (opt-in desktop-window tests). One of the 189 is `test/helpers.js`, counted by Node's default discovery; real tests 188 | 2026-10-27 (`ce611ac`) |
 | Same with `FORENSIC_GUI_TESTS=1` | 189 tests: 189 passed (includes 4 real-window and 19 browser tests) | 2026-10-27 (`ce611ac`) |
 | `node e2e/run_e2e.js` | 28 of 28 steps (document generation in `forensics/.venv`, remote witness in a second process) | 2026-10-27 |
