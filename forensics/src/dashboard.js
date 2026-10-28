@@ -1,6 +1,6 @@
 // Read-oriented investigation dashboard. Separate process from the
-// synchroniser; binds to localhost only. The single write it offers is a
-// reviewer disposition, which requires FORENSIC_REVIEW_TOKEN.
+// synchroniser; binds to localhost only. The writes it offers (reviewer disposition,
+// manual evidence link) append to the chain and require FORENSIC_REVIEW_TOKEN.
 //   node src/dashboard.js [--dir <evidence dir>] [--port 3100] [--labels <labels.json>] [--eval <final_summary.json>]
 // --labels shows synthetic ground truth next to cases (never used by the analysis). It defaults to
 // <dir>/../labels.json when that exists, i.e. when the dashboard is pointed at a generated dataset.
@@ -10,7 +10,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { EventStore } from './store.js';
-import { analyze, caseDetail, recordDisposition, DISPOSITIONS, SCORING } from './cases.js';
+import { analyze, caseDetail, recordDisposition, recordLinkAssertion, evidenceList, DISPOSITIONS, SCORING } from './cases.js';
 import { loadBusinessRules } from './business_rules.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -74,6 +74,21 @@ export function createDashboard({ dir, reviewToken = process.env.FORENSIC_REVIEW
             const c = load().cases.find(x => x.case_id === m[1]);
             if (!c) return json(res, 404, { error: 'case not found' });
             const evt = recordDisposition(dir, { case_id: c.case_id, correlation_id: c.correlation_id, disposition, note, reviewer, verified: true });
+            json(res, 201, { event_id: evt.event_id, sequence: evt.sequence });
+          } catch (err) { json(res, 400, { error: err.message }); }
+        });
+        return;
+      }
+      if (req.method === 'GET' && url.pathname === '/api/evidence') return json(res, 200, { records: evidenceList(load()), review_enabled: !!reviewToken });
+      const l = url.pathname.match(/^\/api\/evidence\/([A-Za-z0-9-]+)\/link$/);
+      if (l && req.method === 'POST') {
+        if (!tokenOk(req.headers['x-review-token'])) return json(res, reviewToken ? 403 : 501, { error: reviewToken ? 'invalid review token' : 'linking is disabled: start the dashboard with FORENSIC_REVIEW_TOKEN set' });
+        let body = '';
+        req.on('data', d => { body += d; if (body.length > 20000) req.destroy(); });
+        req.on('end', () => {
+          try {
+            const { job_no, reason, reviewer } = JSON.parse(body);
+            const evt = recordLinkAssertion(dir, { target_event_id: l[1], job_no, reason, actor: reviewer, verified: true });
             json(res, 201, { event_id: evt.event_id, sequence: evt.sequence });
           } catch (err) { json(res, 400, { error: err.message }); }
         });

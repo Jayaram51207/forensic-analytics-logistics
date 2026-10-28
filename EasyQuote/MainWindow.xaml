@@ -201,6 +201,8 @@
                             <StackPanel Grid.Column="1" Margin="0,0,10,10">
                                 <TextBlock Text="Quote Reference:" Margin="0,0,0,4" Foreground="#64748B" FontSize="11" FontWeight="Medium"/>
                                 <TextBox x:Name="QuoteRefTxt" Style="{StaticResource InputTextBoxStyle}" Text="EQ/2026/0602" TextChanged="QuoteDetail_TextChanged"/>
+                                <TextBlock Text="Shipment / Job No. (optional, not printed):" Margin="0,6,0,4" Foreground="#64748B" FontSize="11" FontWeight="Medium"/>
+                                <TextBox x:Name="ShipmentRefTxt" Style="{StaticResource InputTextBoxStyle}" Text="" ToolTip="Links this quotation to a shipment in the forensic record. Leave empty if there is none yet."/>
                             </StackPanel>
 
                             <!-- Subject -->

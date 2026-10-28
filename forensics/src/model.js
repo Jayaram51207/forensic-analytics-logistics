@@ -21,7 +21,7 @@ function applyStatusChange(state, e) {
  */
 export function buildViews(records) {
   const views = new Map();
-  const context = { users: new Set(), external: [], uploads: new Map(), storeGaps: [], rejected: [] };
+  const context = { users: new Set(), external: [], uploads: new Map(), storeGaps: [], rejected: [], linkAssertions: new Map() };
   const get = r => {
     if (!views.has(r.correlation_id)) {
       views.set(r.correlation_id, {
@@ -39,6 +39,8 @@ export function buildViews(records) {
     if (r.action === 'user.created') context.users.add(r.payload.name);
     if (r.action === 'forensic.capture_gap') context.storeGaps.push(r);
     if (r.action === 'auth.request_rejected') context.rejected.push(r);
+    // A later assertion for the same record supersedes the earlier one; all stay in the chain.
+    if (r.action === 'evidence.link_asserted') context.linkAssertions.set(r.payload.target_event_id, r);
     if (r.entity_type === 'upload') {
       const u = context.uploads.get(r.entity_id) || { events: [] };
       u.events.push(r);
@@ -131,33 +133,57 @@ export function buildViews(records) {
   return { views, context };
 }
 
+/** A shipment reference as typed: 1-64 characters, starting with a letter or digit. */
+export const SHIPMENT_REF = /^[A-Za-z0-9][A-Za-z0-9/._ -]{0,63}$/;
+export const shipmentRefOk = raw => (typeof raw === 'string' || typeof raw === 'number') && SHIPMENT_REF.test(String(raw).trim());
+
 /**
  * Entity resolution for evidence from applications that have no shared key with
  * the synchroniser. A link is a claim with a method and a confidence, never a fact.
+ * status: linked | ambiguous (several candidates, or the evidence points two ways) | unlinked (with a reason).
  */
 export function linkExternal(views, context) {
   const all = [...views.values()];
+  const byJobNo = ref => all.filter(v => [...v.job_nos].some(j => normId(j) === ref));
+  const names = vs => vs.map(v => v.job_no).join(', ');
   for (const r of context.external) {
-    const ref = normId(r.payload?.shipment_ref ?? r.job_no);
+    const raw = r.payload?.shipment_ref ?? r.job_no ?? null;
+    const malformed = raw !== null && raw !== '' && !shipmentRefOk(raw);
+    const ref = malformed ? '' : normId(raw);
     const containers = (r.payload?.container_nos || []).map(c => checkContainerNo(c).normalized).filter(Boolean);
-    let candidates = [], method = null, confidence = 0;
-    if (ref) {
-      candidates = all.filter(v => [...v.job_nos].some(j => normId(j) === ref));
-      method = 'job_no_exact_after_normalisation'; confidence = 0.9;
+    const byRef = ref ? byJobNo(ref) : [];
+    const byContainer = containers.length ? all.filter(v => (v.state?.containers || []).some(c => containers.includes(checkContainerNo(c.container_no).normalized))) : [];
+    const assertion = context.linkAssertions.get(r.event_id);
+    let candidates = [], method = 'unlinked', confidence = 0, basis, conflict = null;
+    if (assertion) {
+      // A person's recorded claim, used only where the record itself does not point elsewhere.
+      candidates = byJobNo(normId(assertion.payload.job_no));
+      method = 'manual_assertion'; confidence = 0.7;
+      basis = `linked to ${assertion.payload.job_no} by ${assertion.actor?.display_name || 'unnamed reviewer'}${assertion.actor?.verified ? '' : ' (identity not verified)'} at ${assertion.server_timestamp}: "${assertion.payload.reason}"`;
+      const own = byRef.length ? byRef : byContainer;
+      if (own.length && !own.some(v => candidates.includes(v))) { conflict = `the record itself points to ${names(own)}`; candidates = [...new Set([...candidates, ...own])]; }
+    } else if (byRef.length) {
+      candidates = byRef; method = 'job_no_exact_after_normalisation'; confidence = 0.9;
+      basis = `shipment_ref "${raw}" typed in ${r.application}`;
+      if (byContainer.length && !byContainer.some(v => byRef.includes(v))) { conflict = `container numbers match ${names(byContainer)}`; candidates = [...new Set([...byRef, ...byContainer])]; }
+    } else if (byContainer.length) {
+      candidates = byContainer; method = 'container_number_match'; confidence = 0.6;
+      basis = 'container numbers in payload';
     }
-    if (!candidates.length && containers.length) {
-      candidates = all.filter(v => (v.state?.containers || []).some(c => containers.includes(checkContainerNo(c.container_no).normalized)));
-      method = 'container_number_match'; confidence = 0.6;
-    }
-    const link = { event: r, method: candidates.length ? method : 'unlinked', confidence: 0, ambiguous: false, basis: ref ? `shipment_ref "${r.payload?.shipment_ref ?? r.job_no}" typed in ${r.application}` : containers.length ? 'container numbers in payload' : 'no shipment reference supplied' };
+    const reason = malformed ? `malformed shipment reference ${JSON.stringify(String(raw).slice(0, 80))}`
+      : ref ? `shipment reference "${raw}" matches no job${containers.length ? ' and no container number matches either' : ''}`
+      : containers.length ? 'container numbers match no job' : 'no shipment reference supplied';
+    const link = { event: r, method: candidates.length ? method : 'unlinked', confidence: 0, ambiguous: false, status: 'unlinked', basis: candidates.length ? basis : reason };
+    if (assertion && !candidates.length) link.basis = `${basis}; but no job ${assertion.payload.job_no} exists`;
     if (candidates.length === 1) {
-      link.confidence = confidence;
+      link.confidence = confidence; link.status = 'linked';
       candidates[0].external_links.push(link);
     } else if (candidates.length > 1) {
-      // Same reference on several job lifecycles (e.g. a deleted and re-created job): do not pick one silently.
-      link.ambiguous = true;
+      // Same reference on several job lifecycles, or the evidence points two ways: do not pick one silently.
+      link.ambiguous = true; link.status = 'ambiguous';
       link.confidence = +(confidence / candidates.length).toFixed(2);
       link.candidates = candidates.map(v => v.correlation_id);
+      if (conflict) link.conflict = conflict;
       for (const v of candidates) v.external_links.push(link);
     }
     r._link = link;

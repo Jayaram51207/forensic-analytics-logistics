@@ -8,6 +8,8 @@
 //   node cli.js timeline <job_no>              chronological reconstruction
 //   node cli.js ingest [file-or-folder]        import evidence written by the desktop tools
 //   node cli.js artifacts                      do recorded files still match their recorded hashes?
+//   node cli.js evidence [--status unlinked]   desktop-tool records and how each is tied to a shipment
+//   node cli.js link <event_id> <job_no> --reason "..."   record (not change) that a record belongs to a job
 //   node cli.js features --out <file.csv>      behavioural features per shipment
 //   node cli.js analyze                        everything as JSON
 // Common option: --dir <evidence dir> (default forensics/data, or FORENSIC_DIR)
@@ -17,7 +19,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { EventStore } from './src/store.js';
 import { reconcile, reconstruct } from './src/model.js';
-import { analyze, caseDetail, features } from './src/cases.js';
+import { analyze, caseDetail, features, recordLinkAssertion, evidenceList } from './src/cases.js';
 import { ingest, verifyArtifacts } from './src/ingest.js';
 import { loadBusinessRules } from './src/business_rules.js';
 
@@ -25,7 +27,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const opt = n => { const i = args.indexOf('--' + n); return i >= 0 ? args[i + 1] : undefined; };
 const positional = args.filter((a, i) => !a.startsWith('--') && !(args[i - 1] || '').startsWith('--'));
-const [cmd, arg] = positional;
+const [cmd, arg, arg2] = positional;
 const dir = path.resolve(opt('dir') || process.env.FORENSIC_DIR || path.join(here, 'data'));
 const store = new EventStore(dir);
 const businessRules = loadBusinessRules(opt('rules') ? path.resolve(opt('rules')) : undefined);
@@ -113,6 +115,20 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       process.exitCode = rows.some(r => r.status === 'ARCHIVED_COPY_ALTERED') ? 2 : 0;
       break;
     }
+    case 'evidence': {
+      const rows = evidenceList(analyze(records(), { business_rules: businessRules })).filter(r => !opt('status') || r.status === opt('status'));
+      for (const r of rows) console.log(`${r.status.padEnd(9)} ${r.application.padEnd(18)} ${r.event_id}  ${r.label}  -> ${r.job_nos.join(' | ') || '-'}  (${r.basis})`);
+      console.log(`${rows.length} record(s)`);
+      break;
+    }
+    case 'link': {
+      if (!arg || !arg2) { console.error('usage: node cli.js link <event_id> <job_no> --reason "..."'); process.exitCode = 1; break; }
+      try {
+        const e = recordLinkAssertion(dir, { target_event_id: arg, job_no: arg2, reason: opt('reason'), actor: opt('by') || os.userInfo().username });
+        console.log(`recorded as event ${e.event_id} (sequence ${e.sequence}); the original record is unchanged`);
+      } catch (err) { console.error(err.message); process.exitCode = 1; }
+      break;
+    }
     case 'features': {
       const rows = featureRows(analyze(records(), { business_rules: businessRules }));
       const cols = Object.keys(rows[0] || {}).filter(c => c !== 'job_nos_seen');
@@ -126,6 +142,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       break;
     }
     default:
-      console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 12).map(l => l.replace(/^\/\/ ?/, '')).join('\n'));
+      console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 14).map(l => l.replace(/^\/\/ ?/, '')).join('\n'));
   }
 }

@@ -3,6 +3,7 @@
 //
 //   node synthetic/generate.js --seed 1 --jobs 240 --out datasets/seed-1
 //   node synthetic/generate.js --seed 9 --jobs 200 --out datasets/train-9 --normal-only
+//   node synthetic/generate.js --set unseen --seed 301 --jobs 150 --out datasets/unseen-301   (families never used in development)
 //
 // Output: <out>/evidence/ (event chain + archived outputs), <out>/db.json (final
 // operational state), <out>/labels.json (ground truth, kept apart from evidence).
@@ -11,14 +12,15 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { startSync } from '../test/helpers.js';
 import { rng, driver } from './lib.js';
-import { SCENARIOS, MIX } from './scenarios.js';
+import { MIX } from './scenarios.js';
+import { ALL_SCENARIOS as SCENARIOS, UNSEEN_MIX } from './unseen_scenarios.js';
 import { EventStore } from '../src/store.js';
 import { outboxAppend, ingest } from '../src/ingest.js';
 import { execSync } from 'child_process';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-export async function generate({ seed = 1, jobs = 60, out, normalOnly = false, only = null, concurrency = 6, mix = MIX, archive = false, keepFiles = false }) {
+export async function generate({ seed = 1, jobs = 60, out, normalOnly = false, only = null, concurrency = 6, mix = MIX, set = 'main', archive = false, keepFiles = false }) {
   const dir = path.resolve(ROOT, out || `datasets/seed-${seed}`);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
@@ -59,14 +61,14 @@ export async function generate({ seed = 1, jobs = 60, out, normalOnly = false, o
   const counts = {};
   for (const l of labels) counts[l.type] = (counts[l.type] || 0) + 1;
   const commit = (() => { try { return execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim() + (execSync('git status --porcelain -- . ":!datasets" ":!evaluation/results"', { cwd: ROOT, encoding: 'utf8' }).trim() ? '+uncommitted' : ''); } catch { return null; } })();
-  const manifest = { seed, code_commit: commit, jobs: plan.length, normal_only: normalOnly, generated_at: new Date().toISOString(), synthetic: true, scenario_counts: counts, class_counts: Object.fromEntries(['normal', 'hard_negative', 'anomaly', 'data_quality'].map(c => [c, labels.filter(l => l.class === c).length])), external_records_ingested: ingested, errors, note: 'All data is synthetic. Event timestamps are simulated (clock_source = "simulated").' };
+  const manifest = { seed, scenario_set: set, code_commit: commit, jobs: plan.length, normal_only: normalOnly, generated_at: new Date().toISOString(), synthetic: true, scenario_counts: counts, class_counts: Object.fromEntries(['normal', 'hard_negative', 'anomaly', 'data_quality'].map(c => [c, labels.filter(l => l.class === c).length])), external_records_ingested: ingested, errors, note: 'All data is synthetic. Event timestamps are simulated (clock_source = "simulated").' };
   fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 1));
   return { dir, labels, manifest };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const arg = n => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : undefined; };
-  const { dir, manifest } = await generate({ seed: +(arg('seed') || 1), jobs: +(arg('jobs') || 60), out: arg('out'), normalOnly: process.argv.includes('--normal-only') });
+  const { dir, manifest } = await generate({ seed: +(arg('seed') || 1), jobs: +(arg('jobs') || 60), out: arg('out'), normalOnly: process.argv.includes('--normal-only'), ...(arg('set') === 'unseen' ? { set: 'unseen', mix: UNSEEN_MIX } : {}) });
   console.log(`dataset written to ${dir}`);
   console.log(JSON.stringify({ classes: manifest.class_counts, errors: manifest.errors.length }, null, 1));
   if (manifest.errors.length) { console.error(manifest.errors.slice(0, 5)); process.exitCode = 1; }

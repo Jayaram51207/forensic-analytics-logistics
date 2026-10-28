@@ -1159,7 +1159,7 @@ namespace EasyQuoteImport
                 ["subject"] = SubjectTxt.Text,
                 ["columns"] = columns,
                 ["rows"] = rows
-            }, filePath, "quotation");
+            }, filePath, "quotation", ShipmentRefTxt.Text);
         }
 
         private static string HtmlEncode(string text)

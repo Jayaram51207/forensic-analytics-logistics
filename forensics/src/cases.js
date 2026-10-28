@@ -2,7 +2,7 @@
 // derives behavioural features. A case is a bundle of evidence for a human
 // reviewer; its score orders the review queue and is not a probability.
 import { EventStore } from './store.js';
-import { buildViews, reconstruct } from './model.js';
+import { buildViews, reconstruct, shipmentRefOk } from './model.js';
 import { runRules, DEFAULT_CONFIG } from './rules.js';
 import { UNCONFIGURED } from './business_rules.js';
 import { normalizeJob } from './normalize.js';
@@ -168,4 +168,44 @@ export function recordDisposition(dir, { case_id, correlation_id, disposition, n
     actor: { display_name: reviewer || null, source: verified ? 'review_token' : 'not_supplied', verified },
     payload: { disposition, note: String(note || '').slice(0, 4000) }
   });
+}
+
+/**
+ * A reviewer's claim that an external record (e.g. a quotation exported without a shipment
+ * reference) belongs to a job. Appended to the chain like any other evidence; the record itself is
+ * never altered. The link is weighted as a claim (manual_assertion, 0.7) and becomes ambiguous if
+ * the record's own reference or container numbers point to a different job.
+ */
+export function recordLinkAssertion(dir, { target_event_id, job_no, reason, actor, verified = false }) {
+  const store = new EventStore(dir);
+  const target = store.readAll().records.map(x => x.record).find(r => r.event_id === target_event_id);
+  if (!target) throw new Error('no evidence record with that event_id');
+  if (['workflow_sync', 'forensic_layer'].includes(target.application) || target.entity_type === 'upload') throw new Error('only records from the desktop tools can be linked by hand');
+  if (!shipmentRefOk(job_no)) throw new Error('job_no must be 1-64 letters, digits or / . _ - and spaces');
+  if (!String(reason || '').trim()) throw new Error('a reason is required');
+  return store.append({
+    application: 'forensic_layer', action: 'evidence.link_asserted', entity_type: 'external_record', entity_id: target_event_id,
+    actor: { display_name: actor || null, source: verified ? 'review_token' : actor ? 'os_account_claimed' : 'not_supplied', verified },
+    payload: { target_event_id, target_application: target.application, job_no: String(job_no).trim(), reason: String(reason).trim().slice(0, 2000) }
+  });
+}
+
+/** Every desktop-tool record with how (and whether) it is tied to a shipment, newest first. */
+export function evidenceList(analysis) {
+  const byCorr = new Map([...analysis.views.values()].map(v => [v.correlation_id, v]));
+  const cases = new Map(analysis.cases.map(c => [c.correlation_id, c.case_id]));
+  return analysis.context.external.map(r => {
+    const l = r._link || { status: 'unlinked', method: 'unlinked', confidence: 0, basis: 'not analysed' };
+    const p = r.payload || {};
+    const targets = l.status === 'linked' ? [...byCorr.values()].filter(v => v.external_links.includes(l)) : (l.candidates || []).map(c => byCorr.get(c)).filter(Boolean);
+    return {
+      event_id: r.event_id, sequence: r.sequence, application: r.application, action: r.action,
+      event_time: p.source?.occurred_at || r.server_timestamp, recorded_at: r.server_timestamp,
+      label: p.quote_ref || p.batch_id || p.shipment_ref || (p.container_nos || []).join(', ') || p.format || '',
+      shipment_ref_supplied: p.shipment_ref ?? null, actor: r.actor?.display_name ?? null, actor_verified: !!r.actor?.verified,
+      status: l.status, method: l.method, confidence: l.confidence, basis: l.basis, conflict: l.conflict || null,
+      job_nos: targets.map(v => v.job_no), case_ids: targets.map(v => cases.get(v.correlation_id)).filter(Boolean),
+      artifacts: (r.artifacts || []).map(a => ({ role: a.role, sha256: a.sha256, size: a.size }))
+    };
+  }).sort((a, b) => b.sequence - a.sequence);
 }

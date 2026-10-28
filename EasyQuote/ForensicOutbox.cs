@@ -22,7 +22,7 @@ namespace Leadking.Forensics
             return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
         }
 
-        public static bool Emit(string application, string action, Dictionary<string, object?> payload, string? filePath = null, string? entityType = null)
+        public static bool Emit(string application, string action, Dictionary<string, object?> payload, string? filePath = null, string? entityType = null, string? shipmentRef = null)
         {
             try
             {
@@ -47,8 +47,8 @@ namespace Leadking.Forensics
                     ["application"] = application,
                     ["action"] = action,
                     ["entity_type"] = entityType,
-                    // These tools have no shipment reference field; none is invented here.
-                    ["shipment_ref"] = null,
+                    // Only what the user typed (EasyQuote's optional Shipment / Job No.); never derived or guessed.
+                    ["shipment_ref"] = string.IsNullOrWhiteSpace(shipmentRef) ? null : shipmentRef.Trim(),
                     // Windows account name: a claim, not an authenticated identity.
                     ["actor_claim"] = Environment.UserName,
                     ["actor_source"] = "os_account_claimed",
