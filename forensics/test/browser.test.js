@@ -203,6 +203,8 @@ test('investigation dashboard: empty, malformed and populated evidence; provenan
 
   await t.test('empty store', async () => {
     await page.goto(await serve(fs.mkdtempSync(path.join(os.tmpdir(), 'fdash-'))));
+    await page.waitForFunction(() => document.getElementById('ov-top').textContent.includes('No cases'));
+    await page.click('#tab-cases');
     await page.waitForSelector('#cases .mute');
     assert.match(await page.textContent('#cases'), /No cases/);
     await page.waitForSelector('#business-rules.warn');
@@ -217,7 +219,7 @@ test('investigation dashboard: empty, malformed and populated evidence; provenan
     const ob = path.join(dir, 'outbox.jsonl');
     outboxAppend(ob, biilRecord(rng(1), info, new Date(), { fields: { gross_weight: '25000 KGS' } }));
     ingest(store, ob);
-    await page.goto(await serve(dir));
+    await page.goto((await serve(dir)) + '/#/cases');
     await page.click('.case');
     await page.waitForFunction(() => document.getElementById('detail').textContent.includes('Contradictions between applications'), null, { timeout: 10000 })
       .catch(async () => { throw new Error('detail: ' + (await page.textContent('#detail')).slice(0, 300) + ' errors: ' + JSON.stringify(jsErrors)); });
@@ -227,6 +229,18 @@ test('investigation dashboard: empty, malformed and populated evidence; provenan
     assert.match(body, /Where key values come from/);
     assert.match(body, /Evidence trust: four separate questions/);
     assert.match(body, /source application clock/, 'event time basis shown');
+    assert.match(body, /Why this was raised/);
+    assert.match(body, /not a finding of fraud/);
+
+    // Evidence view: the B.I.I.L. record is listed as linked to the job, with its basis.
+    await page.click('#tab-evidence');
+    await page.waitForFunction(() => document.getElementById('ev-table').textContent.includes('biil_unified'));
+    const ev = await page.textContent('#ev-table');
+    assert.match(ev, /Linked/);
+    assert.match(ev, /DASH-1/);
+    assert.match(await page.textContent('#ev-integrity'), /does not show that what they say is true/);
+    await page.click('#ev-status button[data-v="unlinked"]');
+    assert.match(await page.textContent('#ev-table'), /No record matches/);
   });
 
   await t.test('malformed evidence: integrity warning instead of a crash', async () => {
@@ -243,9 +257,9 @@ test('investigation dashboard: empty, malformed and populated evidence; provenan
     const store = new EventStore(dir);
     const evil = '<img src=x onerror="window.__pwned=1">';
     store.append({ application: 'workflow_sync', action: 'job.created', entity_type: 'job', entity_id: '1', job_no: evil, correlation_id: 'c-x', operation_id: 'o', payload: { stored: { job_no: evil, status: 'Active', containers: [{ container_no: 'BAD' }], billing_charges: [], workflow_steps: [], documents: [] }, state_hash: 'h', source_links: [] } });
-    await page.goto(await serve(dir));
+    await page.goto((await serve(dir)) + '/#/cases');
     await page.click('.case');
-    await page.waitForSelector('#detail .panel');
+    await page.waitForSelector('#detail .card');
     assert.equal(await page.evaluate(() => window.__pwned), undefined);
     assert.ok((await page.textContent('#detail')).includes(evil));
   });
@@ -261,6 +275,9 @@ test('dashboard analysis on demo shipments: filters, ground truth, unlinked evid
   await new Promise(r => dash.listen(0, '127.0.0.1', r));
   t.after(() => dash.close());
   await page.goto(`http://127.0.0.1:${dash.address().port}`);
+  await page.waitForSelector('#ov-kpis .kpi');
+  assert.match(await page.textContent('#ov-kpis'), /Open cases awaiting review/);
+  await page.click('#tab-cases');
   await page.waitForSelector('#cases .case');
   const total = await page.$$eval('#cases .case', e => e.length);
   assert.match(await page.textContent('#unlinked'), /biil_unified/, 'unattributable record listed as not tied to a shipment');
@@ -268,7 +285,8 @@ test('dashboard analysis on demo shipments: filters, ground truth, unlinked evid
 
   await page.selectOption('#f-rule', 'ACT-002');
   assert.equal(await page.$$eval('#cases .case', e => e.length), 1, 'rule filter');
-  await page.click('#cases .case');
+  await page.focus('#cases .case');
+  await page.keyboard.press('Enter');
   await page.waitForFunction(() => document.getElementById('detail').textContent.includes('Synthetic ground truth'));
   const detail = await page.textContent('#detail');
   assert.match(detail, /unauthorized_delete_attempt/);
@@ -283,6 +301,17 @@ test('dashboard analysis on demo shipments: filters, ground truth, unlinked evid
   await page.fill('#f-text', 'no-such-job');
   assert.match(await page.textContent('#cases'), /No case matches/);
   await page.fill('#f-text', '');
+  await page.click('#f-band-seg button[data-v="high"]');
+  assert.ok(await page.$$eval('#cases .case', e => e.every(x => x.querySelector('.sev').textContent === 'high')), 'priority filter');
+  await page.click('#f-band-seg button[data-v=""]');
+  await page.selectOption('#f-sort', 'job');
+  const jobs = await page.$$eval('#cases .case .job', e => e.map(x => x.textContent));
+  assert.deepEqual(jobs, [...jobs].sort((a, b) => a.localeCompare(b)), 'sort by job number');
+
+  await page.click('#tab-evidence');
+  await page.waitForFunction(() => /Unlinked [1-9]/.test(document.getElementById('ev-status').textContent));
+  await page.click('#ev-status button[data-v="unlinked"]');
+  assert.match(await page.textContent('#ev-table'), /no shipment reference supplied|matches no job/);
 
   await page.click('#tab-eval');
   await page.waitForFunction(() => document.getElementById('evaluation').textContent.includes('anomaly (label)'));

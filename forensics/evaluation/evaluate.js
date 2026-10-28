@@ -217,12 +217,16 @@ export function evaluateDataset(dir) {
     false_alarms: rows.filter(r => !r.anomalous && r.flags[k]).map(r => ({ job_no: r.job_no, type: r.type, fired: r.fired[k] }))
   }]));
 
+  // Each rule on its own (full framework D): labelled jobs it fired on. A job can fire several rules.
+  const per_rule = {};
+  for (const r of rows) for (const id of r.fired.D) { const x = per_rule[id] || (per_rule[id] = { on_anomaly: 0, on_negative: 0 }); r.anomalous ? x.on_anomaly++ : x.on_negative++; }
+
   const result = {
     dataset: path.basename(dir), seed: manifest.seed, dataset_generated_at: manifest.generated_at, dataset_code_commit: manifest.code_commit ?? null,
     generation_errors: manifest.errors?.length ?? null,
     jobs: rows.length, integrity_ok: integrity.ok, events: integrity.count,
     class_counts: Object.fromEntries(['normal', 'hard_negative', 'data_quality', 'anomaly'].map(c => [c, rows.filter(r => r.class === c).length])),
-    detection, by_category, by_type, errors,
+    detection, by_category, by_type, errors, per_rule,
     hard_negative_fpr: Object.fromEntries(Object.keys(VARIANTS).map(k => [k, ratio(rows.filter(r => r.class === 'hard_negative' && r.flags[k]).length, rows.filter(r => r.class === 'hard_negative').length)])),
     review_burden: Object.fromEntries(Object.keys(VARIANTS).map(k => [k, { cases_with_anomaly: an[k].cases.filter(c => c.n_anomaly_findings).length, anomaly_findings: an[k].findings.filter(f => f.kind === 'anomaly').length, notes: an[k].findings.filter(f => f.kind !== 'anomaly').length }])),
     incident_ordering_arrival_A: orderingAccuracy(an.A, 'sequence'),

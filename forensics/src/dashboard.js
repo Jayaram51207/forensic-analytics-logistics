@@ -23,7 +23,7 @@ export function createDashboard({ dir, reviewToken = process.env.FORENSIC_REVIEW
   const store = new EventStore(dir);
   const load = () => analyze(store.readAll().records.map(x => x.record), { business_rules: loadBusinessRules(), ...config, integrity: store.verify() });
   const summary = c => ({ case_id: c.case_id, job_no: c.job_no, status: c.status, priority: c.priority.value, band: c.priority.band, n_anomaly_findings: c.n_anomaly_findings, n_data_quality_findings: c.n_data_quality_findings, reasons: c.reasons.slice(0, 3),
-    rules: [...new Set(c.findings.filter(f => f.kind === 'anomaly').map(f => f.rule_id))].sort(), deleted: c.deleted, contradictions: c.contradictions,
+    rules: [...new Set(c.findings.filter(f => f.kind === 'anomaly').map(f => f.rule_id))].sort(), deleted: c.deleted, contradictions: c.contradictions, applications: c.provenance.applications,
     ...(truth ? { ground_truth: c.job_nos_seen.map(j => truth.get(j)).find(Boolean) || null } : {}) });
   // External records that could not be tied to one shipment: missing evidence from the investigator's view.
   const unlinked = a => {

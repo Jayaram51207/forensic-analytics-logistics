@@ -5,302 +5,593 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Forensic Investigation</title>
 <style>
-  :root { --bg:#f6f7f9; --panel:#fff; --ink:#1c2430; --mute:#5d6b7c; --line:#dfe3e8; --hi:#b42318; --med:#b54708; --low:#175cd3; --ok:#067647; --cite:#fff7e6; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#12161c; --panel:#1b212a; --ink:#e6eaf0; --mute:#97a3b3; --line:#2c3541; --hi:#f97066; --med:#fdb022; --low:#84adff; --ok:#47cd89; --cite:#33290f; } }
-  * { box-sizing: border-box; }
-  body { margin:0; font:14px/1.45 system-ui, Segoe UI, sans-serif; background:var(--bg); color:var(--ink); }
-  header { padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel); display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
-  header h1 { font-size:16px; margin:0; }
-  main { display:grid; grid-template-columns:minmax(300px, 380px) 1fr; gap:16px; padding:16px 20px; align-items:start; }
-  @media (max-width: 900px) { main { grid-template-columns:1fr; } }
-  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:14px; overflow-x:auto; }
-  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--mute); margin:0 0 8px; }
-  .case { padding:8px 10px; border:1px solid var(--line); border-radius:6px; margin-bottom:6px; cursor:pointer; }
-  .case:hover, .case.sel { border-color:var(--low); }
-  .row { display:flex; justify-content:space-between; gap:8px; }
-  .mute { color:var(--mute); font-size:12px; }
-  .tag { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; border:1px solid currentColor; }
-  .high { color:var(--hi); } .medium { color:var(--med); } .low, .informational { color:var(--low); } .ok { color:var(--ok); }
-  table { border-collapse:collapse; width:100%; font-size:12.5px; }
-  th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--mute); font-weight:600; white-space:nowrap; }
+  :root {
+    --bg:#f5f6f8; --surface:#fff; --sunken:#f0f2f5; --ink:#141a23; --ink-2:#3c4756; --mute:#6a7686; --line:#e3e7ec; --line-2:#d3d9e0;
+    --accent:#2f5bd3; --accent-ink:#fff; --accent-soft:#e9effc;
+    --hi:#b42318; --hi-soft:#fdecea; --med:#a15c07; --med-soft:#fdf3e1; --low:#4a5a70; --low-soft:#eef1f5; --ok:#05774a; --ok-soft:#e6f4ee;
+    --cite:#fff8e5; --radius:8px; --shadow:0 1px 2px rgba(16,24,40,.05);
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --bg:#0f1318; --surface:#161b22; --sunken:#1c222b; --ink:#e8ecf1; --ink-2:#c3cbd5; --mute:#8b97a7; --line:#262e39; --line-2:#323c48;
+    --accent:#7aa2ff; --accent-ink:#0b1020; --accent-soft:#1d2840;
+    --hi:#ff8a80; --hi-soft:#3a1d1c; --med:#f2b350; --med-soft:#36290f; --low:#a9b6c8; --low-soft:#222a35; --ok:#4fd39a; --ok-soft:#12291f; --cite:#2e2914; --shadow:none;
+  } }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; font:14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased; }
+  a { color:var(--accent); }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+  .app { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+  @media (max-width: 860px) { .app { grid-template-columns:1fr; } .side { position:static; flex-direction:row; flex-wrap:wrap; height:auto; } .side .brand small, .side .foot { display:none; } }
+
+  /* sidebar */
+  .side { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:4px; padding:20px 14px; background:var(--surface); border-right:1px solid var(--line); }
+  .brand { padding:0 8px 16px; font-weight:650; letter-spacing:-.01em; }
+  .brand small { display:block; font-weight:400; color:var(--mute); font-size:12px; margin-top:2px; }
+  .nav { all:unset; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; border-radius:6px; color:var(--ink-2); cursor:pointer; font-size:13.5px; }
+  .nav:hover { background:var(--sunken); }
+  .nav.on { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .nav .count { font-size:12px; color:var(--mute); font-variant-numeric:tabular-nums; }
+  .nav.on .count { color:var(--accent); }
+  .side .foot { margin-top:auto; padding:8px; font-size:12px; color:var(--mute); line-height:1.45; }
+
+  /* top bar */
+  .main { min-width:0; display:flex; flex-direction:column; }
+  .bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:12px 28px; border-bottom:1px solid var(--line); background:var(--surface); position:sticky; top:0; z-index:2; }
+  .bar h1 { font-size:15px; font-weight:600; margin:0 auto 0 0; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:550; background:var(--low-soft); color:var(--low); white-space:nowrap; }
+  .pill::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+  .pill.ok { background:var(--ok-soft); color:var(--ok); } .pill.warn { background:var(--hi-soft); color:var(--hi); } .pill.note { background:var(--med-soft); color:var(--med); }
+  .view { padding:24px 28px 48px; max-width:1440px; width:100%; }
+  .hidden { display:none !important; }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  .nowrap { white-space:nowrap; }
+
+  /* type and blocks */
+  h2 { font-size:13px; font-weight:600; color:var(--ink-2); margin:0 0 10px; }
+  h3 { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--mute); margin:22px 0 8px; }
+  .lead { color:var(--ink-2); margin:0 0 18px; max-width:780px; }
+  .mute { color:var(--mute); font-size:12.5px; }
+  .mono, code { font:12px ui-monospace, "Cascadia Mono", Consolas, monospace; word-break:break-all; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow); }
+  .card + .card { margin-top:14px; }
+  .grid { display:grid; gap:14px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:14px; margin-bottom:18px; }
+  .kpi { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); }
+  .kpi .v { font-size:26px; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.2; }
+  .kpi .l { font-size:12.5px; color:var(--mute); margin-top:2px; }
+  .kpi.hi .v { color:var(--hi); } .kpi.okk .v { color:var(--ok); } .kpi.medk .v { color:var(--med); }
+  .two { display:grid; grid-template-columns:minmax(0, 3fr) minmax(0, 2fr); gap:14px; }
+  @media (max-width: 1100px) { .two { grid-template-columns:1fr; } }
+  .callout { border-radius:var(--radius); padding:12px 14px; background:var(--sunken); color:var(--ink-2); font-size:13px; }
+  .callout.warn { background:var(--hi-soft); color:var(--hi); } .callout.note { background:var(--med-soft); color:var(--ink); }
+  .callout strong { color:inherit; }
+
+  /* badges */
+  .sev { display:inline-block; min-width:52px; text-align:center; padding:1px 8px; border-radius:4px; font-size:11.5px; font-weight:600; text-transform:capitalize; }
+  .sev.high { background:var(--hi-soft); color:var(--hi); } .sev.medium { background:var(--med-soft); color:var(--med); } .sev.low, .sev.informational { background:var(--low-soft); color:var(--low); }
+  .tag { display:inline-block; padding:0 7px; border-radius:4px; font-size:11.5px; background:var(--sunken); color:var(--ink-2); margin:0 4px 2px 0; white-space:nowrap; }
+  .st-linked { color:var(--ok); } .st-ambiguous { color:var(--med); } .st-unlinked { color:var(--hi); }
+  .warn { color:var(--hi); } .ok { color:var(--ok); }
+
+  /* tables */
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11.5px; font-weight:600; color:var(--mute); text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; background:var(--surface); }
+  tbody tr:last-child td { border-bottom:0; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
   tr.cited td { background:var(--cite); }
-  code, .mono { font:12px ui-monospace, Consolas, monospace; word-break:break-all; }
-  .finding { border-left:3px solid var(--line); padding:4px 0 4px 10px; margin-bottom:10px; }
-  .finding.high { border-color:var(--hi); } .finding.medium { border-color:var(--med); } .finding.low { border-color:var(--low); }
-  .finding p { margin:3px 0; color:var(--ink); }
+  .scroll { overflow-x:auto; }
+
+  /* controls */
+  input, select, textarea, button { font:inherit; font-size:13px; color:var(--ink); }
+  input[type=search], input[type=text], input[type=password], select, textarea { padding:6px 10px; border:1px solid var(--line-2); border-radius:6px; background:var(--surface); }
+  button.btn { padding:6px 12px; border-radius:6px; border:1px solid var(--line-2); background:var(--surface); cursor:pointer; }
+  button.btn.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:600; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
+  .toolbar input[type=search] { flex:1 1 220px; }
+  .check { display:inline-flex; gap:6px; align-items:center; font-size:13px; color:var(--ink-2); }
+  .seg { display:inline-flex; border:1px solid var(--line-2); border-radius:6px; overflow:hidden; }
+  .seg button { all:unset; padding:5px 11px; font-size:12.5px; cursor:pointer; color:var(--ink-2); }
+  .seg button + button { border-left:1px solid var(--line-2); }
+  .seg button.on { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+
+  /* queue + case */
+  .split { display:grid; grid-template-columns:minmax(340px, 440px) minmax(0, 1fr); gap:20px; align-items:start; }
+  @media (max-width: 1100px) { .split { grid-template-columns:1fr; } }
+  .queue { max-height:calc(100vh - 210px); overflow:auto; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); }
+  .case { display:grid; grid-template-columns:auto 1fr auto; gap:4px 12px; padding:12px 14px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .case:last-child { border-bottom:0; }
+  .case:hover { background:var(--sunken); }
+  .case.sel { background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
+  .case .job { font-weight:600; }
+  .case .why { grid-column:2 / 4; color:var(--ink-2); font-size:13px; }
+  .case .meta { grid-column:2 / 4; font-size:12px; color:var(--mute); }
+  .case .score { font-variant-numeric:tabular-nums; color:var(--mute); font-size:12px; }
+  .empty { padding:28px 16px; text-align:center; color:var(--mute); }
+  .case-head { display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; margin-bottom:14px; }
+  .case-head .t { font-size:20px; font-weight:600; letter-spacing:-.01em; }
+  .why-box { border-left:3px solid var(--hi); background:var(--surface); border-radius:0 var(--radius) var(--radius) 0; padding:12px 16px; margin-bottom:14px; box-shadow:var(--shadow); }
+  .why-box.medium { border-color:var(--med); } .why-box.low { border-color:var(--line-2); }
+  .why-box .q { font-size:15px; font-weight:600; }
+  .finding { padding:12px 0; border-top:1px solid var(--line); }
+  .finding:first-of-type { border-top:0; padding-top:4px; }
+  .finding .ttl { display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+  .finding p { margin:6px 0 0; color:var(--ink-2); }
+  .sup { color:var(--ok); } .wk { color:var(--mute); }
   .chg { margin:2px 0 0; padding:0; list-style:none; }
   .chg li { font:12px ui-monospace, Consolas, monospace; }
   .old { color:var(--hi); text-decoration:line-through; } .new { color:var(--ok); }
-  select, input, textarea, button { font:inherit; padding:5px 7px; border:1px solid var(--line); border-radius:5px; background:var(--panel); color:var(--ink); }
-  button { cursor:pointer; }
-  .warn { color:var(--hi); font-weight:600; }
-  nav button.on { border-color:var(--low); color:var(--low); font-weight:600; }
-  .filters { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
-  .filters input[type=search] { flex:1 1 140px; }
-  .chip { display:inline-block; margin:0 4px 4px 0; padding:1px 8px; border:1px solid var(--line); border-radius:10px; font-size:12px; cursor:pointer; }
-  .chip.on { border-color:var(--low); color:var(--low); }
-  .legend span { display:inline-block; margin-right:12px; }
+  details { border-top:1px solid var(--line); padding:10px 0 2px; }
+  details > summary { cursor:pointer; font-weight:600; font-size:13px; color:var(--ink-2); list-style:none; }
+  details > summary::before { content:"▸ "; color:var(--mute); } details[open] > summary::before { content:"▾ "; }
+  details > :not(summary) { margin-top:10px; }
+  ol.steps { margin:0; padding-left:20px; } ol.steps li { margin:4px 0; color:var(--ink-2); }
+  .bars { display:grid; gap:6px; }
+  .barrow { display:grid; grid-template-columns:minmax(150px, max-content) 1fr; gap:10px; align-items:center; font-size:12.5px; cursor:pointer; border-radius:4px; }
+  .barrow:hover .lbl { color:var(--accent); }
+  .barrow .track { height:6px; background:var(--sunken); border-radius:3px; overflow:hidden; } .barrow .fill { height:100%; background:var(--accent); opacity:.75; }
+  .form { display:grid; gap:8px; max-width:520px; }
   .truth { border:1px dashed var(--med); }
-  .cm td { text-align:right; font-variant-numeric:tabular-nums; }
-  #view-eval { display:block; }
-  .hidden { display:none !important; }
+  .skeleton { color:var(--mute); padding:28px 0; }
 </style>
 </head>
 <body>
-<header>
-  <h1>Forensic Investigation</h1>
-  <nav><button id="tab-cases" class="on">Cases</button> <button id="tab-eval">Evaluation</button></nav>
-  <span id="integrity" class="mute">checking evidence integrity…</span>
-  <span id="business-rules" class="mute"></span>
-  <span class="mute">Findings are potential anomalies for human review. Scores rank the queue; they are not probabilities.</span>
-</header>
-<main id="view-cases">
-  <section>
-    <div class="panel"><h2>Review queue</h2>
-      <div class="filters">
-        <input type="search" id="f-text" placeholder="job number, case or reason">
-        <select id="f-band"><option value="">all priorities</option><option>high</option><option>medium</option><option>low</option></select>
-        <select id="f-rule"><option value="">all rules</option></select>
-        <label class="mute"><input type="checkbox" id="f-deleted"> deleted jobs</label>
-        <label class="mute"><input type="checkbox" id="f-xap"> with contradictions</label>
-      </div>
-      <div id="queue-count" class="mute"></div>
-      <div id="cases"></div>
+<div class="app">
+  <aside class="side" aria-label="Sections">
+    <div class="brand">Forensic Investigation<small>Leadking logistics evidence</small></div>
+    <button class="nav on" id="tab-overview" data-route="overview">Overview</button>
+    <button class="nav" id="tab-cases" data-route="cases">Investigation queue <span class="count" id="n-cases"></span></button>
+    <button class="nav" id="tab-evidence" data-route="evidence">Evidence <span class="count" id="n-unlinked"></span></button>
+    <button class="nav" id="tab-eval" data-route="eval">Evaluation</button>
+    <div class="foot">Findings are potential anomalies for human review, not determinations of fraud. Priority scores order the queue; they are not probabilities.</div>
+  </aside>
+  <div class="main">
+    <div class="bar">
+      <h1 id="title">Overview</h1>
+      <span id="integrity" class="pill">Checking evidence integrity…</span>
+      <span id="business-rules" class="pill"></span>
     </div>
-    <div class="panel"><h2>Rules raised (cases)</h2><div id="rule-breakdown"></div></div>
-    <div class="panel"><h2>Evidence not tied to a shipment</h2><div id="unlinked"></div></div>
-  </section>
-  <section id="detail"><div class="panel mute">Select a case.</div></section>
-</main>
-<main id="view-eval" class="hidden">
-  <section id="evaluation"><div class="panel mute">Loading evaluation…</div></section>
-</main>
+
+    <section id="view-overview" class="view" aria-labelledby="title">
+      <div id="ov-kpis" class="kpis"><div class="skeleton">Loading…</div></div>
+      <div id="ov-config"></div>
+      <div class="two">
+        <div class="card"><h2>Highest priority</h2><div id="ov-top"></div></div>
+        <div class="grid">
+          <div class="card"><h2>Rules raised (cases)</h2><div id="rule-breakdown" class="bars"></div></div>
+          <div class="card"><h2>Evidence not tied to one shipment</h2><div id="unlinked"></div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px"><h2>Recent desktop-tool activity</h2><div id="ov-recent"></div></div>
+    </section>
+
+    <section id="view-cases" class="view hidden">
+      <div class="toolbar" role="search">
+        <input type="search" id="f-text" placeholder="Search job, case or reason" aria-label="Search cases">
+        <div class="seg" id="f-band-seg" role="group" aria-label="Priority">
+          <button data-v="" class="on">All</button><button data-v="high">High</button><button data-v="medium">Medium</button><button data-v="low">Low</button>
+        </div>
+        <select id="f-band" class="hidden" aria-hidden="true"><option value="">all</option><option>high</option><option>medium</option><option>low</option></select>
+        <select id="f-rule" aria-label="Rule"><option value="">All rules</option></select>
+        <select id="f-status" aria-label="Status"><option value="">Any status</option></select>
+        <select id="f-sort" aria-label="Sort"><option value="priority">Sort: priority</option><option value="job">Sort: job number</option><option value="findings">Sort: findings</option><option value="contradictions">Sort: contradictions</option></select>
+        <label class="check"><input type="checkbox" id="f-xap"> With contradictions</label>
+        <label class="check"><input type="checkbox" id="f-deleted"> Deleted jobs</label>
+      </div>
+      <div id="queue-count" class="mute" style="margin-bottom:8px"></div>
+      <div class="split">
+        <div id="cases" class="queue" role="listbox" aria-label="Cases"></div>
+        <div id="detail"><div class="card empty">Select a case to see why it was raised.</div></div>
+      </div>
+    </section>
+
+    <section id="view-evidence" class="view hidden">
+      <p class="lead">Records written by the desktop tools (B.I.I.L., EasyQuote, stuffing report, 3D visualizer) and how each is tied to a shipment. Only a linked record can count as evidence about a shipment; ambiguous and unlinked records are kept but never used against one.</p>
+      <div id="ev-integrity"></div>
+      <div class="toolbar">
+        <input type="search" id="ev-text" placeholder="Search application, record, job or event id" aria-label="Search evidence">
+        <div class="seg" id="ev-status" role="group" aria-label="Link status">
+          <button data-v="" class="on">All</button><button data-v="linked">Linked</button><button data-v="ambiguous">Uncertain</button><button data-v="unlinked">Unlinked</button>
+        </div>
+      </div>
+      <div class="card scroll" style="padding:0"><div id="ev-table"></div></div>
+    </section>
+
+    <section id="view-eval" class="view hidden">
+      <div id="evaluation"><div class="skeleton">Loading evaluation…</div></div>
+    </section>
+  </div>
+</div>
 <script>
 // All data from the evidence store is untrusted text: it is only ever placed
 // in the page through textContent, never as HTML.
 const $ = (tag, attrs = {}, ...kids) => {
   const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) k === 'class' ? e.className = v : k.startsWith('on') ? e.addEventListener(k.slice(2), v) : e.setAttribute(k, v);
-  for (const k of kids.flat()) if (k !== null && k !== undefined && k !== false) e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  for (const [k, v] of Object.entries(attrs)) { if (v === null || v === undefined || v === false) continue; k === 'class' ? e.className = v : k.startsWith('on') ? e.addEventListener(k.slice(2), v) : e.setAttribute(k, v); }
+  for (const k of kids.flat(Infinity)) if (k !== null && k !== undefined && k !== false) e.append(k instanceof Node ? k : document.createTextNode(String(k)));
   return e;
 };
+const byId = id => document.getElementById(id);
 const show = v => v === null || v === undefined ? '∅' : typeof v === 'object' ? JSON.stringify(v) : String(v);
 const short = h => h ? h.slice(0, 12) + '…' : '—';
-let overview = null;
+const when = t => t ? String(t).replace('T', ' ').replace(/\.\d+Z$/, '').replace(/Z$/, '') : '—';
+const human = s => String(s ?? '').replaceAll('_', ' ');
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const table = (heads, rows, cls) => $('table', { class: cls }, $('thead', {}, $('tr', {}, heads.map(h => $('th', { class: h.num ? 'num' : null }, h.t ?? h)))), $('tbody', {}, rows));
+async function getJson(url) {
+  const res = await fetch(url);
+  const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  if (!res.ok) throw Object.assign(new Error(body.error || `HTTP ${res.status}`), { status: res.status });
+  return body;
+}
+const failBox = (el, err) => el.replaceChildren($('div', { class: 'callout warn' }, `Could not load: ${err.message}`));
 
+let overview = null, evidence = null, selected = null;
+
+// ---------------- routing ----------------
+const TITLES = { overview: 'Overview', cases: 'Investigation queue', evidence: 'Evidence', eval: 'Evaluation' };
+function route() {
+  const [name, arg] = (location.hash.replace(/^#\/?/, '') || 'overview').split('/');
+  const r = TITLES[name] ? name : 'overview';
+  for (const k of Object.keys(TITLES)) {
+    byId('view-' + k).classList.toggle('hidden', k !== r);
+    const b = byId('tab-' + k); b.classList.toggle('on', k === r); k === r ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
+  }
+  byId('title').textContent = TITLES[r];
+  if (r === 'eval') loadEvaluation();
+  if (r === 'evidence') loadEvidence();
+  if (r === 'cases' && arg && arg !== selected) openCase(decodeURIComponent(arg));
+}
+const go = (name, arg) => { const h = '#/' + name + (arg ? '/' + encodeURIComponent(arg) : ''); if (location.hash === h) route(); else location.hash = h; };
+document.querySelectorAll('.nav').forEach(b => b.addEventListener('click', () => go(b.dataset.route)));
+window.addEventListener('hashchange', route);
+
+// ---------------- overview and header ----------------
 async function loadOverview(keep) {
-  overview = await (await fetch('/api/overview')).json();
-  const i = overview.integrity, el = document.getElementById('integrity');
-  el.textContent = i.ok ? `Evidence chain verified: ${i.count} events, head ${short(i.last_hash)}` : `INTEGRITY PROBLEMS (${i.problems.length}): ${i.problems.slice(0, 3).map(p => p.type).join(', ')}`;
-  el.className = i.ok ? 'ok' : 'warn';
-  const br = overview.business_rules || { unresolved: [] }, bel = document.getElementById('business-rules');
-  bel.textContent = br.unresolved.length ? `Business rules not configured: ${br.unresolved.join(', ')}. Results for these are unresolved, and workflow compliance is not verified.` : 'Business rules configured.';
-  bel.className = br.unresolved.length ? 'warn' : 'ok';
-  const sel = document.getElementById('f-rule'), cur = sel.value;
-  sel.replaceChildren($('option', { value: '' }, 'all rules'), ...Object.keys(overview.rule_breakdown || {}).sort().map(r => $('option', { value: r }, r)));
-  sel.value = cur;
-  document.getElementById('rule-breakdown').replaceChildren(...Object.entries(overview.rule_breakdown || {}).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
-    $('span', { class: 'chip' + (cur === r ? ' on' : ''), onclick: () => { sel.value = sel.value === r ? '' : r; renderQueue(); loadOverview(); } }, `${r} · ${n}`)),
-    Object.keys(overview.rule_breakdown || {}).length ? null : $('span', { class: 'mute' }, 'No anomaly findings.'));
+  try { overview = await getJson('/api/overview'); }
+  catch (err) { failBox(byId('ov-kpis'), err); byId('integrity').textContent = 'Evidence store unavailable'; byId('integrity').className = 'pill warn'; return; }
+  const i = overview.integrity, el = byId('integrity');
+  el.textContent = i.ok ? `Chain verified · ${i.count} events` : `INTEGRITY PROBLEMS (${i.problems.length}): ${i.problems.slice(0, 3).map(p => p.type).join(', ')}`;
+  el.title = i.ok ? `Head ${i.last_hash}. Integrity shows the records were not altered after capture; it does not show they are true.` : '';
+  el.className = 'pill ' + (i.ok ? 'ok' : 'warn');
+  const br = overview.business_rules || { unresolved: [] }, bel = byId('business-rules');
+  bel.replaceChildren(...(br.unresolved.length ? [`${br.unresolved.length} business rules not configured`, $('span', { class: 'sr' }, `Business rules not configured: ${br.unresolved.join(', ')}. Results for these are unresolved, and workflow compliance is not verified.`)] : ['Business rules configured']));
+  bel.title = br.unresolved.length ? `Not configured: ${br.unresolved.join(', ')}` : '';
+  bel.className = 'pill ' + (br.unresolved.length ? 'note warn' : 'ok');
+
+  const open = overview.cases.filter(c => c.status === 'requires_review');
+  const unl = Object.values(overview.unlinked_external || {}).reduce((a, o) => a + o.unlinked + o.ambiguous, 0);
+  byId('n-cases').textContent = open.length || '';
+  byId('n-unlinked').textContent = unl ? `${unl} unlinked` : '';
+  const kpi = (v, l, cls, onclick) => $('div', { class: 'kpi ' + (cls || ''), ...(onclick ? { role: 'button', tabindex: '0', onclick, onkeydown: e => e.key === 'Enter' && onclick(), style: 'cursor:pointer' } : {}) }, $('div', { class: 'v' }, v), $('div', { class: 'l' }, l));
+  byId('ov-kpis').replaceChildren(
+    kpi(open.length, 'Open cases awaiting review', '', () => go('cases')),
+    kpi(open.filter(c => c.band === 'high').length, 'High priority', open.some(c => c.band === 'high') ? 'hi' : '', () => { setSeg('f-band-seg', 'high'); go('cases'); }),
+    kpi(open.reduce((a, c) => a + (c.contradictions || 0), 0), 'Contradictions in open cases', 'medk', () => { byId('f-xap').checked = true; go('cases'); }),
+    kpi(i.ok ? 'Intact' : 'Broken', i.ok ? `${i.count} events, hash chain verified` : `${i.problems.length} integrity problem(s)`, i.ok ? 'okk' : 'hi'),
+    kpi(unl, 'Desktop-tool records not tied to one shipment', unl ? 'medk' : '', () => { setSeg('ev-status', 'unlinked'); go('evidence'); }));
+  byId('ov-config').replaceChildren(br.unresolved.length ? $('div', { class: 'callout note', style: 'margin-bottom:14px' }, $('strong', {}, 'Not configured by the business: '), br.unresolved.join(', '),
+    '. Findings that depend on these stay "unresolved" and workflow compliance is shown as not verified. Configure in forensics/config/business_rules.json once the owner decides.') : null);
+
+  const top = [...open].sort((a, b) => b.priority - a.priority).slice(0, 6);
+  byId('ov-top').replaceChildren(top.length ? table(['Priority', 'Job', 'Why it was raised', { t: 'Score', num: true }], top.map(c => $('tr', { tabindex: '0', style: 'cursor:pointer', onclick: () => go('cases', c.case_id), onkeydown: e => e.key === 'Enter' && go('cases', c.case_id) },
+    $('td', {}, $('span', { class: 'sev ' + c.band }, c.band)), $('td', { class: 'nowrap' }, $('strong', {}, c.job_no ?? '—')), $('td', {}, c.reasons[0] || 'data-quality notes only'), $('td', { class: 'num' }, c.priority))))
+    : $('div', { class: 'empty' }, overview.cases.length ? 'Every case has a recorded review outcome.' : 'No cases. Nothing in the evidence raised a finding.'));
+
+  const rb = Object.entries(overview.rule_breakdown || {}).sort((a, b) => b[1] - a[1]), max = Math.max(1, ...rb.map(x => x[1]));
+  byId('rule-breakdown').replaceChildren(...(rb.length ? rb.map(([r, n]) => $('div', { class: 'barrow', role: 'button', tabindex: '0', title: `Show cases raised by ${r}`, onclick: () => { byId('f-rule').value = r; go('cases'); renderQueue(); }, onkeydown: e => e.key === 'Enter' && e.target.click() },
+    $('span', { class: 'lbl mono' }, `${r} · ${n}`), $('span', { class: 'track' }, $('span', { class: 'fill', style: `width:${(100 * n / max).toFixed(0)}%` })))) : [$('div', { class: 'mute' }, 'No anomaly findings.')]));
+
   const un = Object.entries(overview.unlinked_external || {});
-  document.getElementById('unlinked').replaceChildren(
-    un.length ? $('table', {}, $('tr', {}, ['application', 'no shipment found', 'matches several'].map(h => $('th', {}, h))), un.map(([app, o]) => $('tr', {}, $('td', {}, app), $('td', {}, o.unlinked), $('td', {}, o.ambiguous))))
-      : $('div', { class: 'mute' }, 'Every external record is linked to one shipment.'),
-    $('div', { class: 'mute' }, `${overview.refused_requests || 0} refused request(s) in the evidence. Records listed here are kept but never used as evidence against a shipment.`));
+  byId('unlinked').replaceChildren(
+    un.length ? table(['Application', { t: 'No shipment', num: true }, { t: 'Uncertain', num: true }], un.map(([app, o]) => $('tr', {}, $('td', {}, app), $('td', { class: 'num' }, o.unlinked), $('td', { class: 'num' }, o.ambiguous))))
+      : $('div', { class: 'mute' }, 'Every desktop-tool record is linked to one shipment.'),
+    $('p', { class: 'mute', style: 'margin:10px 0 0' }, `${plural(overview.refused_requests || 0, 'refused request')} in the evidence. `, $('a', { href: '#/evidence' }, 'Review and link records →')));
+
+  getJson('/api/evidence').then(e => { evidence = e; byId('ov-recent').replaceChildren(e.records.length ? evidenceTable(e.records.slice(0, 6), false) : $('div', { class: 'mute' }, 'No records from the desktop tools yet.')); }).catch(err => failBox(byId('ov-recent'), err));
+
+  const st = byId('f-status'), cur = st.value;
+  st.replaceChildren($('option', { value: '' }, 'Any status'), ...[...new Set(overview.cases.map(c => c.status))].sort().map(s => $('option', { value: s }, human(s))));
+  st.value = cur;
+  const sel = byId('f-rule'), rcur = sel.value;
+  sel.replaceChildren($('option', { value: '' }, 'All rules'), ...Object.keys(overview.rule_breakdown || {}).sort().map(r => $('option', { value: r }, r)));
+  sel.value = rcur;
   renderQueue(keep);
 }
 
+// ---------------- queue ----------------
+function setSeg(id, v) { byId(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); if (id === 'f-band-seg') byId('f-band').value = v; }
+const segVal = id => byId(id).querySelector('button.on')?.dataset.v || '';
 function renderQueue(keep) {
-  const text = document.getElementById('f-text').value.trim().toLowerCase(), band = document.getElementById('f-band').value, rule = document.getElementById('f-rule').value;
-  const del = document.getElementById('f-deleted').checked, xap = document.getElementById('f-xap').checked;
-  const list = overview.cases.filter(c => (!band || c.band === band) && (!rule || c.rules.includes(rule)) && (!del || c.deleted) && (!xap || c.contradictions > 0)
-    && (!text || [c.job_no, c.case_id, ...c.reasons].join(' ').toLowerCase().includes(text)));
-  document.getElementById('queue-count').textContent = `${list.length} of ${overview.cases.length} case(s) · ${overview.shipments} shipment(s) in evidence`;
-  const box = document.getElementById('cases');
-  box.replaceChildren(...list.map(c => $('div', { class: 'case' + (c.case_id === keep ? ' sel' : ''), onclick: () => openCase(c.case_id) },
-    $('div', { class: 'row' }, $('strong', {}, c.job_no ?? '(no job number)'), $('span', { class: 'tag ' + c.band }, `${c.priority} ${c.band}`)),
-    $('div', { class: 'mute' }, `${c.case_id} · ${c.status.replaceAll('_', ' ')} · ${c.n_anomaly_findings} finding(s), ${c.n_data_quality_findings} note(s)${c.contradictions ? ` · ${c.contradictions} contradiction(s)` : ''}${c.deleted ? ' · DELETED' : ''}`),
-    $('div', {}, c.reasons[0] || 'data-quality notes only'),
-    c.rules.length ? $('div', { class: 'mute mono' }, c.rules.join(' ')) : null,
-    c.ground_truth ? $('div', { class: 'mute' }, `synthetic ground truth: ${c.ground_truth.class} (${c.ground_truth.type})`) : null)));
-  if (!list.length) box.append($('div', { class: 'mute' }, overview.cases.length ? 'No case matches the filters.' : 'No cases.'));
+  if (!overview) return;
+  const text = byId('f-text').value.trim().toLowerCase(), band = byId('f-band').value, rule = byId('f-rule').value, status = byId('f-status').value;
+  const del = byId('f-deleted').checked, xap = byId('f-xap').checked, sort = byId('f-sort').value;
+  const list = overview.cases.filter(c => (!band || c.band === band) && (!rule || c.rules.includes(rule)) && (!status || c.status === status) && (!del || c.deleted) && (!xap || c.contradictions > 0)
+    && (!text || [c.job_no, c.case_id, ...c.reasons, ...c.rules].join(' ').toLowerCase().includes(text)));
+  const cmp = { priority: (a, b) => b.priority - a.priority, job: (a, b) => String(a.job_no).localeCompare(String(b.job_no)), findings: (a, b) => b.n_anomaly_findings - a.n_anomaly_findings || b.priority - a.priority, contradictions: (a, b) => (b.contradictions || 0) - (a.contradictions || 0) || b.priority - a.priority }[sort];
+  list.sort(cmp);
+  byId('queue-count').textContent = `${list.length} of ${plural(overview.cases.length, 'case')} · ${plural(overview.shipments, 'shipment')} in evidence`;
+  const box = byId('cases');
+  box.replaceChildren(...list.map(c => $('div', { class: 'case' + (c.case_id === (keep || selected) ? ' sel' : ''), role: 'option', tabindex: '0', 'aria-selected': String(c.case_id === selected), 'data-id': c.case_id,
+      onclick: () => go('cases', c.case_id), onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go('cases', c.case_id); } else if (e.key === 'ArrowDown') e.target.nextElementSibling?.focus(); else if (e.key === 'ArrowUp') e.target.previousElementSibling?.focus(); } },
+    $('span', { class: 'sev ' + c.band }, c.band), $('span', { class: 'job' }, c.job_no ?? '(no job number)', c.deleted ? $('span', { class: 'tag', style: 'margin-left:6px' }, 'deleted') : null), $('span', { class: 'score' }, c.priority),
+    $('div', { class: 'why' }, c.reasons[0] || 'Data-quality notes only'),
+    $('div', { class: 'meta' }, [human(c.status), plural(c.n_anomaly_findings, 'finding'), c.contradictions ? plural(c.contradictions, 'contradiction') : null, `${plural((c.applications || []).length, 'source')}: ${(c.applications || []).join(', ')}`].filter(Boolean).join(' · ')),
+    c.ground_truth ? $('div', { class: 'meta' }, `synthetic label: ${c.ground_truth.class} (${c.ground_truth.type})`) : null)));
+  if (!list.length) box.append($('div', { class: 'empty mute' }, overview.cases.length ? 'No case matches the filters.' : 'No cases. Nothing in the evidence raised a finding.'));
 }
 
+// ---------------- case ----------------
 function changes(list) {
   return $('ul', { class: 'chg' }, list.slice(0, 12).map(c => $('li', {}, c.field + ': ', $('span', { class: 'old' }, show(c.old)), ' → ', $('span', { class: 'new' }, show(c.new)))), list.length > 12 ? $('li', { class: 'mute' }, `… ${list.length - 12} more`) : null);
 }
-
-async function openCase(id) {
-  const d = await (await fetch('/api/cases/' + encodeURIComponent(id))).json();
-  document.querySelectorAll('.case').forEach(e => e.classList.remove('sel'));
-  const s = d.priority.components;
-  const el = document.getElementById('detail');
-  const overwritten = d.timeline.filter(t => t.action === 'job.updated' && t.changes.length);
-  el.replaceChildren(
-    $('div', { class: 'panel legend mute' },
-      $('span', {}, $('strong', {}, 'Recorded evidence'), ': hash-chained events and their values'),
-      $('span', {}, $('strong', {}, 'Inferred'), ': findings and contradictions (potential anomalies, not proof)'),
-      $('span', { class: 'warn' }, 'Unresolved'), $('span', {}, ': missing business rules, insufficient evidence, single-source values'),
-      d.ground_truth !== undefined ? $('span', {}, $('strong', {}, 'Synthetic ground truth'), ': scenario label, never used by the analysis') : null),
-    d.ground_truth ? $('div', { class: 'panel truth' }, $('h2', {}, 'Synthetic ground truth (not used by the analysis)'),
-      $('div', {}, `${d.ground_truth.class} · ${d.ground_truth.type} · expected rules: ${d.ground_truth.expected_rules.join(', ') || 'none'}`),
-      $('div', { class: 'mute' }, d.ground_truth.explanation),
-      (() => { const got = [...new Set(d.findings.filter(f => f.kind === 'anomaly').map(f => f.rule_id))].sort(), want = [...d.ground_truth.expected_rules].sort();
-        return $('div', { class: JSON.stringify(got) === JSON.stringify(want) ? 'ok' : 'warn' }, `raised: ${got.join(', ') || 'none'} — ${JSON.stringify(got) === JSON.stringify(want) ? 'matches the label' : 'differs from the label'}`); })()) : null,
-    $('div', { class: 'panel' },
-      $('h2', {}, 'Case'),
-      $('div', { class: 'row' }, $('strong', {}, `${d.case_id} — job ${d.job_no}`), $('span', { class: 'tag ' + d.priority.band }, `priority ${d.priority.value} (${d.priority.band})`)),
-      $('div', { class: 'mute' }, `status: ${d.status.replaceAll('_', ' ')} · correlation ${d.correlation_id} · job numbers seen: ${d.job_nos_seen.join(', ')} · sources: ${d.provenance.applications.join(', ')}`),
-      $('div', { class: 'mute' }, `score = families ${JSON.stringify(s.families)} → base ${s.base} + corroboration ${s.corroboration_bonus}, × evidence factor ${s.evidence_gap_factor}`)),
-    $('div', { class: 'panel' }, $('h2', {}, 'Why this was raised'),
-      d.findings.map(f => $('div', { class: 'finding ' + f.severity },
-        $('div', {}, $('span', { class: 'tag ' + f.severity }, f.severity), ' ', $('strong', {}, f.title), ' ', $('span', { class: 'mute' }, `${f.rule_id} v${f.rule_version} · ${f.kind.replace('_', ' ')}`)),
-        $('p', {}, f.explanation),
-        f.assessment && f.assessment.supports.length ? $('p', { class: 'ok' }, 'Supports: ' + f.assessment.supports.join(' ')) : null,
-        f.assessment && f.assessment.weakens.length ? $('p', { class: 'mute' }, 'Weakens: ' + f.assessment.weakens.join(' ')) : (f.assumptions.length ? $('p', { class: 'mute' }, 'Assumptions: ' + f.assumptions.join(' ')) : null),
-        $('div', { class: 'mute mono' }, 'evidence: ' + f.evidence_event_ids.join(', '))))),
-    d.limitations.length ? $('div', { class: 'panel' }, $('h2', {}, 'Uncertainty and limitations'), $('ul', {}, d.limitations.map(l => $('li', {}, l)))) : null,
-    ...(d.provenance ? provenancePanels(d.provenance) : []),
-    $('div', { class: 'panel' }, $('h2', {}, `Overwritten values (${overwritten.length} edit(s))${d.state_from_evidence && d.timeline.some(t => t.action === 'job.deleted') ? ' · job DELETED from the application; reconstructed from evidence' : ''}`),
-      overwritten.length ? $('table', {}, $('tr', {}, ['time', 'actor', 'old → new'].map(h => $('th', {}, h))),
-        overwritten.map(t => $('tr', { class: t.cited_by_finding ? 'cited' : '' }, $('td', {}, t.event_time.replace('T', ' ').replace('.000Z', '')), $('td', {}, t.actor || '—'), $('td', {}, changes(t.changes)))))
-        : $('div', { class: 'mute' }, 'No captured edit changed a value.'),
-      $('div', { class: 'mute' }, 'Earlier values survive only in the evidence store; the application keeps the latest value.')),
-    $('div', { class: 'panel' }, $('h2', {}, 'Document generations'),
-      $('table', {}, $('tr', {}, ['#', 'time', 'outcome', 'input hash', 'outputs (path · sha256 · content fingerprint)'].map(h => $('th', {}, h))),
-        d.generations.map((g, i) => $('tr', {},
-          $('td', {}, g.number), $('td', {}, g.at), $('td', { class: g.outcome === 'generated' ? 'ok' : 'warn' }, g.outcome),
-          $('td', { class: 'mono' }, short(g.input_sha256) + (i && g.input_sha256 === d.generations[i - 1].input_sha256 ? ' (same as previous)' : '')),
-          $('td', { class: 'mono' }, g.artifacts.length ? g.artifacts.map(a => $('div', {}, `${a.path} · ${short(a.sha256)} · ${short(a.content_fingerprint)}`)) : (g.error || '—').slice(0, 200))))),
-      $('div', { class: 'mute' }, 'A matching hash shows two files have the same content. It says nothing about whether that content is correct.')),
-    $('div', { class: 'panel' }, $('h2', {}, 'Timeline (highlighted rows are cited by a finding)'),
-      $('table', {}, $('tr', {}, ['seq', 'time (UTC)', 'actor', 'event', 'details'].map(h => $('th', {}, h))),
-        d.timeline.map(t => $('tr', { class: t.cited_by_finding ? 'cited' : '' },
-          $('td', {}, t.sequence), $('td', {}, t.event_time.replace('T', ' ').replace('.000Z', ''), $('div', { class: 'mute' }, t.time_basis), t.ingested_at ? $('div', { class: 'mute' }, 'ingested ' + t.ingested_at.replace('T', ' ').replace('.000Z', '')) : null, t.order_uncertain ? $('div', { class: 'warn' }, 'order vs neighbours uncertain') : null),
-          $('td', {}, t.actor || '—', $('div', { class: 'mute' }, t.actor_verified ? 'verified' : t.actor_source.replaceAll('_', ' ') + ', unverified')),
-          $('td', {}, t.summary, $('div', { class: 'mute mono' }, t.event_id), t.link ? $('div', { class: 'mute' }, 'link: ' + t.link) : null),
-          $('td', {}, t.changes.length ? changes(t.changes) : null, t.artifacts.map(a => $('div', { class: 'mono' }, `${a.role}: ${short(a.sha256)}`)))))),
-      d.gaps.length ? $('p', { class: 'warn' }, 'Evidence gaps: ' + d.gaps.map(g => g.detail).join(' | ')) : null,
-      $('p', { class: 'mute' }, d.timeline_note || 'An event missing from this list was not captured; that is not proof it did not happen.')),
-    $('div', { class: 'panel' }, $('h2', {}, 'Review outcome'),
-      d.dispositions.map(x => $('div', {}, `${x.at} — ${x.disposition.replaceAll('_', ' ')} by ${x.reviewer || 'unnamed'}: ${x.note}`)),
-      overview.review_enabled ? $('div', { style: 'display:grid; gap:6px; max-width:520px; margin-top:8px' },
-        $('select', { id: 'disp' }, overview.dispositions.map(x => $('option', { value: x }, x.replaceAll('_', ' ')))),
-        $('input', { id: 'reviewer', placeholder: 'reviewer name' }), $('input', { id: 'token', type: 'password', placeholder: 'review token' }),
-        $('textarea', { id: 'note', rows: 3, placeholder: 'basis for this assessment' }),
-        $('button', { onclick: () => saveDisposition(d.case_id) }, 'Record assessment'), $('span', { id: 'saved', class: 'mute' }))
-        : $('div', { class: 'mute' }, 'Read-only: recording assessments needs the dashboard to be started with FORENSIC_REVIEW_TOKEN.')));
-}
-
 const CLASS_STYLE = { potential_fraud_indicator_requiring_investigation: 'high', confirmed_data_inconsistency: 'medium', suspected_operational_anomaly: 'low', insufficient_evidence: 'informational', unresolved_business_rule_conflict: 'informational' };
 
-function provenancePanels(p) {
-  const item = i => $('div', { class: 'mono' }, `${i.application}: ${show(i.original)}${i.normalized !== null && typeof i.normalized !== 'object' ? ' = ' + i.normalized + (i.unit ? ' ' + i.unit : '') : ''}`, $('div', { class: 'mute' }, `${i.event_time.replace('T', ' ').replace('.000Z', '')} (${i.time_basis}) · ${i.actor.display_name || 'no actor'}${i.actor.verified ? ', verified' : ', unverified'} · ${i.evidence_id} · event ${i.event_id}`));
-  return [
-    $('div', { class: 'panel' }, $('h2', {}, 'Contradictions between applications'),
-      p.contradictions.length ? p.contradictions.map(c => $('div', { class: 'finding ' + (CLASS_STYLE[c.classification] || 'low') },
-        $('div', {}, $('span', { class: 'tag ' + (CLASS_STYLE[c.classification] || 'low') }, c.classification.replaceAll('_', ' ')), ' ', $('strong', {}, c.field.replaceAll('_', ' ')), ' ', $('span', { class: 'mute' }, `${c.rule_id} v${c.rule_version} · ${c.contradiction_id}`)),
-        $('p', {}, c.explanation),
-        c.items.map(item),
-        $('div', { class: 'mute' }, `sources: ${(c.independence || 'n/a').replaceAll('_', ' ')} · link: ${c.entity_match.method.replaceAll('_', ' ')}, confidence ${c.entity_match.confidence}${c.entity_match.ambiguous ? ' (AMBIGUOUS)' : ''}${c.ordering ? ` · order: ${c.ordering.relation}${c.ordering.uncertain ? ' (uncertain)' : ''}` : ''}${c.difference && c.difference.relative !== undefined ? ` · difference ${c.difference.absolute} (${(c.difference.relative * 100).toFixed(1)}%)` : ''}`),
-        c.supported_by.length ? $('p', { class: 'ok' }, 'Supports: ' + c.supported_by.join(' ')) : null,
-        c.weakened_by.length ? $('p', { class: 'mute' }, 'Weakens: ' + c.weakened_by.join(' ')) : null,
-        c.missing_business_rule ? $('p', { class: 'warn' }, 'Missing business rule: ' + c.missing_business_rule) : null,
-        $('p', { class: 'mute' }, 'Next step: ' + c.recommendation)))
-        : $('div', { class: 'mute' }, 'None found between the records linked to this shipment.')),
-    $('div', { class: 'panel' }, $('h2', {}, 'Where key values come from'),
-      $('table', {}, $('tr', {}, ['field', 'value in job', 'records agreeing', 'separate sources', 'reading'].map(h => $('th', {}, h))),
-        Object.values(p.corroboration).map(c => c.status === 'not_comparable'
-          ? $('tr', {}, $('td', {}, c.field.replaceAll('_', ' ')), $('td', { colspan: '4', class: 'mute' }, 'not comparable: ' + c.reason))
-          : $('tr', {}, $('td', {}, c.field.replaceAll('_', ' ')), $('td', { class: 'mono' }, show(c.value)), $('td', {}, c.agreeing_records), $('td', { class: c.needs_independent_source ? 'warn' : '' }, c.independent_roots), $('td', {}, c.statement, c.weak_agreement && c.weak_agreement.length ? $('div', { class: 'mute' }, `Also matched, on an assumption only: ${c.weak_agreement.map(w => w.application).join(', ')}.`) : null)))),
-      $('p', { class: 'mute' }, 'Records with one source are copies of one statement. Counting them twice would overstate the evidence.')),
-    $('div', { class: 'panel' }, $('h2', {}, 'Evidence trust: four separate questions'),
-      $('table', {},
-        $('tr', {}, $('th', {}, 'Integrity of captured records'), $('td', {}, p.trust.integrity, $('div', { class: 'mute' }, p.trust.integrity_scope))),
-        $('tr', {}, $('th', {}, 'Authenticity of sources'), $('td', {}, p.trust.authenticity)),
-        $('tr', {}, $('th', {}, 'Accuracy of values'), $('td', {}, p.trust.accuracy)),
-        $('tr', {}, $('th', {}, 'Independence'), $('td', {}, p.trust.independence))),
-      $('h2', { style: 'margin-top:10px' }, 'Related records from other applications'),
-      p.external_records.length ? $('table', {}, $('tr', {}, ['application', 'record', 'event time', 'link', 'confidence', 'comparable fields'].map(h => $('th', {}, h))),
-        p.external_records.map(r => $('tr', {}, $('td', {}, r.application), $('td', {}, r.action, $('div', { class: 'mute mono' }, r.event_id)), $('td', {}, r.event_time.replace('T', ' ').replace('.000Z', '')), $('td', { class: r.entity_match.ambiguous ? 'warn' : '' }, r.entity_match.method.replaceAll('_', ' ') + (r.entity_match.ambiguous ? ' (ambiguous)' : '')), $('td', {}, r.entity_match.confidence), $('td', {}, r.comparable_fields.join(', ') || 'none'))))
-        : $('div', { class: 'mute' }, 'None linked.'),
-      $('h2', { style: 'margin-top:10px' }, 'Missing independent evidence'),
-      $('ul', {}, p.missing_independent_evidence.map(m => $('li', {}, m))))
-  ];
+async function openCase(id) {
+  selected = id;
+  const el = byId('detail');
+  el.replaceChildren($('div', { class: 'card skeleton' }, 'Loading case…'));
+  document.querySelectorAll('.case').forEach(e => { const on = e.dataset.id === id; e.classList.toggle('sel', on); e.setAttribute('aria-selected', String(on)); });
+  let d;
+  try { d = await getJson('/api/cases/' + encodeURIComponent(id)); } catch (err) { return failBox(el, err); }
+  if (selected !== id) return;
+  const SEV = { high: 3, medium: 2, low: 1 };
+  const anomalies = d.findings.filter(f => f.kind === 'anomaly').sort((a, b) => (SEV[b.severity] || 0) - (SEV[a.severity] || 0)), notes = d.findings.filter(f => f.kind !== 'anomaly');
+  const p = d.provenance;
+  const realContra = p ? p.contradictions.filter(c => !['unresolved_business_rule_conflict', 'insufficient_evidence'].includes(c.classification)) : [];
+  const steps = [...new Set([...(p ? p.contradictions.map(c => c.recommendation) : []), ...(p ? p.missing_independent_evidence : [])].filter(Boolean))];
+  const overwritten = d.timeline.filter(t => t.action === 'job.updated' && t.changes.length);
+  const s = d.priority.components;
+  const top = anomalies[0];
+
+  el.replaceChildren(
+    $('div', { class: 'case-head' },
+      $('div', {}, $('div', { class: 't' }, `Job ${d.job_no ?? '—'}`), $('div', { class: 'mute' }, `${d.case_id} · ${human(d.status)} · sources: ${p ? p.applications.join(', ') : '—'}${d.deleted ? ' · job DELETED from the application' : ''}`)),
+      $('div', {}, $('span', { class: 'sev ' + d.priority.band }, `${d.priority.band} · ${d.priority.value}`))),
+    $('div', { class: 'why-box ' + (top ? top.severity : 'low') },
+      $('div', { class: 'mute', style: 'margin-bottom:2px' }, 'Why this was raised'),
+      $('div', { class: 'q' }, top ? top.title : 'Data-quality notes only'),
+      top ? $('div', { style: 'margin-top:4px; color:var(--ink-2)' }, top.explanation) : null,
+      $('div', { class: 'mute', style: 'margin-top:8px' }, `${plural(anomalies.length, 'anomaly finding')}, ${plural(notes.length, 'data-quality note')}, ${plural(realContra.length, 'contradiction')} between applications. A potential anomaly for review — not a finding of fraud.`)),
+    d.ground_truth ? $('div', { class: 'card truth' }, $('h2', {}, 'Synthetic ground truth (not used by the analysis)'),
+      $('div', {}, `${d.ground_truth.class} · ${d.ground_truth.type} · expected rules: ${d.ground_truth.expected_rules.join(', ') || 'none'}`),
+      $('div', { class: 'mute' }, d.ground_truth.explanation),
+      (() => { const got = [...new Set(anomalies.map(f => f.rule_id))].sort(), want = [...d.ground_truth.expected_rules].sort(), same = JSON.stringify(got) === JSON.stringify(want);
+        return $('div', { class: same ? 'ok' : 'warn' }, `raised: ${got.join(', ') || 'none'} — ${same ? 'matches the label' : 'differs from the label'}`); })()) : null,
+
+    $('div', { class: 'card', style: d.ground_truth ? 'margin-top:14px' : null },
+      $('h2', {}, 'Findings'),
+      d.findings.map(f => $('div', { class: 'finding' },
+        $('div', { class: 'ttl' }, $('span', { class: 'sev ' + f.severity }, f.severity), $('strong', {}, f.title), $('span', { class: 'mute' }, `${f.rule_id} v${f.rule_version} · ${human(f.kind)}`)),
+        $('p', {}, f.explanation),
+        f.assessment && f.assessment.supports.length ? $('p', { class: 'sup' }, 'Supports: ' + f.assessment.supports.join(' ')) : null,
+        f.assessment && f.assessment.weakens.length ? $('p', { class: 'wk' }, 'Weakens: ' + f.assessment.weakens.join(' ')) : (f.assumptions.length ? $('p', { class: 'wk' }, 'Assumptions: ' + f.assumptions.join(' ')) : null),
+        $('div', { class: 'mute mono', style: 'margin-top:4px' }, 'evidence: ' + f.evidence_event_ids.map(short).join(', '))))),
+
+    p ? contradictionsCard(p) : null,
+    steps.length || d.limitations.length ? $('div', { class: 'card' },
+      steps.length ? [$('h2', {}, 'Recommended next steps'), $('ol', { class: 'steps' }, steps.map(x => $('li', {}, x)))] : null,
+      d.limitations.length ? [$('h3', {}, 'Uncertainty and limitations'), $('ul', { class: 'steps' }, d.limitations.map(l => $('li', {}, l)))] : null) : null,
+    p ? independenceCard(p) : null,
+    timelineCard(d),
+    $('div', { class: 'card' },
+      $('h2', {}, 'Technical details'),
+      $('details', {}, $('summary', {}, 'Priority score'), $('div', { class: 'mono' }, `families ${JSON.stringify(s.families)} → base ${s.base} + corroboration ${s.corroboration_bonus}, × evidence factor ${s.evidence_gap_factor}`), $('div', { class: 'mute' }, `correlation ${d.correlation_id} · job numbers seen: ${d.job_nos_seen.join(', ')}`)),
+      p ? $('details', {}, $('summary', {}, 'Evidence trust: four separate questions'), table(['Question', 'Assessment'], [
+        $('tr', {}, $('td', {}, 'Integrity of captured records'), $('td', {}, p.trust.integrity, $('div', { class: 'mute' }, p.trust.integrity_scope))),
+        $('tr', {}, $('td', {}, 'Authenticity of sources'), $('td', {}, p.trust.authenticity)),
+        $('tr', {}, $('td', {}, 'Accuracy of values'), $('td', {}, p.trust.accuracy)),
+        $('tr', {}, $('td', {}, 'Independence'), $('td', {}, p.trust.independence))])) : null,
+      $('details', {}, $('summary', {}, `Overwritten values (${overwritten.length})`),
+        overwritten.length ? table(['Time', 'Actor', 'Old → new'], overwritten.map(t => $('tr', { class: t.cited_by_finding ? 'cited' : '' }, $('td', {}, when(t.event_time)), $('td', {}, t.actor || '—'), $('td', {}, changes(t.changes))))) : $('div', { class: 'mute' }, 'No captured edit changed a value.'),
+        $('div', { class: 'mute' }, 'Earlier values survive only in the evidence store; the application keeps the latest value.')),
+      $('details', {}, $('summary', {}, `Document generations (${d.generations.length})`),
+        $('div', { class: 'scroll' }, table(['#', 'Time', 'Outcome', 'Input hash', 'Outputs'], d.generations.map((g, i) => $('tr', {},
+          $('td', {}, g.number), $('td', {}, when(g.at)), $('td', { class: g.outcome === 'generated' ? 'ok' : 'warn' }, g.outcome),
+          $('td', { class: 'mono' }, short(g.input_sha256) + (i && g.input_sha256 === d.generations[i - 1].input_sha256 ? ' (same as previous)' : '')),
+          $('td', { class: 'mono' }, g.artifacts.length ? g.artifacts.map(a => $('div', {}, `${a.path} · ${short(a.sha256)}`)) : (g.error || '—').slice(0, 200)))))),
+        $('div', { class: 'mute' }, 'A matching hash shows two files have the same content. It says nothing about whether that content is correct.'))),
+    reviewCard(d));
+}
+
+function contradictionsCard(p) {
+  const item = i => $('div', { class: 'mono', style: 'margin-top:4px' }, `${i.application}: ${show(i.original)}${i.normalized !== null && typeof i.normalized !== 'object' ? ' = ' + i.normalized + (i.unit ? ' ' + i.unit : '') : ''}`,
+    $('div', { class: 'mute' }, `${when(i.event_time)} (${i.time_basis}) · ${i.actor.display_name || 'no actor'}${i.actor.verified ? ', verified' : ', unverified'}`));
+  return $('div', { class: 'card' }, $('h2', {}, 'Contradictions between applications'),
+    p.contradictions.length ? p.contradictions.map(c => $('div', { class: 'finding' },
+      $('div', { class: 'ttl' }, $('span', { class: 'sev ' + (CLASS_STYLE[c.classification] || 'low') }, human(c.classification)), $('strong', {}, human(c.field)), $('span', { class: 'mute' }, `${c.rule_id} v${c.rule_version}`)),
+      $('p', {}, c.explanation),
+      c.items.map(item),
+      $('div', { class: 'mute', style: 'margin-top:6px' }, `sources: ${human(c.independence || 'n/a')} · link: ${human(c.entity_match.method)}, confidence ${c.entity_match.confidence}${c.entity_match.ambiguous ? ' (AMBIGUOUS)' : ''}${c.ordering ? ` · order: ${c.ordering.relation}${c.ordering.uncertain ? ' (uncertain)' : ''}` : ''}${c.difference && c.difference.relative !== undefined ? ` · difference ${c.difference.absolute} (${(c.difference.relative * 100).toFixed(1)}%)` : ''}`),
+      c.supported_by.length ? $('p', { class: 'sup' }, 'Supports: ' + c.supported_by.join(' ')) : null,
+      c.weakened_by.length ? $('p', { class: 'wk' }, 'Weakens: ' + c.weakened_by.join(' ')) : null,
+      c.missing_business_rule ? $('p', { class: 'warn' }, 'Missing business rule: ' + c.missing_business_rule) : null))
+      : $('div', { class: 'mute' }, 'None found between the records linked to this shipment.'));
+}
+
+function independenceCard(p) {
+  return $('div', { class: 'card' }, $('h2', {}, 'Where key values come from'),
+    $('div', { class: 'scroll' }, table(['Field', 'Value in job', { t: 'Records agreeing', num: true }, { t: 'Separate sources', num: true }, 'Reading'],
+      Object.values(p.corroboration).map(c => c.status === 'not_comparable'
+        ? $('tr', {}, $('td', {}, human(c.field)), $('td', { colspan: '4', class: 'mute' }, 'not comparable: ' + c.reason))
+        : $('tr', {}, $('td', {}, human(c.field)), $('td', { class: 'mono' }, show(c.value)), $('td', { class: 'num' }, c.agreeing_records), $('td', { class: 'num ' + (c.needs_independent_source ? 'warn' : '') }, c.independent_roots), $('td', {}, c.statement, c.weak_agreement && c.weak_agreement.length ? $('div', { class: 'mute' }, `Also matched, on an assumption only: ${c.weak_agreement.map(w => w.application).join(', ')}.`) : null))))),
+    $('p', { class: 'mute', style: 'margin:10px 0 0' }, 'Records with one source are copies of one statement. Counting them twice would overstate the evidence.'),
+    $('h3', {}, 'Related records from other applications'),
+    p.external_records.length ? $('div', { class: 'scroll' }, table(['Application', 'Record', 'Event time', 'Link', { t: 'Confidence', num: true }, 'Comparable fields'],
+      p.external_records.map(r => $('tr', {}, $('td', {}, r.application), $('td', {}, human(r.action), $('div', { class: 'mute mono' }, short(r.event_id))), $('td', {}, when(r.event_time)), $('td', { class: r.entity_match.ambiguous ? 'st-ambiguous' : 'st-linked' }, human(r.entity_match.method) + (r.entity_match.ambiguous ? ' (uncertain)' : '')), $('td', { class: 'num' }, r.entity_match.confidence), $('td', {}, r.comparable_fields.join(', ') || 'none')))))
+      : $('div', { class: 'mute' }, 'None linked.'),
+    p.missing_independent_evidence.length ? [$('h3', {}, 'Missing independent evidence'), $('ul', { class: 'steps' }, p.missing_independent_evidence.map(m => $('li', {}, m)))] : null);
+}
+
+function timelineCard(d) {
+  const apps = [...new Set(d.timeline.map(t => t.application))];
+  const body = $('tbody');
+  const cited = $('input', { type: 'checkbox', id: 'tl-cited' }), app = $('select', { id: 'tl-app', 'aria-label': 'Application' }, $('option', { value: '' }, 'All applications'), apps.map(a => $('option', { value: a }, a)));
+  const draw = () => body.replaceChildren(...d.timeline.filter(t => (!cited.checked || t.cited_by_finding) && (!app.value || t.application === app.value)).map(t => $('tr', { class: t.cited_by_finding ? 'cited' : '' },
+    $('td', { class: 'num' }, t.sequence),
+    $('td', {}, when(t.event_time), $('div', { class: 'mute' }, t.time_basis), t.ingested_at ? $('div', { class: 'mute' }, 'ingested ' + when(t.ingested_at)) : null, t.order_uncertain ? $('div', { class: 'warn' }, 'order vs neighbours uncertain') : null),
+    $('td', {}, t.actor || '—', $('div', { class: 'mute' }, t.actor_verified ? 'verified' : human(t.actor_source) + ', unverified')),
+    $('td', {}, t.summary, $('div', { class: 'mute' }, t.application), t.link ? $('div', { class: 'mute' }, 'link: ' + t.link) : null),
+    $('td', {}, t.changes.length ? changes(t.changes) : null, t.artifacts.map(a => $('div', { class: 'mono' }, `${a.role}: ${short(a.sha256)}`))))));
+  cited.addEventListener('change', draw); app.addEventListener('change', draw); draw();
+  return $('div', { class: 'card' }, $('div', { class: 'toolbar', style: 'justify-content:space-between' }, $('h2', { style: 'margin:0' }, 'Timeline'), $('div', { class: 'toolbar', style: 'margin:0' }, $('label', { class: 'check' }, cited, 'Cited by a finding only'), app)),
+    $('div', { class: 'scroll' }, $('table', {}, $('thead', {}, $('tr', {}, ['Seq', 'Time (UTC)', 'Actor', 'Event', 'Details'].map(h => $('th', {}, h)))), body)),
+    d.gaps.length ? $('p', { class: 'warn' }, 'Evidence gaps: ' + d.gaps.map(g => g.detail).join(' | ')) : null,
+    $('p', { class: 'mute', style: 'margin:10px 0 0' }, d.timeline_note || 'An event missing from this list was not captured; that is not proof it did not happen.'));
+}
+
+function reviewCard(d) {
+  return $('div', { class: 'card' }, $('h2', {}, 'Review outcome'),
+    d.dispositions.length ? table(['When', 'Outcome', 'Reviewer', 'Basis'], d.dispositions.map(x => $('tr', {}, $('td', {}, when(x.at)), $('td', {}, human(x.disposition)), $('td', {}, (x.reviewer || 'unnamed') + (x.reviewer_verified ? '' : ' (unverified)')), $('td', {}, x.note)))) : $('div', { class: 'mute' }, 'No assessment recorded yet.'),
+    overview?.review_enabled ? $('div', { class: 'form', style: 'margin-top:12px' },
+      $('select', { id: 'disp', 'aria-label': 'Outcome' }, overview.dispositions.map(x => $('option', { value: x }, human(x)))),
+      $('input', { id: 'reviewer', type: 'text', placeholder: 'Reviewer name', 'aria-label': 'Reviewer name' }), $('input', { id: 'token', type: 'password', placeholder: 'Review token', 'aria-label': 'Review token' }),
+      $('textarea', { id: 'note', rows: 3, placeholder: 'Basis for this assessment', 'aria-label': 'Basis' }),
+      $('div', {}, $('button', { class: 'btn primary', onclick: () => saveDisposition(d.case_id) }, 'Record assessment'), ' ', $('span', { id: 'saved', class: 'mute' })))
+      : $('div', { class: 'mute', style: 'margin-top:8px' }, 'Read-only: recording assessments needs the dashboard to be started with FORENSIC_REVIEW_TOKEN.'));
 }
 
 async function saveDisposition(id) {
-  const val = x => document.getElementById(x).value;
+  const val = x => byId(x).value;
   const res = await fetch(`/api/cases/${encodeURIComponent(id)}/disposition`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Review-Token': val('token') }, body: JSON.stringify({ disposition: val('disp'), reviewer: val('reviewer'), note: val('note') }) });
   const body = await res.json();
-  if (!res.ok) { document.getElementById('saved').textContent = 'Not saved: ' + body.error; return; }
+  if (!res.ok) { byId('saved').textContent = 'Not saved: ' + body.error; return; }
   await loadOverview(id);
   openCase(id);
 }
 
-// ---- filters and tabs
-for (const id of ['f-text', 'f-band', 'f-rule', 'f-deleted', 'f-xap']) document.getElementById(id).addEventListener('input', () => renderQueue());
-const tab = name => {
-  document.getElementById('view-cases').classList.toggle('hidden', name !== 'cases');
-  document.getElementById('view-eval').classList.toggle('hidden', name !== 'eval');
-  document.getElementById('tab-cases').classList.toggle('on', name === 'cases');
-  document.getElementById('tab-eval').classList.toggle('on', name === 'eval');
-  if (name === 'eval') loadEvaluation();
-};
-document.getElementById('tab-cases').addEventListener('click', () => tab('cases'));
-document.getElementById('tab-eval').addEventListener('click', () => tab('eval'));
-
-// ---- evaluation (synthetic data; results of evaluation/summarize.js)
-const f3 = v => (v === null || v === undefined ? 'n/a' : Number(v).toFixed(3));
-const frac = (a, b) => (b ? `${a}/${b} (${(100 * a / b).toFixed(1)}%)` : 'n/a');
-async function loadEvaluation() {
-  const box = document.getElementById('evaluation');
-  const res = await fetch('/api/evaluation');
-  const e = await res.json();
-  if (!res.ok) { box.replaceChildren($('div', { class: 'panel warn' }, e.error)); return; }
-  const V = Object.keys(e.variants);
-  const cm = (k, p) => $('div', { class: 'panel' }, $('h2', {}, `${k} · ${e.variants[k]}`),
-    $('table', { class: 'cm' }, $('tr', {}, $('th', {}, ''), $('th', {}, 'flagged'), $('th', {}, 'not flagged')),
-      $('tr', {}, $('th', {}, 'anomaly (label)'), $('td', {}, p.tp), $('td', {}, p.fn)),
-      $('tr', {}, $('th', {}, 'negative (label)'), $('td', {}, p.fp), $('td', {}, p.tn))),
-    $('div', { class: 'mute' }, `precision ${f3(p.precision)} · recall ${f3(p.recall)} · F1 ${f3(p.f1)} · FPR ${f3(p.false_positive_rate)}`));
-  const inv = e.investigation;
-  box.replaceChildren(
-    $('div', { class: 'panel warn' }, `SYNTHETIC DATA ONLY. Rules, scenarios and labels share one author; these figures show the implementation matches its specification, not real-world accuracy. Code ${String(e.run.code_commit).slice(0, 7)}, evaluated ${e.run.evaluated_at}, held-out datasets: ${e.held_out.join(', ')}.`),
-    $('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px' }, V.map(k => cm(k, e.pooled[k]))),
-    $('div', { class: 'panel' }, $('h2', {}, 'Rules, framework and Isolation Forest (pooled)'),
-      $('table', {}, $('tr', {}, ['variant', 'precision', 'recall', 'F1', 'FPR'].map(h => $('th', {}, h))),
-        V.map(k => $('tr', {}, $('td', {}, `${k} ${e.variants[k]}`), ...['precision', 'recall', 'f1', 'false_positive_rate'].map(m => $('td', {}, f3(e.pooled[k][m]))))),
-        Object.entries(e.ml).flatMap(([name, m]) => [['Isolation Forest only', 'ml_only'], ['A + Isolation Forest', 'rules_or_ml'], ['D + Isolation Forest', 'full_or_ml']].map(([label, key]) =>
-          $('tr', {}, $('td', {}, `${label} (${name})`), ...['precision', 'recall', 'f1', 'false_positive_rate'].map(x => $('td', {}, `${f3(m[key][x].mean)} ±${f3(m[key][x].sd)}`)))))),
-      $('div', { class: 'mute' }, 'Isolation Forest: mean ± sd over model seeds.')),
-    $('div', { class: 'panel' }, $('h2', {}, 'Per seed'),
-      $('table', {}, $('tr', {}, $('th', {}, 'variant'), e.held_out.map(d => $('th', {}, d))),
-        V.map(k => $('tr', {}, $('td', {}, k), e.per_seed[k].map(s => $('td', {}, `R ${f3(s.recall)} · P ${f3(s.precision)} · FPR ${f3(s.false_positive_rate)}`)))))),
-    $('div', { class: 'panel' }, $('h2', {}, 'By category (recall for anomaly categories, flag rate for negatives)'),
-      $('table', {}, $('tr', {}, $('th', {}, 'category'), $('th', {}, 'n'), V.map(k => $('th', {}, k))),
-        Object.entries(e.by_category).sort().map(([c, x]) => $('tr', {}, $('td', {}, c), $('td', {}, x.n), V.map(k => $('td', { class: ['normal', 'hard_negative', 'data_quality'].includes(c) ? (x.flagged[k] ? 'warn' : '') : (x.flagged[k] < x.n ? 'warn' : 'ok') }, f3(x.flagged[k] / x.n))))))),
-    $('div', { class: 'panel' }, $('h2', {}, 'Per scenario type'),
-      $('table', {}, $('tr', {}, $('th', {}, 'scenario'), $('th', {}, 'class'), $('th', {}, 'n'), V.map(k => $('th', {}, `${k} flagged`)), $('th', {}, 'D exact rules')),
-        Object.entries(e.by_type).sort((a, b) => a[1].class.localeCompare(b[1].class) || a[0].localeCompare(b[0])).map(([t, x]) => $('tr', {}, $('td', {}, t), $('td', {}, x.class), $('td', {}, x.n),
-          V.map(k => $('td', { class: x.class === 'anomaly' ? (x.flagged[k] < x.n ? 'warn' : '') : (x.flagged[k] ? 'warn' : '') }, x.flagged[k])), $('td', {}, `${x.exact_D}/${x.n}`))))),
-    $('div', { class: 'panel' }, $('h2', {}, 'False alarms (negative jobs flagged)'),
-      V.map(k => $('div', {}, `${k}: ${e.false_alarms[k].length}`, e.false_alarms[k].length ? $('div', { class: 'mute' }, e.false_alarms[k].slice(0, 20).map(x => `${x.dataset}/${x.job_no} ${x.type} [${x.fired.join(',')}]`).join('; ')) : null))),
-    $('div', { class: 'panel' }, $('h2', {}, 'Investigation quality (provenance and contradictions)'),
-      $('table', {}, $('tr', {}, ['measure', 'C provenance', 'X no lineage', 'D full'].map(h => $('th', {}, h))),
-        [['conflicting field identified', i => frac(i.conflicts.identified, i.conflicts.expected)],
-         ['lineage expectations met', i => frac(i.lineage_expectations.met, i.lineage_expectations.expected)],
-         ['copies counted as independent', i => frac(i.restraint.multi_record_agreement_counted_as_independent, i.restraint.multi_record_agreement_fields)],
-         ['external records linked correctly', i => frac(i.linkage.correctly_linked, i.linkage.expected_linked)],
-         ['unattributable left unlinked', i => frac(i.linkage.correctly_unlinked, i.linkage.expected_unlinked)],
-         ['ambiguous marked ambiguous', i => frac(i.linkage.correctly_ambiguous, i.linkage.expected_ambiguous)],
-         ['wrong attributions', i => String(i.linkage.wrongly_attributed)],
-         ['findings citing existing events', i => frac(i.provenance.findings_traceable, i.provenance.findings)]]
-          .map(([label, fn]) => $('tr', {}, $('td', {}, label), ['C', 'X', 'D'].map(k => $('td', {}, fn(inv[k])))))),
-      $('div', { class: 'mute' }, 'Lineage changes what the investigator is told (single source vs. independent agreement), not whether a job is flagged.')));
+// ---------------- evidence ----------------
+const STATUS_LABEL = { linked: 'Linked', ambiguous: 'Uncertain', unlinked: 'Unlinked' };
+function evidenceTable(rows, full) {
+  return table(['Status', 'Application', 'Record', 'Event time', 'Linked to', full ? 'Basis' : null].filter(Boolean), rows.map(r => {
+    const tr = $('tr', {},
+      $('td', { class: 'st-' + r.status }, STATUS_LABEL[r.status] || r.status, r.conflict ? $('div', { class: 'mute' }, 'conflict') : null),
+      $('td', {}, r.application, $('div', { class: 'mute' }, human(r.action))),
+      $('td', {}, r.label || '—', $('div', { class: 'mute mono' }, short(r.event_id))),
+      $('td', {}, when(r.event_time)),
+      $('td', {}, r.job_nos.length ? r.job_nos.map((j, i) => r.case_ids[i] ? $('a', { href: '#/cases/' + encodeURIComponent(r.case_ids[i]), style: 'margin-right:6px' }, j) : $('span', { style: 'margin-right:6px' }, j)) : '—',
+        r.status !== 'unlinked' ? $('div', { class: 'mute' }, `${human(r.method)} · ${r.confidence}`) : null),
+      full ? $('td', {}, r.basis, r.conflict ? $('div', { class: 'warn' }, r.conflict) : null,
+        $('details', {}, $('summary', {}, 'Details'), $('div', { class: 'mono' }, `event ${r.event_id} · seq ${r.sequence} · recorded ${when(r.recorded_at)}`),
+          $('div', { class: 'mute' }, `actor: ${r.actor || 'none'}${r.actor_verified ? '' : ' (claimed, unverified)'} · typed reference: ${r.shipment_ref_supplied === null ? 'none' : show(r.shipment_ref_supplied)}`),
+          r.artifacts.map(a => $('div', { class: 'mono' }, `${a.role}: ${a.sha256 || 'no hash'}`)),
+          evidence?.review_enabled && r.status !== 'linked' ? linkForm(r) : null)) : null);
+    return tr;
+  }));
+}
+function linkForm(r) {
+  const job = $('input', { type: 'text', placeholder: 'Job number', 'aria-label': 'Job number' }), why = $('input', { type: 'text', placeholder: 'Reason (recorded with the link)', 'aria-label': 'Reason' }),
+    who = $('input', { type: 'text', placeholder: 'Reviewer name', 'aria-label': 'Reviewer name' }), tok = $('input', { type: 'password', placeholder: 'Review token', 'aria-label': 'Review token' }), msg = $('span', { class: 'mute' });
+  return $('div', { class: 'form' }, $('strong', {}, 'Link by hand'), $('div', { class: 'mute' }, 'Recorded as a new evidence event with your reason; the record itself is not changed. If the record points elsewhere the link stays uncertain.'), job, why, who, tok,
+    $('div', {}, $('button', { class: 'btn primary', onclick: async () => {
+      const res = await fetch(`/api/evidence/${encodeURIComponent(r.event_id)}/link`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Review-Token': tok.value }, body: JSON.stringify({ job_no: job.value, reason: why.value, reviewer: who.value }) });
+      const body = await res.json();
+      if (!res.ok) { msg.textContent = 'Not recorded: ' + body.error; return; }
+      await loadOverview(); loadEvidence(true);
+    } }, 'Record link'), ' ', msg));
+}
+async function loadEvidence(force) {
+  const box = byId('ev-table');
+  if (!evidence || force) {
+    box.replaceChildren($('div', { class: 'skeleton', style: 'padding:16px' }, 'Loading evidence…'));
+    try { evidence = await getJson('/api/evidence'); } catch (err) { return failBox(box, err); }
+  }
+  if (overview) {
+    const i = overview.integrity;
+    byId('ev-integrity').replaceChildren($('div', { class: 'callout ' + (i.ok ? '' : 'warn'), style: 'margin-bottom:14px' },
+      i.ok ? [$('strong', {}, `Hash chain intact: ${i.count} events, head ${short(i.last_hash)}. `), 'This shows the records were not altered after they were captured. It does not show that what they say is true, nor who typed it.']
+        : [$('strong', {}, `Integrity problems: ${i.problems.length}. `), i.problems.slice(0, 5).map(p => p.type).join(', ')]));
+  }
+  const st = segVal('ev-status'), text = byId('ev-text').value.trim().toLowerCase();
+  const rows = evidence.records.filter(r => (!st || r.status === st) && (!text || [r.application, r.label, r.event_id, ...r.job_nos, r.basis].join(' ').toLowerCase().includes(text)));
+  const counts = Object.fromEntries(['linked', 'ambiguous', 'unlinked'].map(k => [k, evidence.records.filter(r => r.status === k).length]));
+  byId('ev-status').querySelectorAll('button').forEach(b => { b.textContent = (b.dataset.v ? STATUS_LABEL[b.dataset.v] : 'All') + ' ' + (b.dataset.v ? counts[b.dataset.v] : evidence.records.length); });
+  box.replaceChildren(rows.length ? evidenceTable(rows, true) : $('div', { class: 'empty' }, evidence.records.length ? 'No record matches the filters.' : 'No records from the desktop tools yet.'));
 }
 
+// ---------------- evaluation ----------------
+const f3 = v => (v === null || v === undefined ? 'n/a' : Number(v).toFixed(3));
+const frac = (a, b) => (b ? `${a}/${b} (${(100 * a / b).toFixed(1)}%)` : 'n/a');
+const ci = x => x && x.ci95 ? ` [${f3(x.ci95[0])}–${f3(x.ci95[1])}]` : '';
+let evalLoaded = false;
+async function loadEvaluation() {
+  if (evalLoaded) return;
+  const box = byId('evaluation');
+  let e;
+  try { e = await getJson('/api/evaluation'); } catch (err) { box.replaceChildren($('div', { class: 'callout' }, err.status === 404 ? 'No evaluation results yet. Run evaluation/evaluate.js and evaluation/summarize.js.' : 'Could not load: ' + err.message)); return; }
+  evalLoaded = true;
+  const V = Object.keys(e.variants), D = e.pooled.D;
+  const cm = (k, p) => $('div', { class: 'card' }, $('h2', {}, `${k} · ${e.variants[k]}`),
+    table(['', { t: 'Flagged', num: true }, { t: 'Not flagged', num: true }], [
+      $('tr', {}, $('th', {}, 'anomaly (label)'), $('td', { class: 'num' }, p.tp), $('td', { class: 'num' }, p.fn)),
+      $('tr', {}, $('th', {}, 'negative (label)'), $('td', { class: 'num' }, p.fp), $('td', { class: 'num' }, p.tn))], 'cm'),
+    $('div', { class: 'mute', style: 'margin-top:8px' }, `precision ${f3(p.precision)} · recall ${f3(p.recall)} · F1 ${f3(p.f1)} · FPR ${f3(p.false_positive_rate)}`));
+  const metricRow = (label, x, sd) => $('tr', {}, $('td', {}, label), ...['precision', 'recall', 'f1', 'false_positive_rate'].map(m => $('td', { class: 'num' }, sd ? `${f3(x[m].mean)} ±${f3(x[m].sd)}` : f3(x[m]) + ci(x.ci && x.ci[m] ? { ci95: x.ci[m] } : null))));
+  const inv = e.investigation;
+  const ciOf = (p, m) => ci(p.ci && { ci95: p.ci[m] });
+  const pooledRow = (k, p) => $('tr', {}, $('td', {}, `${k} ${e.variants[k] || ''}`), ['tp', 'fp', 'fn', 'tn'].map(m => $('td', { class: 'num' }, p[m])),
+    ['precision', 'recall', 'false_positive_rate'].map(m => $('td', { class: 'num' }, f3(p[m]) + ciOf(p, m))));
+  const familyRow = ([t, x]) => $('tr', {}, $('td', {}, t), $('td', {}, x.class), $('td', { class: 'num' }, x.n),
+    V.map(k => $('td', { class: 'num ' + (x.class === 'anomaly' ? (x.flagged[k] < x.n ? 'warn' : '') : (x.flagged[k] ? 'warn' : '')) }, x.flagged[k])));
+  const setBlock = (title, s) => {
+    if (!s) return null;
+    const pooled = table(['Variant', { t: 'TP', num: true }, { t: 'FP', num: true }, { t: 'FN', num: true }, { t: 'TN', num: true }, { t: 'Precision', num: true }, { t: 'Recall', num: true }, { t: 'FPR', num: true }],
+      Object.entries(s.pooled).map(([k, p]) => pooledRow(k, p)));
+    const fam = s.by_type ? $('details', {}, $('summary', {}, 'Per scenario family'),
+      $('div', { class: 'scroll' }, table(['Family', 'Class', { t: 'n', num: true }, ...V.map(k => ({ t: k + ' flagged', num: true }))],
+        Object.entries(s.by_type).sort((a, b) => a[1].class.localeCompare(b[1].class) || a[0].localeCompare(b[0])).map(familyRow)))) : null;
+    return $('div', { class: 'card' }, $('h2', {}, title), s.note ? $('p', { class: 'mute', style: 'margin-top:0' }, s.note) : null, $('div', { class: 'scroll' }, pooled), fam);
+  };
+  box.replaceChildren(
+    $('div', { class: 'callout warn', style: 'margin-bottom:18px' }, $('strong', {}, 'SYNTHETIC DATA ONLY — not real-world performance. '), `Rules, scenarios and labels share one author; these figures show the implementation behaves as specified on generated data. Code ${String(e.run.code_commit).slice(0, 7)}, evaluated ${when(e.run.evaluated_at)}, held-out datasets: ${e.held_out.join(', ')}.`),
+    $('div', { class: 'kpis' },
+      $('div', { class: 'kpi' }, $('div', { class: 'v' }, f3(D.precision)), $('div', { class: 'l' }, 'Precision, full framework' + ci(D.ci && { ci95: D.ci.precision }))),
+      $('div', { class: 'kpi' }, $('div', { class: 'v' }, f3(D.recall)), $('div', { class: 'l' }, 'Recall, full framework' + ci(D.ci && { ci95: D.ci.recall }))),
+      $('div', { class: 'kpi' }, $('div', { class: 'v' }, f3(D.false_positive_rate)), $('div', { class: 'l' }, 'False-positive rate' + ci(D.ci && { ci95: D.ci.false_positive_rate }))),
+      $('div', { class: 'kpi' }, $('div', { class: 'v' }, f3(e.pooled.A.recall)), $('div', { class: 'l' }, 'Recall, rules alone (A)'))),
+    $('div', { class: 'card' }, $('h2', {}, 'Rules, framework and baselines (pooled over held-out seeds)'),
+      $('div', { class: 'scroll' }, table(['Variant', { t: 'Precision', num: true }, { t: 'Recall', num: true }, { t: 'F1', num: true }, { t: 'FPR', num: true }], [
+        ...V.map(k => metricRow(`${k} ${e.variants[k]}`, { ...e.pooled[k], ci: e.pooled[k].ci })),
+        ...Object.entries(e.ml).flatMap(([name, m]) => [['Isolation Forest only', 'ml_only'], ['A + Isolation Forest', 'rules_or_ml'], ['D + Isolation Forest', 'full_or_ml']].map(([label, key]) => metricRow(`${label} (${name})`, m[key], true)))])),
+      $('div', { class: 'mute', style: 'margin-top:8px' }, 'Brackets: 95% Wilson interval over jobs. Isolation Forest: mean ± sd over model seeds.')),
+    $('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); margin-top:14px' }, V.map(k => cm(k, e.pooled[k]))),
+    setBlock('Unseen scenario families', e.unseen),
+    setBlock('Previous held-out seeds, re-scored', e.previous_heldout),
+    e.per_rule ? $('div', { class: 'card' }, $('h2', {}, 'Each rule alone (full framework, pooled)'), $('div', { class: 'scroll' }, table(['Rule', { t: 'On anomalies', num: true }, { t: 'On negatives', num: true }, { t: 'Precision', num: true }],
+      Object.entries(e.per_rule).sort().map(([id, o]) => $('tr', {}, $('td', { class: 'mono' }, id), $('td', { class: 'num' }, o.on_anomaly), $('td', { class: 'num ' + (o.on_negative ? 'warn' : '') }, o.on_negative), $('td', { class: 'num' }, f3(o.precision))))))) : null,
+    $('div', { class: 'card' }, $('h2', {}, 'Detail'),
+      $('details', {}, $('summary', {}, 'Per seed'), $('div', { class: 'scroll' }, table(['Variant', ...e.held_out], V.map(k => $('tr', {}, $('td', {}, k), e.per_seed[k].map(s => $('td', {}, `R ${f3(s.recall)} · P ${f3(s.precision)} · FPR ${f3(s.false_positive_rate)}`))))))),
+      $('details', {}, $('summary', {}, 'By category'), $('div', { class: 'scroll' }, table(['Category', { t: 'n', num: true }, ...V.map(k => ({ t: k, num: true }))],
+        Object.entries(e.by_category).sort().map(([c, x]) => $('tr', {}, $('td', {}, c), $('td', { class: 'num' }, x.n), V.map(k => $('td', { class: 'num ' + (['normal', 'hard_negative', 'data_quality'].includes(c) ? (x.flagged[k] ? 'warn' : '') : (x.flagged[k] < x.n ? 'warn' : 'ok')) }, f3(x.flagged[k] / x.n)))))))),
+      $('details', { open: '' }, $('summary', {}, 'Per scenario type'), $('div', { class: 'scroll' }, table(['Scenario', 'Class', { t: 'n', num: true }, ...V.map(k => ({ t: `${k} flagged`, num: true })), { t: 'D exact rules', num: true }],
+        Object.entries(e.by_type).sort((a, b) => a[1].class.localeCompare(b[1].class) || a[0].localeCompare(b[0])).map(([t, x]) => $('tr', {}, $('td', {}, t), $('td', {}, x.class), $('td', { class: 'num' }, x.n),
+          V.map(k => $('td', { class: 'num ' + (x.class === 'anomaly' ? (x.flagged[k] < x.n ? 'warn' : '') : (x.flagged[k] ? 'warn' : '')) }, x.flagged[k])), $('td', { class: 'num' }, `${x.exact_D}/${x.n}`)))))),
+      $('details', {}, $('summary', {}, 'False alarms (negative jobs flagged)'),
+        V.map(k => $('div', { style: 'margin-bottom:6px' }, $('strong', {}, `${k}: ${e.false_alarms[k].length}`), e.false_alarms[k].length ? $('div', { class: 'mute' }, e.false_alarms[k].slice(0, 20).map(x => `${x.dataset}/${x.job_no} ${x.type} [${x.fired.join(',')}]`).join('; ')) : null))),
+      $('details', {}, $('summary', {}, 'Missed anomalies by type'), $('div', { class: 'scroll' }, table(['Variant', 'Missed (type: count)'], V.map(k => $('tr', {}, $('td', {}, k), $('td', {}, Object.entries(e.missed_by_type[k] || {}).map(([t, n]) => `${t}: ${n}`).join(', ') || 'none')))))),
+      $('details', {}, $('summary', {}, 'Investigation quality (provenance and contradictions)'),
+        $('div', { class: 'scroll' }, table(['Measure', 'C provenance', 'X no lineage', 'D full'],
+          [['conflicting field identified', i => frac(i.conflicts.identified, i.conflicts.expected)],
+           ['lineage expectations met', i => frac(i.lineage_expectations.met, i.lineage_expectations.expected)],
+           ['copies counted as independent', i => frac(i.restraint.multi_record_agreement_counted_as_independent, i.restraint.multi_record_agreement_fields)],
+           ['external records linked correctly', i => frac(i.linkage.correctly_linked, i.linkage.expected_linked)],
+           ['unattributable left unlinked', i => frac(i.linkage.correctly_unlinked, i.linkage.expected_unlinked)],
+           ['ambiguous marked ambiguous', i => frac(i.linkage.correctly_ambiguous, i.linkage.expected_ambiguous)],
+           ['wrong attributions', i => String(i.linkage.wrongly_attributed)],
+           ['findings citing existing events', i => frac(i.provenance.findings_traceable, i.provenance.findings)]]
+            .map(([label, fn]) => $('tr', {}, $('td', {}, label), ['C', 'X', 'D'].map(k => $('td', {}, fn(inv[k]))))))),
+        $('div', { class: 'mute' }, 'Lineage changes what the investigator is told (single source vs. independent agreement), not whether a job is flagged.'))));
+}
+
+// ---------------- wiring ----------------
+for (const id of ['f-text', 'f-rule', 'f-status', 'f-sort', 'f-deleted', 'f-xap']) byId(id).addEventListener('input', () => renderQueue());
+byId('f-band').addEventListener('change', () => { setSeg('f-band-seg', byId('f-band').value); renderQueue(); });
+byId('f-band-seg').addEventListener('click', e => { if (e.target.dataset.v === undefined) return; setSeg('f-band-seg', e.target.dataset.v); renderQueue(); });
+byId('ev-status').addEventListener('click', e => { if (e.target.dataset.v === undefined) return; setSeg('ev-status', e.target.dataset.v); loadEvidence(); });
+byId('ev-text').addEventListener('input', () => loadEvidence());
+
+route();
 loadOverview();
 </script>
 </body>

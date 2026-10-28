@@ -21,6 +21,13 @@ const sum = list => list.reduce((a, m) => ({ tp: a.tp + m.tp, fp: a.fp + m.fp, f
 const mean = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
 const sd = xs => Math.sqrt(mean(xs.map(x => (x - mean(xs)) ** 2)));
 const ratio = (a, b) => (b ? a / b : null);
+// 95% Wilson score interval for k successes in n trials (jobs are the unit).
+const wilson = (k, n, z = 1.96) => {
+  if (!n) return null;
+  const p = k / n, d = 1 + z * z / n, c = (p + z * z / (2 * n)) / d, h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+  return [Math.max(0, c - h), Math.min(1, c + h)];
+};
+const withCi = m => ({ ...m, ci: { precision: wilson(m.tp, m.tp + m.fp), recall: wilson(m.tp, m.tp + m.fn), false_positive_rate: wilson(m.fp, m.fp + m.tn) } });
 
 const held = fw.datasets.filter(d => d.class_counts.anomaly > 0);
 const fitOnly = fw.datasets.filter(d => d.class_counts.anomaly === 0);
@@ -30,7 +37,7 @@ const out = { run: fw.run, variants: fw.variants, held_out: held.map(d => d.data
 
 for (const k of V) {
   out.per_seed[k] = held.map(d => ({ dataset: d.dataset, ...d.detection[k] }));
-  out.pooled[k] = fromCounts(sum(held.map(d => d.detection[k])));
+  out.pooled[k] = withCi(fromCounts(sum(held.map(d => d.detection[k]))));
   out.seed_spread[k] = Object.fromEntries(['precision', 'recall', 'f1', 'false_positive_rate'].map(m => [m, { mean: mean(held.map(d => d.detection[k][m] ?? 0)), sd: sd(held.map(d => d.detection[k][m] ?? 0)) }]));
   out.fit_set_false_positive_rate[k] = fitOnly.map(d => ({ dataset: d.dataset, ...d.detection[k] }));
   out.false_alarms[k] = held.flatMap(d => d.errors[k].false_alarms.map(x => ({ dataset: d.dataset, ...x })));
@@ -77,6 +84,30 @@ for (const f of mlFiles) {
   };
 }
 
+// Each rule alone, pooled: how many labelled anomalies and negatives it fired on.
+out.per_rule = {};
+for (const d of held) for (const [id, x] of Object.entries(d.per_rule || {})) {
+  const o = out.per_rule[id] || (out.per_rule[id] = { on_anomaly: 0, on_negative: 0 });
+  o.on_anomaly += x.on_anomaly; o.on_negative += x.on_negative;
+}
+for (const o of Object.values(out.per_rule)) o.precision = ratio(o.on_anomaly, o.on_anomaly + o.on_negative);
+
+// Further sets scored with the same code: pooled detection and per-family flag counts.
+const EXTRA = {
+  previous_heldout: ['dev_heldout.json', 'Seeds 4-6: the held-out sets of the previous round. Their results were read in detail during development (no rule or threshold was changed afterwards), so they are no longer untouched; re-scored here with the current code.'],
+  unseen: ['unseen.json', 'Scenario families written after the rules were fixed and committed before generation (synthetic/unseen_scenarios.js); never used for tuning. Same author as the rules: less template leakage, not less author bias. Clean jobs are included as the normal base rate.']
+};
+for (const [key, [file, note]] of Object.entries(EXTRA)) {
+  if (!fs.existsSync(path.join(RES, file))) continue;
+  const x = load(file), ds = x.datasets.filter(d => d.class_counts.anomaly > 0);
+  const by_type = {};
+  for (const d of ds) for (const [t, y] of Object.entries(d.by_type)) {
+    const o = by_type[t] || (by_type[t] = { class: y.class, n: 0, flagged: Object.fromEntries(V.map(k => [k, 0])) });
+    o.n += y.n; for (const k of V) o.flagged[k] += y.flagged[k];
+  }
+  out[key] = { note, run: x.run, datasets: ds.map(d => d.dataset), pooled: Object.fromEntries(V.map(k => [k, withCi(fromCounts(sum(ds.map(d => d.detection[k]))))])), by_type };
+}
+
 fs.writeFileSync(path.join(RES, 'final_summary.json'), JSON.stringify(out, null, 1));
 
 // ---- markdown
@@ -84,8 +115,9 @@ const f3 = v => (v === null || v === undefined ? 'n/a' : v.toFixed(3));
 const pct = (a, b) => (b ? `${a}/${b} (${(100 * a / b).toFixed(1)}%)` : `${a}/0 (n/a)`);
 const md = [];
 md.push(`Code ${fw.run.code_commit}${fw.run.uncommitted_changes ? ' (with uncommitted changes)' : ''}; Node ${fw.run.node}; evaluated ${fw.run.evaluated_at}.`, '');
-md.push('### Detection, pooled over held-out seeds', '', '| Variant | TP | FP | FN | TN | Precision | Recall | F1 | FPR |', '|---|---|---|---|---|---|---|---|---|');
-for (const k of V) { const p = out.pooled[k]; md.push(`| ${k} ${fw.variants[k]} | ${p.tp} | ${p.fp} | ${p.fn} | ${p.tn} | ${f3(p.precision)} | ${f3(p.recall)} | ${f3(p.f1)} | ${f3(p.false_positive_rate)} |`); }
+const iv = x => (x ? ` [${f3(x[0])}, ${f3(x[1])}]` : '');
+md.push(`### Detection, pooled over held-out seeds (${held.map(d => d.dataset).join(', ')}); brackets: 95% Wilson interval`, '', '| Variant | TP | FP | FN | TN | Precision | Recall | F1 | FPR |', '|---|---|---|---|---|---|---|---|---|');
+for (const k of V) { const p = out.pooled[k]; md.push(`| ${k} ${fw.variants[k]} | ${p.tp} | ${p.fp} | ${p.fn} | ${p.tn} | ${f3(p.precision)}${iv(p.ci.precision)} | ${f3(p.recall)}${iv(p.ci.recall)} | ${f3(p.f1)} | ${f3(p.false_positive_rate)}${iv(p.ci.false_positive_rate)} |`); }
 for (const [name, m] of Object.entries(out.ml)) {
   for (const [label, key] of [['B Isolation Forest only', 'ml_only'], ['A + Isolation Forest', 'rules_or_ml'], ['D + Isolation Forest', 'full_or_ml']]) {
     const x = m[key]; md.push(`| ${label} (${name}, ${m.tested_on.join('+')}) | | | | | ${f3(x.precision.mean)} ±${f3(x.precision.sd)} | ${f3(x.recall.mean)} ±${f3(x.recall.sd)} | ${f3(x.f1.mean)} ±${f3(x.f1.sd)} | ${f3(x.false_positive_rate.mean)} ±${f3(x.false_positive_rate.sd)} |`);
@@ -118,5 +150,17 @@ md.push('', '### False alarms (negative jobs flagged), pooled', '');
 for (const k of V) md.push(`- ${k}: ${out.false_alarms[k].length}${out.false_alarms[k].length ? ' — ' + out.false_alarms[k].map(x => `${x.dataset}/${x.type} [${x.fired.join(',')}]`).join('; ') : ''}`);
 md.push('', '### Hard-negative and fit-set false-positive rate', '');
 for (const k of V) md.push(`- ${k}: hard-negative FPR per seed ${held.map(d => f3(d.hard_negative_fpr[k])).join(' / ')}; fit set ${out.fit_set_false_positive_rate[k].map(x => `${x.dataset} FPR ${f3(x.false_positive_rate)}`).join(', ') || 'none'}`);
+md.push('', '### Each rule alone (full framework, pooled): labelled jobs it fired on', '', '| Rule | on anomalies | on negatives | precision |', '|---|---|---|---|');
+for (const [id, o] of Object.entries(out.per_rule).sort()) md.push(`| ${id} | ${o.on_anomaly} | ${o.on_negative} | ${f3(o.precision)} |`);
+for (const key of Object.keys(EXTRA)) {
+  const x = out[key];
+  if (!x) continue;
+  md.push('', `### ${key === 'unseen' ? 'Unseen scenario families' : 'Previous held-out seeds, re-scored'} (${x.datasets.join(', ')}; code ${x.run.code_commit?.slice(0, 7)})`, '', x.note, '', '| Variant | TP | FP | FN | TN | Precision | Recall | FPR |', '|---|---|---|---|---|---|---|---|');
+  for (const k of V) { const p = x.pooled[k]; md.push(`| ${k} | ${p.tp} | ${p.fp} | ${p.fn} | ${p.tn} | ${f3(p.precision)}${iv(p.ci.precision)} | ${f3(p.recall)}${iv(p.ci.recall)} | ${f3(p.false_positive_rate)}${iv(p.ci.false_positive_rate)} |`); }
+  if (key === 'unseen') {
+    md.push('', '| Family | class | n | ' + V.map(k => k + ' flagged').join(' | ') + ' |', '|---|---|---|' + V.map(() => '---|').join(''));
+    for (const [t, y] of Object.entries(x.by_type).sort((a, b) => a[1].class.localeCompare(b[1].class) || a[0].localeCompare(b[0]))) md.push(`| ${t} | ${y.class} | ${y.n} | ` + V.map(k => y.flagged[k]).join(' | ') + ' |');
+  }
+}
 fs.writeFileSync(path.join(RES, 'final_summary.md'), md.join('\n') + '\n');
 console.log(md.join('\n'));
